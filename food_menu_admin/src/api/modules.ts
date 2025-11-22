@@ -58,6 +58,27 @@ export type BannerQuery = {
   pageSize: number;
 };
 
+export type UserQuery = {
+  page: number;
+  pageSize: number;
+  username?: string;
+  phone?: string;
+  name?: string;
+  type?: number;
+  status?: number;
+};
+
+export type UserPayload = {
+  id?: number;
+  username: string;
+  password?: string;
+  phone?: string;
+  name?: string;
+  avatar?: string;
+  type?: number;
+  status?: number;
+};
+
 export const login = (data: LoginPayload) => http.post('/user/login', data);
 
 export const fetchProfile = () => http.get('/user/info');
@@ -102,4 +123,12 @@ export const fetchBannerDetail = (id: number) => http.get(`/banner/${id}`);
 export const createBanner = (data: BannerPayload) => http.post('/banner', data);
 export const updateBanner = (data: BannerPayload) => http.put('/banner', data);
 export const removeBanner = (id: number) => http.delete('/banner', { params: { id } });
+
+export const fetchUsers = (params: UserQuery) => http.get('/user/page', { params });
+export const createUser = (data: UserPayload) => http.post('/user', data);
+export const deleteUser = (id: number) => http.delete(`/user/${id}`);
+export const updateUserStatus = (id: number, status: number) =>
+  http.put('/user/status', null, { params: { id, status } });
+export const resetUserPassword = (id: number) => http.put(`/user/reset-password/${id}`);
+
 

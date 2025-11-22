@@ -5,6 +5,7 @@ import DashboardView from '@/views/dashboard/DashboardView.vue';
 import DishesView from '@/views/dishes/DishesView.vue';
 import OrdersView from '@/views/orders/OrdersView.vue';
 import BannersView from '@/views/banners/BannersView.vue';
+import UsersView from '@/views/users/UsersView.vue';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -43,6 +44,12 @@ const routes: RouteRecordRaw[] = [
         name: 'banners',
         component: BannersView,
         meta: { title: '轮播图管理' }
+      },
+      {
+        path: 'users',
+        name: 'users',
+        component: UsersView,
+        meta: { title: '用户管理' }
       }
     ]
   }

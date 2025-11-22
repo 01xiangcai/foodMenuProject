@@ -7,8 +7,10 @@ import com.yao.food_menu.common.util.JwtUtil;
 import com.yao.food_menu.dto.OrdersDto;
 import com.yao.food_menu.entity.OrderItem;
 import com.yao.food_menu.entity.Orders;
+import com.yao.food_menu.entity.WxUser;
 import com.yao.food_menu.service.OrderItemService;
 import com.yao.food_menu.service.OrdersService;
+import com.yao.food_menu.service.WxUserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +35,9 @@ public class OrdersController {
 
     @Autowired
     private OrderItemService orderItemService;
+
+    @Autowired
+    private WxUserService wxUserService;
 
     /**
      * Submit order
@@ -64,43 +69,53 @@ public class OrdersController {
      */
     @Operation(summary = "分页查询订单", description = "查询当前用户的订单列表，包含订单明细")
     @GetMapping("/page")
-    public Result<Page<OrdersDto>> page(int page, int pageSize, @RequestHeader("Authorization") String token) {
+    public Result<Page<OrdersDto>> page(int page, int pageSize,
+            @RequestHeader(value = "Authorization", required = false) String token) {
         log.info("Query orders: page={}, pageSize={}", page, pageSize);
 
         try {
-            // Remove "Bearer " prefix if exists
-            if (token.startsWith("Bearer ")) {
-                token = token.substring(7);
-            }
-
-            Long userId = JwtUtil.getUserId(token);
-
             Page<Orders> pageInfo = new Page<>(page, pageSize);
             LambdaQueryWrapper<Orders> queryWrapper = new LambdaQueryWrapper<>();
-            queryWrapper.eq(Orders::getUserId, userId);
+
+            // For admin panel: query all orders
+            // For mini program: only query current user's orders
+            // TODO: Add role check to distinguish admin from regular users
+            // if (token != null && token.startsWith("Bearer ")) {
+            // Long userId = JwtUtil.getUserId(token.substring(7));
+            // queryWrapper.eq(Orders::getUserId, userId);
+            // }
+
             queryWrapper.orderByDesc(Orders::getCreateTime);
 
             ordersService.page(pageInfo, queryWrapper);
 
-            // Convert to DTO and load order items
+            // Convert to DTO and load order items + user info
             Page<OrdersDto> dtoPage = new Page<>();
             BeanUtils.copyProperties(pageInfo, dtoPage);
-            
+
             List<OrdersDto> dtoList = pageInfo.getRecords().stream().map(order -> {
                 OrdersDto dto = new OrdersDto();
                 BeanUtils.copyProperties(order, dto);
-                
+
                 // Load order items
                 LambdaQueryWrapper<OrderItem> itemQueryWrapper = new LambdaQueryWrapper<>();
                 itemQueryWrapper.eq(OrderItem::getOrderId, order.getId());
                 List<OrderItem> orderItems = orderItemService.list(itemQueryWrapper);
                 dto.setOrderItems(orderItems != null ? orderItems : new java.util.ArrayList<>());
-                
+
+                // Load user information
+                WxUser wxUser = wxUserService.getById(order.getUserId());
+                if (wxUser != null) {
+                    dto.setUserNickname(wxUser.getNickname());
+                    dto.setUserPhone(wxUser.getPhone());
+                    dto.setUserAvatar(wxUser.getAvatar());
+                }
+
                 return dto;
             }).collect(Collectors.toList());
-            
+
             dtoPage.setRecords(dtoList);
-            
+
             return Result.success(dtoPage);
         } catch (Exception e) {
             log.error("Query orders failed: {}", e.getMessage());

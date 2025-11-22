@@ -17,4 +17,9 @@ public class OrdersDto extends Orders {
     // Order items
     @JsonProperty("orderItems")
     private List<OrderItem> orderItems;
+
+    // User information (for admin panel)
+    private String userNickname; // User nickname
+    private String userPhone; // User phone
+    private String userAvatar; // User avatar
 }

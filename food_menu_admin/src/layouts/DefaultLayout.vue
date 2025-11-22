@@ -49,7 +49,8 @@ const links = [
   { path: '/', label: '家庭看板', icon: 'i-tabler-dashboard' },
   { path: '/dishes', label: '家庭菜单', icon: 'i-tabler-notebook' },
   { path: '/orders', label: '订单记录', icon: 'i-tabler-activity-heartbeat' },
-  { path: '/banners', label: '轮播图管理', icon: 'i-tabler-photo' }
+  { path: '/banners', label: '轮播图管理', icon: 'i-tabler-photo' },
+  { path: '/users', label: '用户管理', icon: 'i-tabler-users' }
 ];
 
 const now = ref('');

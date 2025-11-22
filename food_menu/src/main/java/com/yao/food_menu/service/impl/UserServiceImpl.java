@@ -1,19 +1,24 @@
 package com.yao.food_menu.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.yao.food_menu.common.util.JwtUtil;
 import com.yao.food_menu.dto.LoginDto;
+import com.yao.food_menu.dto.UserDto;
+import com.yao.food_menu.dto.UserQueryDto;
 import com.yao.food_menu.entity.User;
 import com.yao.food_menu.mapper.UserMapper;
 import com.yao.food_menu.service.UserService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @Slf4j
@@ -93,7 +98,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             return loginDto.getType();
         }
 
-        boolean hasCredential = StringUtils.hasText(loginDto.getUsername()) && StringUtils.hasText(loginDto.getPassword());
+        boolean hasCredential = StringUtils.hasText(loginDto.getUsername())
+                && StringUtils.hasText(loginDto.getPassword());
         boolean hasPhoneCode = StringUtils.hasText(loginDto.getPhone()) && StringUtils.hasText(loginDto.getCode());
 
         if (hasCredential && hasPhoneCode) {
@@ -114,5 +120,91 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public User getCurrentUser(Long userId) {
         return this.getById(userId);
+    }
+
+    @Override
+    public Page<User> pageUsers(UserQueryDto queryDto) {
+        Page<User> page = new Page<>(queryDto.getPage(), queryDto.getPageSize());
+        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
+
+        // Fuzzy search
+        queryWrapper.like(StringUtils.hasText(queryDto.getUsername()), User::getUsername, queryDto.getUsername());
+        queryWrapper.like(StringUtils.hasText(queryDto.getPhone()), User::getPhone, queryDto.getPhone());
+        queryWrapper.like(StringUtils.hasText(queryDto.getName()), User::getName, queryDto.getName());
+
+        // Exact match
+        queryWrapper.eq(queryDto.getStatus() != null, User::getStatus, queryDto.getStatus());
+
+        // Order by create time desc
+        queryWrapper.orderByDesc(User::getCreateTime);
+
+        return this.page(page, queryWrapper);
+    }
+
+    @Override
+    public void createUser(UserDto userDto) {
+        // Check if username already exists
+        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(User::getUsername, userDto.getUsername());
+        User existingUser = this.getOne(queryWrapper);
+
+        if (existingUser != null) {
+            throw new RuntimeException("Username already exists");
+        }
+
+        // Create new user
+        User user = new User();
+        BeanUtils.copyProperties(userDto, user);
+
+        // Encrypt password
+        user.setPassword(passwordEncoder.encode(userDto.getPassword()));
+
+        // Set default values
+        if (user.getStatus() == null) {
+            user.setStatus(1); // Enabled by default
+        }
+
+        this.save(user);
+    }
+
+    @Override
+    public void deleteUser(Long id) {
+        User user = this.getById(id);
+        if (user == null) {
+            throw new RuntimeException("User not found");
+        }
+
+        // Soft delete: set status to disabled
+        user.setStatus(0);
+        this.updateById(user);
+    }
+
+    @Override
+    public void updateUserStatus(Long id, Integer status) {
+        User user = this.getById(id);
+        if (user == null) {
+            throw new RuntimeException("User not found");
+        }
+
+        user.setStatus(status);
+        this.updateById(user);
+    }
+
+    @Override
+    public String resetPassword(Long id) {
+        User user = this.getById(id);
+        if (user == null) {
+            throw new RuntimeException("User not found");
+        }
+
+        // Generate random password (8 characters)
+        String newPassword = UUID.randomUUID().toString().substring(0, 8);
+
+        // Encrypt and save
+        user.setPassword(passwordEncoder.encode(newPassword));
+        this.updateById(user);
+
+        // Return plain password for admin to notify user
+        return newPassword;
     }
 }
