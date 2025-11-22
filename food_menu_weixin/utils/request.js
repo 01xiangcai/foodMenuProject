@@ -39,6 +39,7 @@ const request = (options = {}) => {
 };
 
 module.exports = {
-  request
+  request,
+  BASE_URL
 };
 

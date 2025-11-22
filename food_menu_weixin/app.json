@@ -4,7 +4,8 @@
     "pages/menu/menu",
     "pages/profile/profile",
     "pages/detail/detail",
-    "pages/orders/orders"
+    "pages/orders/orders",
+    "pages/login/login"
   ],
   "window": {
     "backgroundTextStyle": "light",
@@ -42,4 +43,3 @@
   "style": "v2",
   "lazyCodeLoading": "requiredComponents"
 }
-

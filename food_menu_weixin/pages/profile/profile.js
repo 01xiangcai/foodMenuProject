@@ -12,8 +12,9 @@ Page({
       password: ''
     },
     editForm: {
-      name: '',
-      avatar: ''
+      nickname: '',
+      avatar: '',
+      avatarPreview: ''
     }
   },
 
@@ -35,7 +36,7 @@ Page({
     }
 
     try {
-      const res = await request({ url: '/user/info' });
+      const res = await request({ url: '/wx/user/info' });
       this.setData({ user: res.data });
     } catch (error) {
       console.error('获取用户信息失败:', error);
@@ -93,7 +94,7 @@ Page({
     this.setData({ loginLoading: true });
     try {
       const res = await request({
-        url: '/user/login',
+        url: '/wx/user/login',
         method: 'POST',
         data: {
           username,
@@ -101,13 +102,13 @@ Page({
           type: 1
         }
       });
-      
+
       // 保存 token
       wx.setStorageSync('fm_token', res.data);
-      
+
       // 重新加载用户信息
       await this.loadUserInfo();
-      
+
       this.setData({ showLogin: false });
       wx.showToast({
         title: '登录成功',
@@ -130,8 +131,9 @@ Page({
     this.setData({
       showEdit: true,
       editForm: {
-        name: user?.name || '',
-        avatar: user?.avatar || ''
+        nickname: user?.nickname || '',
+        avatar: user?.avatar || '',
+        avatarPreview: user?.avatar || ''
       }
     });
   },
@@ -144,11 +146,107 @@ Page({
   // 昵称输入
   onNameInput(e) {
     this.setData({
-      'editForm.name': e.detail.value
+      'editForm.nickname': e.detail.value
     });
   },
 
-  // 头像URL输入
+  // 选择头像
+  chooseAvatar() {
+    wx.chooseImage({
+      count: 1,
+      sizeType: ['compressed'],
+      sourceType: ['album', 'camera'],
+      success: (res) => {
+        const tempFilePath = res.tempFilePaths[0];
+        this.setData({
+          'editForm.avatarPreview': tempFilePath
+        });
+
+        // 立即上传头像
+        this.uploadAvatar(tempFilePath);
+      },
+      fail: (error) => {
+        console.error('选择图片失败:', error);
+        wx.showToast({
+          title: '选择图片失败',
+          icon: 'none'
+        });
+      }
+    });
+  },
+
+  // 上传头像到OSS
+  async uploadAvatar(filePath) {
+    wx.showLoading({ title: '上传中...' });
+
+    try {
+      const token = wx.getStorageSync('fm_token');
+      if (!token) {
+        throw new Error('请先登录');
+      }
+
+      console.log('开始上传头像, URL:', getApp().globalData.baseUrl + '/wx/user/avatar');
+
+      // 使用微信上传文件API
+      const uploadRes = await new Promise((resolve, reject) => {
+        wx.uploadFile({
+          url: getApp().globalData.baseUrl + '/wx/user/avatar',
+          filePath: filePath,
+          name: 'file',
+          header: {
+            'Authorization': 'Bearer ' + token
+          },
+          success: resolve,
+          fail: reject
+        });
+      });
+
+      console.log('上传响应:', uploadRes);
+      console.log('响应状态码:', uploadRes.statusCode);
+      console.log('响应数据:', uploadRes.data);
+
+      // 检查HTTP状态码
+      if (uploadRes.statusCode !== 200) {
+        throw new Error(`服务器错误 (${uploadRes.statusCode})`);
+      }
+
+      const result = JSON.parse(uploadRes.data);
+      console.log('解析后的结果:', result);
+
+      if (result.code === 1) {
+        // 保存objectKey和presignedUrl
+        this.setData({
+          'editForm.avatar': result.data.objectKey,
+          'editForm.avatarPreview': result.data.presignedUrl
+        });
+        wx.showToast({
+          title: '上传成功',
+          icon: 'success'
+        });
+      } else {
+        // 显示后端返回的具体错误信息
+        const errorMsg = result.message || result.msg || '上传失败';
+        throw new Error(errorMsg + ' (code: ' + result.code + ')');
+      }
+    } catch (error) {
+      console.error('上传头像失败:', error);
+      // 显示详细错误信息
+      const errorMsg = error.message || error.errMsg || '上传失败';
+      wx.showModal({
+        title: '上传失败',
+        content: errorMsg,
+        showCancel: false
+      });
+      // 恢复之前的头像
+      this.setData({
+        'editForm.avatarPreview': this.data.editForm.avatar || ''
+      });
+    } finally {
+      wx.hideLoading();
+    }
+  },
+
+  // 头像URL输入（已废弃，保留以兼容）
   onAvatarInput(e) {
     this.setData({
       'editForm.avatar': e.detail.value
@@ -157,8 +255,8 @@ Page({
 
   // 更新用户信息
   async handleUpdateProfile() {
-    const { name, avatar } = this.data.editForm;
-    if (!name) {
+    const { nickname, avatar } = this.data.editForm;
+    if (!nickname) {
       wx.showToast({
         title: '请输入昵称',
         icon: 'none'
@@ -169,17 +267,17 @@ Page({
     this.setData({ updateLoading: true });
     try {
       await request({
-        url: '/user',
+        url: '/wx/user',
         method: 'PUT',
         data: {
-          name,
+          nickname,
           avatar
         }
       });
-      
+
       // 重新加载用户信息
       await this.loadUserInfo();
-      
+
       this.setData({ showEdit: false });
       wx.showToast({
         title: '更新成功',

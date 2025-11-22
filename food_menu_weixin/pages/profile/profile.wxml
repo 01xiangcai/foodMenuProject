@@ -4,7 +4,7 @@
     <view class="user-header" wx:if="{{user}}">
       <image class="avatar" src="{{user.avatar || 'https://dummyimage.com/120x120/6366f1/ffffff&text=头像'}}" mode="aspectFill" />
       <view class="user-info">
-        <text class="username">{{user.name || '未设置昵称'}}</text>
+        <text class="username">{{user.nickname || '未设置昵称'}}</text>
         <text class="user-phone">{{user.phone || '未绑定手机'}}</text>
       </view>
       <view class="edit-btn" bindtap="editProfile">
@@ -93,11 +93,17 @@
       <view class="modal-body">
         <view class="input-group">
           <text class="input-label">昵称</text>
-          <input class="input-field" type="text" placeholder="请输入昵称" value="{{editForm.name}}" bindinput="onNameInput" />
+          <input class="input-field" type="text" placeholder="请输入昵称" value="{{editForm.nickname}}" bindinput="onNameInput" />
         </view>
         <view class="input-group">
-          <text class="input-label">头像URL</text>
-          <input class="input-field" type="text" placeholder="请输入头像URL" value="{{editForm.avatar}}" bindinput="onAvatarInput" />
+          <text class="input-label">头像</text>
+          <view class="avatar-upload" bindtap="chooseAvatar">
+            <image wx:if="{{editForm.avatarPreview}}" class="avatar-preview" src="{{editForm.avatarPreview}}" mode="aspectFill" />
+            <view wx:else class="avatar-placeholder">
+              <text class="upload-icon">📷</text>
+              <text class="upload-text">点击选择头像</text>
+            </view>
+          </view>
         </view>
         <button class="submit-btn" bindtap="handleUpdateProfile" loading="{{updateLoading}}">保存</button>
       </view>

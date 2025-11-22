@@ -20,7 +20,13 @@ public class AliyunOssProperties {
     private String folder;
 
     /**
-     * Optional custom domain (e.g. CDN). When not provided, public oss url will be built automatically.
+     * Avatar folder for user avatar uploads
+     */
+    private String avatarFolder;
+
+    /**
+     * Optional custom domain (e.g. CDN). When not provided, public oss url will be
+     * built automatically.
      */
     private String domain;
 
@@ -29,4 +35,3 @@ public class AliyunOssProperties {
      */
     private Integer presignedUrlExpirationHours = 24;
 }
-

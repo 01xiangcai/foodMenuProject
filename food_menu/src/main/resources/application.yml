@@ -51,3 +51,4 @@ aliyun:
     access-key-secret: ueDZl8rmIIl4aVWzC7vM751eCZv0nf
     bucket-name: food-menu-yao
     folder: food-menu/
+    avatar-folder: avatars/

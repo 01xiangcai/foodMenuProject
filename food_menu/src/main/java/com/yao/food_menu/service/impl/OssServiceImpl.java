@@ -27,12 +27,21 @@ public class OssServiceImpl implements OssService {
 
     @Override
     public String upload(MultipartFile file) {
+        return uploadToFolder(file, ossProperties.getFolder());
+    }
+
+    @Override
+    public String uploadAvatar(MultipartFile file) {
+        return uploadToFolder(file, ossProperties.getAvatarFolder());
+    }
+
+    private String uploadToFolder(MultipartFile file, String folderConfig) {
         OSS ossClient = null;
         try {
             String clientEndpoint = normalizeEndpoint(ossProperties.getEndpoint());
             ossClient = new OSSClientBuilder()
                     .build(clientEndpoint, ossProperties.getAccessKeyId(), ossProperties.getAccessKeySecret());
-            String folder = ossProperties.getFolder();
+            String folder = folderConfig;
             if (folder == null) {
                 folder = "";
             }
@@ -44,7 +53,8 @@ public class OssServiceImpl implements OssService {
             String objectName = folder + datePath + "/" + fileName;
             ossClient.putObject(ossProperties.getBucketName(), objectName, file.getInputStream());
             // Return object key (relative path) instead of URL
-            // The frontend should save this to database, and convert to presigned URL when displaying
+            // The frontend should save this to database, and convert to presigned URL when
+            // displaying
             return objectName;
         } catch (IOException e) {
             throw new RuntimeException("Upload file to OSS failed", e);
@@ -71,7 +81,8 @@ public class OssServiceImpl implements OssService {
     }
 
     private String generatePresignedUrl(OSS ossClient, String objectKey) {
-        Date expiration = new Date(System.currentTimeMillis() + ossProperties.getPresignedUrlExpirationHours() * 3600 * 1000L);
+        Date expiration = new Date(
+                System.currentTimeMillis() + ossProperties.getPresignedUrlExpirationHours() * 3600 * 1000L);
         GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(
                 ossProperties.getBucketName(), objectKey);
         request.setExpiration(expiration);
@@ -98,5 +109,23 @@ public class OssServiceImpl implements OssService {
             return url.replace("https://", "").replace("http://", "");
         }
     }
-}
 
+    @Override
+    public String extractKeyFromUrl(String url) {
+        if (!StringUtils.hasText(url) || !url.startsWith("http")) {
+            return url;
+        }
+        try {
+            URL u = new URL(url);
+            String path = u.getPath();
+            // Remove leading slash
+            if (path.startsWith("/")) {
+                path = path.substring(1);
+            }
+            return path;
+        } catch (MalformedURLException e) {
+            log.warn("Failed to parse URL to extract key: {}", url);
+            return url;
+        }
+    }
+}
