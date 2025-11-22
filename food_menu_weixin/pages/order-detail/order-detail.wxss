@@ -21,8 +21,9 @@
 /* 详情容器 */
 .detail-container {
   height: 100vh;
-  padding: 24rpx;
+  padding: 32rpx;
   padding-bottom: 120rpx;
+  box-sizing: border-box;
 }
 
 /* 状态卡片 */
@@ -169,7 +170,7 @@
   left: 0;
   right: 0;
   padding: 24rpx;
-  background: var(--card-bg);
+  background: var(--modal-bg);
   border-top: 1rpx solid var(--border-color);
   box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.1);
 }
@@ -180,9 +181,12 @@
   border-radius: 40rpx;
   font-size: 30rpx;
   font-weight: 500;
-  background: transparent;
-  color: var(--text-secondary);
-  border: 1rpx solid var(--border-color);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-color);
+  border: 1rpx solid var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .cancel-btn:active {
