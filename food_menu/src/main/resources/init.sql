@@ -148,10 +148,25 @@ CREATE TABLE IF NOT EXISTS `banner` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='轮播图表';
 
 -- ====================================
+-- 8. 菜品收藏表
+-- ====================================
+CREATE TABLE IF NOT EXISTS `dish_favorite` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `user_id` BIGINT NOT NULL COMMENT '用户ID',
+  `dish_id` BIGINT NOT NULL COMMENT '菜品ID',
+  `create_time` DATETIME DEFAULT NULL COMMENT '收藏时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_dish` (`user_id`, `dish_id`) COMMENT '用户-菜品唯一索引',
+  KEY `idx_user_id` (`user_id`) COMMENT '用户ID索引',
+  KEY `idx_dish_id` (`dish_id`) COMMENT '菜品ID索引'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='菜品收藏表';
+
+-- ====================================
 -- 初始化测试数据
 -- ====================================
 
 -- 清空现有数据(如果需要重新初始化)
+TRUNCATE TABLE `dish_favorite`;
 TRUNCATE TABLE `banner`;
 TRUNCATE TABLE `order_detail`;
 TRUNCATE TABLE `orders`;

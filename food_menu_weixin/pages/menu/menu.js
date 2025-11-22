@@ -155,40 +155,88 @@ Page({
   },
 
   // 切换收藏状态
-  toggleFavorite(e) {
+  async toggleFavorite(e) {
     const dish = e.currentTarget.dataset.item;
     if (!dish || !dish.id) return;
+
+    const token = wx.getStorageSync('fm_token');
+    if (!token) {
+      wx.showToast({
+        title: '请先登录',
+        icon: 'none'
+      });
+      return;
+    }
 
     const favorites = { ...this.data.favorites };
     const isFavorite = !favorites[dish.id];
 
-    // 更新收藏状态
-    if (isFavorite) {
-      favorites[dish.id] = true;
-      wx.showToast({
-        title: '已收藏',
-        icon: 'success',
-        duration: 1500
+    try {
+      if (isFavorite) {
+        // 添加收藏 - 调用后端API
+        const res = await request({
+          url: '/favorite/add',
+          method: 'POST',
+          data: { dishId: dish.id }
+        });
+        
+        if (res.code === 1) {
+          favorites[dish.id] = true;
+          // 同步到本地存储
+          this.saveFavorites(favorites);
+          
+          wx.showToast({
+            title: '已收藏',
+            icon: 'success',
+            duration: 1500
+          });
+        } else {
+          wx.showToast({
+            title: res.msg || '收藏失败',
+            icon: 'none'
+          });
+          return;
+        }
+      } else {
+        // 取消收藏 - 调用后端API
+        const res = await request({
+          url: `/favorite/remove/${dish.id}`,
+          method: 'DELETE'
+        });
+        
+        if (res.code === 1) {
+          delete favorites[dish.id];
+          // 同步到本地存储
+          this.saveFavorites(favorites);
+          
+          wx.showToast({
+            title: '已取消收藏',
+            icon: 'none',
+            duration: 1500
+          });
+        } else {
+          wx.showToast({
+            title: res.msg || '取消收藏失败',
+            icon: 'none'
+          });
+          return;
+        }
+      }
+
+      // 更新当前菜品列表中的收藏状态
+      const dishes = this.data.dishes.map(item => {
+        if (item.id === dish.id) {
+          return { ...item, isFavorite };
+        }
+        return item;
       });
-    } else {
-      delete favorites[dish.id];
+      this.setData({ dishes });
+    } catch (error) {
+      console.error('Toggle favorite failed:', error);
       wx.showToast({
-        title: '已取消收藏',
-        icon: 'none',
-        duration: 1500
+        title: '操作失败，请稍后重试',
+        icon: 'none'
       });
     }
-
-    // 保存收藏状态
-    this.saveFavorites(favorites);
-
-    // 更新当前菜品列表中的收藏状态
-    const dishes = this.data.dishes.map(item => {
-      if (item.id === dish.id) {
-        return { ...item, isFavorite };
-      }
-      return item;
-    });
-    this.setData({ dishes });
   }
 });
