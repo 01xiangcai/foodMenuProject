@@ -1,0 +1,107 @@
+<view class="profile-page">
+  <!-- 用户信息卡片 -->
+  <view class="glass-card user-card">
+    <view class="user-header" wx:if="{{user}}">
+      <image class="avatar" src="{{user.avatar || 'https://dummyimage.com/120x120/6366f1/ffffff&text=头像'}}" mode="aspectFill" />
+      <view class="user-info">
+        <text class="username">{{user.name || '未设置昵称'}}</text>
+        <text class="user-phone">{{user.phone || '未绑定手机'}}</text>
+      </view>
+      <view class="edit-btn" bindtap="editProfile">
+        <text>编辑</text>
+      </view>
+    </view>
+    <view class="login-prompt" wx:else>
+      <view class="avatar-placeholder">
+        <text class="avatar-icon">👤</text>
+      </view>
+      <view class="login-info">
+        <text class="login-title">登录后享受更多服务</text>
+        <text class="login-desc">查看订单、收藏菜品等</text>
+      </view>
+      <view class="login-btn" bindtap="showLoginModal">
+        <text>立即登录</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 功能菜单 -->
+  <view class="glass-card menu-section">
+    <view class="menu-item" bindtap="navigateToOrders">
+      <view class="menu-icon">📋</view>
+      <text class="menu-text">我的订单</text>
+      <text class="menu-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="navigateToFavorites">
+      <view class="menu-icon">❤️</view>
+      <text class="menu-text">我的收藏</text>
+      <text class="menu-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="navigateToAddress">
+      <view class="menu-icon">📍</view>
+      <text class="menu-text">收货地址</text>
+      <text class="menu-arrow">›</text>
+    </view>
+  </view>
+
+  <!-- 设置菜单 -->
+  <view class="glass-card menu-section">
+    <view class="menu-item" bindtap="showAbout">
+      <view class="menu-icon">ℹ️</view>
+      <text class="menu-text">关于我们</text>
+      <text class="menu-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="showSettings">
+      <view class="menu-icon">⚙️</view>
+      <text class="menu-text">设置</text>
+      <text class="menu-arrow">›</text>
+    </view>
+    <view class="menu-item" wx:if="{{user}}" bindtap="handleLogout">
+      <view class="menu-icon">🚪</view>
+      <text class="menu-text logout-text">退出登录</text>
+    </view>
+  </view>
+
+  <!-- 登录弹窗 -->
+  <view class="login-modal" wx:if="{{showLogin}}" bindtap="hideLoginModal">
+    <view class="modal-content" catchtap="stopPropagation">
+      <view class="modal-header">
+        <text class="modal-title">登录</text>
+        <text class="modal-close" bindtap="hideLoginModal">✕</text>
+      </view>
+      <view class="modal-body">
+        <view class="input-group">
+          <text class="input-label">用户名</text>
+          <input class="input-field" type="text" placeholder="请输入用户名" value="{{loginForm.username}}" bindinput="onUsernameInput" />
+        </view>
+        <view class="input-group">
+          <text class="input-label">密码</text>
+          <input class="input-field" type="password" placeholder="请输入密码" value="{{loginForm.password}}" bindinput="onPasswordInput" />
+        </view>
+        <button class="submit-btn" bindtap="handleLogin" loading="{{loginLoading}}">登录</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 编辑资料弹窗 -->
+  <view class="login-modal" wx:if="{{showEdit}}" bindtap="hideEditModal">
+    <view class="modal-content" catchtap="stopPropagation">
+      <view class="modal-header">
+        <text class="modal-title">编辑资料</text>
+        <text class="modal-close" bindtap="hideEditModal">✕</text>
+      </view>
+      <view class="modal-body">
+        <view class="input-group">
+          <text class="input-label">昵称</text>
+          <input class="input-field" type="text" placeholder="请输入昵称" value="{{editForm.name}}" bindinput="onNameInput" />
+        </view>
+        <view class="input-group">
+          <text class="input-label">头像URL</text>
+          <input class="input-field" type="text" placeholder="请输入头像URL" value="{{editForm.avatar}}" bindinput="onAvatarInput" />
+        </view>
+        <button class="submit-btn" bindtap="handleUpdateProfile" loading="{{updateLoading}}">保存</button>
+      </view>
+    </view>
+  </view>
+</view>
+

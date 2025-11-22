@@ -2,6 +2,7 @@
   "pages": [
     "pages/home/home",
     "pages/menu/menu",
+    "pages/profile/profile",
     "pages/detail/detail",
     "pages/orders/orders"
   ],
@@ -11,6 +12,32 @@
     "navigationBarTitleText": "家宴点餐",
     "navigationBarTextStyle": "white",
     "backgroundColor": "#050a1f"
+  },
+  "tabBar": {
+    "color": "#8b8fa3",
+    "selectedColor": "#14b8ff",
+    "backgroundColor": "#0a1120",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/home/home",
+        "text": "首页",
+        "iconPath": "images/tab-home.png",
+        "selectedIconPath": "images/tab-home-active.png"
+      },
+      {
+        "pagePath": "pages/menu/menu",
+        "text": "点餐",
+        "iconPath": "images/tab-menu.png",
+        "selectedIconPath": "images/tab-menu-active.png"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的",
+        "iconPath": "images/tab-profile.png",
+        "selectedIconPath": "images/tab-profile-active.png"
+      }
+    ]
   },
   "style": "v2",
   "lazyCodeLoading": "requiredComponents"
