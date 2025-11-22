@@ -73,11 +73,13 @@ Page({
 
             wx.showToast({
                 title: '下单成功',
-                icon: 'success'
+                icon: 'success',
+                duration: 1500
             });
 
+            // 延迟跳转，确保toast显示完成
             setTimeout(() => {
-                wx.switchTab({
+                wx.redirectTo({
                     url: '/pages/orders/orders'
                 });
             }, 1500);

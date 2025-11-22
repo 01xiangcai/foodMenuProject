@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Orders Controller
@@ -61,9 +62,9 @@ public class OrdersController {
     /**
      * Query orders by page
      */
-    @Operation(summary = "分页查询订单", description = "查询当前用户的订单列表")
+    @Operation(summary = "分页查询订单", description = "查询当前用户的订单列表，包含订单明细")
     @GetMapping("/page")
-    public Result<Page<Orders>> page(int page, int pageSize, @RequestHeader("Authorization") String token) {
+    public Result<Page<OrdersDto>> page(int page, int pageSize, @RequestHeader("Authorization") String token) {
         log.info("Query orders: page={}, pageSize={}", page, pageSize);
 
         try {
@@ -80,7 +81,27 @@ public class OrdersController {
             queryWrapper.orderByDesc(Orders::getCreateTime);
 
             ordersService.page(pageInfo, queryWrapper);
-            return Result.success(pageInfo);
+
+            // Convert to DTO and load order items
+            Page<OrdersDto> dtoPage = new Page<>();
+            BeanUtils.copyProperties(pageInfo, dtoPage);
+            
+            List<OrdersDto> dtoList = pageInfo.getRecords().stream().map(order -> {
+                OrdersDto dto = new OrdersDto();
+                BeanUtils.copyProperties(order, dto);
+                
+                // Load order items
+                LambdaQueryWrapper<OrderItem> itemQueryWrapper = new LambdaQueryWrapper<>();
+                itemQueryWrapper.eq(OrderItem::getOrderId, order.getId());
+                List<OrderItem> orderItems = orderItemService.list(itemQueryWrapper);
+                dto.setOrderItems(orderItems != null ? orderItems : new java.util.ArrayList<>());
+                
+                return dto;
+            }).collect(Collectors.toList());
+            
+            dtoPage.setRecords(dtoList);
+            
+            return Result.success(dtoPage);
         } catch (Exception e) {
             log.error("Query orders failed: {}", e.getMessage());
             return Result.error("Query failed");

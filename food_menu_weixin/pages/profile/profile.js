@@ -413,16 +413,15 @@ Page({
 
   // 导航到订单页面
   navigateToOrders() {
-    wx.switchTab({
+    wx.navigateTo({
       url: '/pages/orders/orders'
     });
   },
 
-  // 导航到收藏页面（暂未实现）
+  // 导航到收藏页面
   navigateToFavorites() {
-    wx.showToast({
-      title: '功能开发中',
-      icon: 'none'
+    wx.navigateTo({
+      url: '/pages/favorites/favorites'
     });
   },
 

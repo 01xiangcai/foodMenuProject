@@ -1,0 +1,68 @@
+<view class="favorites-page {{theme}}">
+  <!-- 头部统计 -->
+  <view class="page-header" wx:if="{{favorites.length > 0}}">
+    <view class="header-content">
+      <text class="header-title">我的收藏</text>
+      <text class="header-count">共 {{favorites.length}} 道菜品</text>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{!loading && favorites.length === 0}}">
+    <view class="empty-icon">💝</view>
+    <text class="empty-text">还没有收藏的菜品</text>
+    <text class="empty-desc">去菜单页面收藏喜欢的菜品吧~</text>
+    <view class="empty-btn" bindtap="goToMenu">
+      <text class="btn-text">去点餐</text>
+    </view>
+  </view>
+
+  <!-- 收藏列表 -->
+  <scroll-view 
+    class="favorites-list" 
+    scroll-y="true" 
+    wx:else
+    refresher-enabled="{{true}}"
+    refresher-triggered="{{loading}}"
+    bindrefresherrefresh="onPullDownRefresh"
+  >
+    <block wx:for="{{favorites}}" wx:key="id">
+      <view class="favorite-card">
+        <navigator 
+          class="dish-content" 
+          url="/pages/detail/detail?id={{item.id}}"
+          hover-class="none"
+        >
+          <image class="dish-image" mode="aspectFill" src="{{item.image}}" />
+          <view class="dish-info">
+            <view class="dish-header">
+              <text class="dish-name">{{item.name}}</text>
+              <text class="dish-badge" wx:if="{{item.badge}}">{{item.badge}}</text>
+            </view>
+            <text class="dish-desc">{{item.description}}</text>
+            <view class="dish-footer">
+              <view class="price-info">
+                <text class="price">¥{{item.price}}</text>
+                <text class="unit">/ 份</text>
+              </view>
+            </view>
+          </view>
+        </navigator>
+        <view class="favorite-actions">
+          <view class="action-btn remove-btn" catchtap="removeFavorite" data-item="{{item}}">
+            <text class="action-icon">❤️</text>
+            <text class="action-text">取消收藏</text>
+          </view>
+        </view>
+      </view>
+    </block>
+    <view class="list-bottom-placeholder"></view>
+  </scroll-view>
+
+  <!-- 加载中 -->
+  <view class="loading-mask" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+</view>
+

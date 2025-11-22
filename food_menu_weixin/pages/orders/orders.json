@@ -1,4 +1,6 @@
 {
-  "navigationBarTitleText": "订单心跳"
+  "navigationBarTitleText": "我的订单",
+  "enablePullDownRefresh": true,
+  "onReachBottomDistance": 50
 }
 

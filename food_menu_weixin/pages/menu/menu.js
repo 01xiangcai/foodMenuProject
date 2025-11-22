@@ -8,7 +8,8 @@ Page({
     theme: 'tech',
     cartList: {},
     totalCount: 0,
-    totalPrice: '0.00'
+    totalPrice: '0.00',
+    favorites: {} // 收藏状态 {dishId: true/false}
   },
 
   onShow() {
@@ -18,7 +19,30 @@ Page({
   },
 
   onLoad() {
+    this.loadFavorites();
     this.loadCategories();
+  },
+
+  // 加载收藏列表
+  loadFavorites() {
+    try {
+      const favorites = wx.getStorageSync('dish_favorites') || {};
+      this.setData({ favorites });
+      return favorites;
+    } catch (error) {
+      console.error('Load favorites failed:', error);
+      return {};
+    }
+  },
+
+  // 保存收藏列表
+  saveFavorites(favorites) {
+    try {
+      wx.setStorageSync('dish_favorites', favorites);
+      this.setData({ favorites });
+    } catch (error) {
+      console.error('Save favorites failed:', error);
+    }
   },
 
   async loadCategories() {
@@ -42,6 +66,7 @@ Page({
   async loadDishes(categoryId) {
     try {
       const res = await request({ url: '/dish/list', data: { categoryId } });
+      const favorites = this.data.favorites || {};
       const dishes = (res.data || []).map((dish) => ({
         id: dish.id,
         name: dish.name,
@@ -49,7 +74,8 @@ Page({
         description: dish.description || '家人共创菜谱，敬请期待更多故事',
         badge: '家庭菜',
         image: dish.image || 'https://dummyimage.com/400x400/1e293b/ffffff&text=family',
-        status: dish.status
+        status: dish.status,
+        isFavorite: favorites[dish.id] || false
       }));
       this.setData({ dishes });
     } catch (error) {
@@ -126,5 +152,43 @@ Page({
     wx.navigateTo({
       url: '/pages/order-confirm/order-confirm'
     });
+  },
+
+  // 切换收藏状态
+  toggleFavorite(e) {
+    const dish = e.currentTarget.dataset.item;
+    if (!dish || !dish.id) return;
+
+    const favorites = { ...this.data.favorites };
+    const isFavorite = !favorites[dish.id];
+
+    // 更新收藏状态
+    if (isFavorite) {
+      favorites[dish.id] = true;
+      wx.showToast({
+        title: '已收藏',
+        icon: 'success',
+        duration: 1500
+      });
+    } else {
+      delete favorites[dish.id];
+      wx.showToast({
+        title: '已取消收藏',
+        icon: 'none',
+        duration: 1500
+      });
+    }
+
+    // 保存收藏状态
+    this.saveFavorites(favorites);
+
+    // 更新当前菜品列表中的收藏状态
+    const dishes = this.data.dishes.map(item => {
+      if (item.id === dish.id) {
+        return { ...item, isFavorite };
+      }
+      return item;
+    });
+    this.setData({ dishes });
   }
 });

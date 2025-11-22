@@ -6,6 +6,8 @@
     "pages/detail/detail",
     "pages/orders/orders",
     "pages/order-confirm/order-confirm",
+    "pages/order-detail/order-detail",
+    "pages/favorites/favorites",
     "pages/login/login"
   ],
   "window": {
