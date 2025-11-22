@@ -53,8 +53,35 @@
     <view class="list-bottom-placeholder"></view>
   </scroll-view>
 
+  <!-- 购物车详情弹窗 -->
+  <view class="cart-popup-mask" wx:if="{{showCart && totalCount > 0}}" bindtap="hideCartPopup"></view>
+  <view class="cart-popup" wx:if="{{showCart && totalCount > 0}}">
+    <view class="cart-header">
+      <text class="cart-title">已选商品</text>
+      <view class="cart-clear" bindtap="clearCart">
+        <text class="icon">🗑️</text>
+        <text>清空</text>
+      </view>
+    </view>
+    <scroll-view class="cart-list" scroll-y="true">
+      <block wx:for="{{cartList}}" wx:key="id" wx:for-item="item">
+        <view class="cart-item">
+          <view class="cart-item-info">
+            <text class="cart-item-name">{{item.name}}</text>
+            <text class="cart-item-price">¥{{item.price}}</text>
+          </view>
+          <view class="quantity-control">
+            <view class="btn-minus" catchtap="removeFromCart" data-item="{{item}}">-</view>
+            <text class="count">{{item.count}}</text>
+            <view class="btn-plus" catchtap="addToCart" data-item="{{item}}">＋</view>
+          </view>
+        </view>
+      </block>
+    </scroll-view>
+  </view>
+
   <!-- 底部购物车条 -->
-  <view class="cart-bar glass-card" wx:if="{{totalCount > 0}}" bindtap="goToCheckout">
+  <view class="cart-bar glass-card" wx:if="{{totalCount > 0}}" bindtap="toggleCartPopup">
     <view class="cart-icon-wrap">
       <text class="cart-icon">🛒</text>
       <view class="badge">{{totalCount}}</view>
@@ -63,7 +90,7 @@
       <text class="total-price">¥{{totalPrice}}</text>
       <text class="delivery-tip">免配送费</text>
     </view>
-    <view class="btn-checkout">去结算</view>
+    <view class="btn-checkout" catchtap="goToCheckout">去结算</view>
   </view>
 </view>
 

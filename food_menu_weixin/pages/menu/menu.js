@@ -9,7 +9,8 @@ Page({
     cartList: {},
     totalCount: 0,
     totalPrice: '0.00',
-    favorites: {} // 收藏状态 {dishId: true/false}
+    favorites: {}, // 收藏状态 {dishId: true/false}
+    showCart: false
   },
 
   onShow() {
@@ -139,6 +140,41 @@ Page({
       totalCount,
       totalPrice: totalPrice.toFixed(2)
     });
+
+    // 如果购物车为空，自动关闭弹窗
+    if (totalCount === 0) {
+      this.setData({ showCart: false });
+    }
+  },
+
+  // 切换购物车弹窗
+  toggleCartPopup() {
+    if (this.data.totalCount > 0) {
+      this.setData({ showCart: !this.data.showCart });
+    }
+  },
+
+  // 关闭购物车弹窗
+  hideCartPopup() {
+    this.setData({ showCart: false });
+  },
+
+  // 清空购物车
+  clearCart() {
+    wx.showModal({
+      title: '提示',
+      content: '确定要清空购物车吗？',
+      success: (res) => {
+        if (res.confirm) {
+          this.setData({
+            cartList: {},
+            totalCount: 0,
+            totalPrice: '0.00',
+            showCart: false
+          });
+        }
+      }
+    });
   },
 
   // 去结算
@@ -179,12 +215,12 @@ Page({
           method: 'POST',
           data: { dishId: dish.id }
         });
-        
+
         if (res.code === 1) {
           favorites[dish.id] = true;
           // 同步到本地存储
           this.saveFavorites(favorites);
-          
+
           wx.showToast({
             title: '已收藏',
             icon: 'success',
@@ -203,12 +239,12 @@ Page({
           url: `/favorite/remove/${dish.id}`,
           method: 'DELETE'
         });
-        
+
         if (res.code === 1) {
           delete favorites[dish.id];
           // 同步到本地存储
           this.saveFavorites(favorites);
-          
+
           wx.showToast({
             title: '已取消收藏',
             icon: 'none',
