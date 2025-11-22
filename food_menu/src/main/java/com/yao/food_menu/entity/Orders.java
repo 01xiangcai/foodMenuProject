@@ -4,15 +4,17 @@ import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * Orders entity
+ * Order entity
  */
 @Data
+@TableName("orders")
 public class Orders implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -21,24 +23,15 @@ public class Orders implements Serializable {
     private Long id;
 
     // Order number
-    private String number;
+    private String orderNumber;
 
     // User id
     private Long userId;
 
-    // Delivery address
-    private String address;
-
-    // Consignee
-    private String consignee;
-
-    // Phone number
-    private String phone;
-
     // Total amount
-    private BigDecimal amount;
+    private BigDecimal totalAmount;
 
-    // Order status: 1-pending payment, 2-paid, 3-completed, 4-cancelled
+    // Order status: 0-pending, 1-preparing, 2-delivering, 3-completed, 4-cancelled
     private Integer status;
 
     // Remark

@@ -2,10 +2,10 @@ package com.yao.food_menu.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.yao.food_menu.dto.OrdersDto;
-import com.yao.food_menu.entity.OrderDetail;
+import com.yao.food_menu.entity.OrderItem;
 import com.yao.food_menu.entity.Orders;
 import com.yao.food_menu.mapper.OrdersMapper;
-import com.yao.food_menu.service.OrderDetailService;
+import com.yao.food_menu.service.OrderItemService;
 import com.yao.food_menu.service.OrdersService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,35 +23,44 @@ import java.util.concurrent.atomic.AtomicLong;
 public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> implements OrdersService {
 
     @Autowired
-    private OrderDetailService orderDetailService;
+    private OrderItemService orderItemService;
 
     private static final AtomicLong orderCounter = new AtomicLong(1);
 
     @Override
     @Transactional
     public void submit(OrdersDto ordersDto) {
+        log.info("Received order DTO: {}", ordersDto);
+
+        // Validate order items
+        List<OrderItem> orderItems = ordersDto.getOrderItems();
+        if (orderItems == null || orderItems.isEmpty()) {
+            throw new RuntimeException("订单明细不能为空");
+        }
+
         // Generate order number
         String orderNumber = generateOrderNumber();
-        ordersDto.setNumber(orderNumber);
-        ordersDto.setStatus(1); // Pending payment
+        ordersDto.setOrderNumber(orderNumber);
+        ordersDto.setStatus(0); // Pending (待接单)
 
         // Calculate total amount
-        List<OrderDetail> orderDetails = ordersDto.getOrderDetails();
         BigDecimal totalAmount = BigDecimal.ZERO;
-        for (OrderDetail detail : orderDetails) {
-            totalAmount = totalAmount.add(detail.getAmount().multiply(new BigDecimal(detail.getNumber())));
+        for (OrderItem item : orderItems) {
+            BigDecimal subtotal = item.getPrice().multiply(new BigDecimal(item.getQuantity()));
+            item.setSubtotal(subtotal);
+            totalAmount = totalAmount.add(subtotal);
         }
-        ordersDto.setAmount(totalAmount);
+        ordersDto.setTotalAmount(totalAmount);
 
         // Save order
         this.save(ordersDto);
 
-        // Save order details
+        // Save order items
         Long orderId = ordersDto.getId();
-        for (OrderDetail detail : orderDetails) {
-            detail.setOrderId(orderId);
+        for (OrderItem item : orderItems) {
+            item.setOrderId(orderId);
         }
-        orderDetailService.saveBatch(orderDetails);
+        orderItemService.saveBatch(orderItems);
 
         log.info("Order submitted: {}", orderNumber);
     }
@@ -71,11 +80,11 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
 
     /**
      * Generate order number
-     * Format: yyyyMMddHHmmss + 6-digit sequence
+     * Format: FM + yyyyMMddHHmmss + 4-digit random
      */
     private String generateOrderNumber() {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-        long sequence = orderCounter.getAndIncrement() % 1000000;
-        return timestamp + String.format("%06d", sequence);
+        long sequence = orderCounter.getAndIncrement() % 10000;
+        return "FM" + timestamp + String.format("%04d", sequence);
     }
 }

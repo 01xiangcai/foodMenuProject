@@ -42,24 +42,30 @@ Page({
         wx.showLoading({ title: '提交中...' });
 
         try {
-            // 模拟提交订单
-            // 实际项目中这里会调用后端API
+            // 构建订单数据
+            const orderItems = this.data.cartList.map(item => ({
+                dishId: item.id,
+                dishName: item.name,
+                dishImage: item.image,
+                price: item.price,
+                quantity: item.count
+            }));
 
-            // 构建模拟订单数据
-            const newOrder = {
-                number: 'FM' + Date.now().toString().slice(-8),
-                amount: '¥' + this.data.totalPrice,
-                dish: this.data.cartList.map(item => item.name).join('+'),
-                status: '准备食材', // 初始状态
-                time: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
-                title: '订单已提交',
-                glow: '#38bdf8'
+            const orderData = {
+                remark: this.data.remark,
+                orderItems: orderItems
             };
 
-            // 保存到本地存储的模拟订单列表
-            const mockOrders = wx.getStorageSync('mock_orders') || [];
-            mockOrders.unshift(newOrder);
-            wx.setStorageSync('mock_orders', mockOrders);
+            console.log('Submitting order data:', orderData);
+
+            // 调用后端API提交订单
+            const response = await request({
+                url: '/order/submit',
+                method: 'POST',
+                data: orderData
+            });
+
+            console.log('Submit response:', response);
 
             // 清空购物车
             wx.removeStorageSync('cart_data');
@@ -77,8 +83,9 @@ Page({
             }, 1500);
 
         } catch (error) {
+            console.error('Submit order failed:', error);
             wx.showToast({
-                title: '下单失败',
+                title: error.message || '下单失败',
                 icon: 'none'
             });
         } finally {

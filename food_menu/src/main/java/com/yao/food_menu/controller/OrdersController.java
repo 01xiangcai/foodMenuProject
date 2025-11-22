@@ -5,9 +5,9 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yao.food_menu.common.Result;
 import com.yao.food_menu.common.util.JwtUtil;
 import com.yao.food_menu.dto.OrdersDto;
-import com.yao.food_menu.entity.OrderDetail;
+import com.yao.food_menu.entity.OrderItem;
 import com.yao.food_menu.entity.Orders;
-import com.yao.food_menu.service.OrderDetailService;
+import com.yao.food_menu.service.OrderItemService;
 import com.yao.food_menu.service.OrdersService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,7 +31,7 @@ public class OrdersController {
     private OrdersService ordersService;
 
     @Autowired
-    private OrderDetailService orderDetailService;
+    private OrderItemService orderItemService;
 
     /**
      * Submit order
@@ -116,11 +116,11 @@ public class OrdersController {
             OrdersDto ordersDto = new OrdersDto();
             BeanUtils.copyProperties(orders, ordersDto);
 
-            // Query order details
-            LambdaQueryWrapper<OrderDetail> queryWrapper = new LambdaQueryWrapper<>();
-            queryWrapper.eq(OrderDetail::getOrderId, id);
-            List<OrderDetail> orderDetails = orderDetailService.list(queryWrapper);
-            ordersDto.setOrderDetails(orderDetails);
+            // Query order items
+            LambdaQueryWrapper<OrderItem> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(OrderItem::getOrderId, id);
+            List<OrderItem> orderItems = orderItemService.list(queryWrapper);
+            ordersDto.setOrderItems(orderItems);
 
             return Result.success(ordersDto);
         } catch (Exception e) {
@@ -132,7 +132,7 @@ public class OrdersController {
     /**
      * Update order status
      */
-    @Operation(summary = "更新订单状态", description = "更新订单状态:1-待支付,2-已支付,3-已完成,4-已取消")
+    @Operation(summary = "更新订单状态", description = "更新订单状态:0-待接单,1-准备中,2-配送中,3-已完成,4-已取消")
     @PutMapping("/status")
     public Result<String> updateStatus(@RequestParam Long id, @RequestParam Integer status) {
         log.info("Update order status: id={}, status={}", id, status);

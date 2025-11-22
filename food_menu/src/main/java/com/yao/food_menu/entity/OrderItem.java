@@ -4,16 +4,18 @@ import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * Order detail entity
+ * Order item entity
  */
 @Data
-public class OrderDetail implements Serializable {
+@TableName("order_items")
+public class OrderItem implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -27,16 +29,19 @@ public class OrderDetail implements Serializable {
     private Long dishId;
 
     // Dish name
-    private String name;
+    private String dishName;
 
-    // Image
-    private String image;
+    // Dish image
+    private String dishImage;
+
+    // Price
+    private BigDecimal price;
 
     // Quantity
-    private Integer number;
+    private Integer quantity;
 
-    // Amount
-    private BigDecimal amount;
+    // Subtotal
+    private BigDecimal subtotal;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
