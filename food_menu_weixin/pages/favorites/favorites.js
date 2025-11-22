@@ -11,6 +11,7 @@ Page({
     this.setData({
       theme: getApp().globalData.theme
     });
+    getApp().applyTheme(this.data.theme);
     this.loadFavorites();
   },
 
@@ -36,11 +37,11 @@ Page({
     }
 
     this.setData({ loading: true });
-    
+
     try {
       // 调用后端API获取收藏列表
       const res = await request({ url: '/favorite/list' });
-      
+
       if (res.code === 1) {
         const dishes = res.data || [];
         const favorites = dishes.map(dish => ({
@@ -97,7 +98,7 @@ Page({
     try {
       const res = await request({ url: '/dish/list' });
       const allDishes = res.data || [];
-      
+
       const favorites = allDishes
         .filter(dish => favoriteIds.includes(String(dish.id)))
         .map(dish => ({
@@ -138,7 +139,7 @@ Page({
   // 执行取消收藏
   async doRemoveFavorite(dishId) {
     const token = wx.getStorageSync('fm_token');
-    
+
     try {
       // 如果有登录token，调用后端API
       if (token) {
@@ -146,7 +147,7 @@ Page({
           url: `/favorite/remove/${dishId}`,
           method: 'DELETE'
         });
-        
+
         if (res.code !== 1) {
           wx.showToast({
             title: res.msg || '取消收藏失败',
@@ -172,9 +173,9 @@ Page({
       });
     } catch (error) {
       console.error('Remove favorite failed:', error);
-      wx.showToast({ 
-        title: '操作失败，请稍后重试', 
-        icon: 'none' 
+      wx.showToast({
+        title: '操作失败，请稍后重试',
+        icon: 'none'
       });
     }
   },

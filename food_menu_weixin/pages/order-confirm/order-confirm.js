@@ -27,6 +27,7 @@ Page({
         this.setData({
             theme: getApp().globalData.theme
         });
+        getApp().applyTheme(this.data.theme);
     },
 
     onRemarkInput(e) {
@@ -70,6 +71,8 @@ Page({
             // 清空购物车
             wx.removeStorageSync('cart_data');
             wx.removeStorageSync('cart_total');
+            // 设置标志位，通知菜单页清空购物车
+            wx.setStorageSync('cart_cleared', true);
 
             wx.showToast({
                 title: '下单成功',

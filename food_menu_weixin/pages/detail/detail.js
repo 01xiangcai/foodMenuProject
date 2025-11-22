@@ -11,6 +11,7 @@ Page({
     this.setData({
       theme: getApp().globalData.theme
     });
+    getApp().applyTheme(this.data.theme);
   },
 
   onLoad(options) {

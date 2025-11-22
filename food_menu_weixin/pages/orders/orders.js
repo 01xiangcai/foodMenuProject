@@ -30,6 +30,7 @@ Page({
         this.setData({
             theme: getApp().globalData.theme || 'tech'
         });
+        getApp().applyTheme(this.data.theme);
         this.refreshOrders();
     },
 
@@ -56,7 +57,7 @@ Page({
             if (response && response.data) {
                 const pageInfo = response.data;
                 const newOrders = pageInfo.records || [];
-                
+
                 // 格式化订单数据
                 const formattedOrders = newOrders.map(order => {
                     return {
@@ -147,7 +148,7 @@ Page({
     cancelOrder(e) {
         const orderId = e.currentTarget.dataset.id;
         const orderNumber = e.currentTarget.dataset.number;
-        
+
         if (!orderId) return;
 
         wx.showModal({
@@ -198,7 +199,7 @@ Page({
      */
     formatTime(timeStr) {
         if (!timeStr) return '';
-        
+
         const date = new Date(timeStr);
         const now = new Date();
         const diff = now - date;

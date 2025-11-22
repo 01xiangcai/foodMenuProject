@@ -29,6 +29,7 @@ Page({
     this.setData({
       theme: getApp().globalData.theme
     });
+    getApp().applyTheme(this.data.theme);
   },
 
   // 切换主题

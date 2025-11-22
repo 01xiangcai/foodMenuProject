@@ -9,14 +9,25 @@ Page({
     cartList: {},
     totalCount: 0,
     totalPrice: '0.00',
-    favorites: {}, // 收藏状态 {dishId: true/false}
-    showCart: false
+    favorites: {} // 收藏状态 {dishId: true/false}
   },
 
   onShow() {
     this.setData({
       theme: getApp().globalData.theme
     });
+    getApp().applyTheme(this.data.theme);
+
+    // 检查是否需要清空购物车
+    if (wx.getStorageSync('cart_cleared')) {
+      this.setData({
+        cartList: {},
+        totalCount: 0,
+        totalPrice: '0.00',
+        showCart: false
+      });
+      wx.removeStorageSync('cart_cleared');
+    }
   },
 
   onLoad() {
@@ -140,23 +151,22 @@ Page({
       totalCount,
       totalPrice: totalPrice.toFixed(2)
     });
-
-    // 如果购物车为空，自动关闭弹窗
-    if (totalCount === 0) {
-      this.setData({ showCart: false });
-    }
   },
 
-  // 切换购物车弹窗
+  // 切换购物车弹窗显示
   toggleCartPopup() {
     if (this.data.totalCount > 0) {
-      this.setData({ showCart: !this.data.showCart });
+      this.setData({
+        showCart: !this.data.showCart
+      });
     }
   },
 
-  // 关闭购物车弹窗
+  // 隐藏购物车弹窗
   hideCartPopup() {
-    this.setData({ showCart: false });
+    this.setData({
+      showCart: false
+    });
   },
 
   // 清空购物车
