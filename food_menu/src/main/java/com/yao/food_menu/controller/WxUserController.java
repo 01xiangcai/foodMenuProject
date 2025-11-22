@@ -64,6 +64,27 @@ public class WxUserController {
     }
 
     /**
+     * User register
+     */
+    @Operation(summary = "用户注册", description = "用户名/密码注册")
+    @PostMapping("/register")
+    public Result<String> register(@RequestBody com.yao.food_menu.dto.RegisterDto registerDto) {
+        log.info("User register: {}", registerDto);
+
+        try {
+            if (!StringUtils.hasText(registerDto.getUsername()) || !StringUtils.hasText(registerDto.getPassword())) {
+                return Result.error("用户名和密码不能为空");
+            }
+
+            wxUserService.register(registerDto);
+            return Result.success("注册成功");
+        } catch (Exception e) {
+            log.error("Register failed: {}", e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
      * WeChat login (reserved)
      */
     @Operation(summary = "微信一键登录", description = "使用微信授权code登录(预留)")

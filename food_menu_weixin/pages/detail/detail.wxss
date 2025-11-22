@@ -31,18 +31,18 @@
 .badge {
   padding: 6rpx 20rpx;
   border-radius: 999rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.2);
+  border: 1rpx solid var(--border-color);
 }
 
 .meta {
   display: flex;
   gap: 8rpx;
-  opacity: 0.8;
+  color: var(--text-secondary);
 }
 
 .flavor {
   font-size: 26rpx;
-  opacity: 0.85;
+  color: var(--text-secondary);
 }
 
 .description {
@@ -53,7 +53,7 @@
   margin-top: 12rpx;
   padding: 16rpx;
   border-radius: 18rpx;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--card-bg);
   display: flex;
   flex-direction: column;
   gap: 6rpx;
@@ -78,7 +78,7 @@
 .comment-card {
   padding: 18rpx;
   border-radius: 20rpx;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--card-bg);
   display: flex;
   flex-direction: column;
   gap: 8rpx;
@@ -95,7 +95,7 @@
 
 .time {
   font-size: 24rpx;
-  opacity: 0.6;
+  color: var(--text-secondary);
 }
 
 .comment-content {
@@ -106,14 +106,14 @@
   display: inline-flex;
   gap: 6rpx;
   font-size: 24rpx;
-  color: #38bdf8;
+  color: var(--primary-color);
   align-items: center;
 }
 
 .replies {
   margin-top: 8rpx;
   padding-left: 16rpx;
-  border-left: 2rpx dashed rgba(255, 255, 255, 0.1);
+  border-left: 2rpx dashed var(--border-color);
   display: flex;
   flex-direction: column;
   gap: 12rpx;
@@ -128,7 +128,7 @@
 .empty-tip {
   text-align: center;
   padding: 30rpx 0;
-  opacity: 0.6;
+  color: var(--text-secondary);
 }
 
 .empty-page {
@@ -136,6 +136,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-secondary);
 }
 

@@ -3,7 +3,14 @@ const { request } = require('../../utils/request');
 Page({
   data: {
     dish: null,
-    comments: []
+    comments: [],
+    theme: 'tech'
+  },
+
+  onShow() {
+    this.setData({
+      theme: getApp().globalData.theme
+    });
   },
 
   onLoad(options) {

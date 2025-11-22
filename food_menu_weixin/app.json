@@ -5,6 +5,7 @@
     "pages/profile/profile",
     "pages/detail/detail",
     "pages/orders/orders",
+    "pages/order-confirm/order-confirm",
     "pages/login/login"
   ],
   "window": {

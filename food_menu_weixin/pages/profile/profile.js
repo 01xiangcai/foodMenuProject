@@ -15,7 +15,8 @@ Page({
       nickname: '',
       avatar: '',
       avatarPreview: ''
-    }
+    },
+    theme: 'tech'
   },
 
   onLoad() {
@@ -23,8 +24,21 @@ Page({
   },
 
   onShow() {
-    // 每次显示页面时刷新用户信息
+    // 每次显示页面时刷新用户信息和主题
     this.loadUserInfo();
+    this.setData({
+      theme: getApp().globalData.theme
+    });
+  },
+
+  // 切换主题
+  handleToggleTheme() {
+    const newTheme = getApp().toggleTheme();
+    this.setData({ theme: newTheme });
+    wx.showToast({
+      title: newTheme === 'family' ? '已切换温馨' : '已切换科技',
+      icon: 'none'
+    });
   },
 
   // 加载用户信息
@@ -52,72 +66,157 @@ Page({
   showLoginModal() {
     this.setData({
       showLogin: true,
-      loginForm: { username: '', password: '' }
+      isRegister: false,
+      loginForm: {
+        username: '',
+        password: '',
+        confirmPassword: '',
+        nickname: ''
+      }
     });
   },
 
   // 隐藏登录弹窗
   hideLoginModal() {
-    this.setData({ showLogin: false });
+    this.setData({
+      showLogin: false
+    });
   },
 
-  // 阻止事件冒泡
-  stopPropagation() {
-    // 空函数，用于阻止事件冒泡
+  // 切换登录/注册模式
+  toggleLoginMode() {
+    this.setData({
+      isRegister: !this.data.isRegister,
+      loginForm: {
+        username: '',
+        password: '',
+        confirmPassword: '',
+        nickname: ''
+      }
+    });
   },
 
-  // 用户名输入
+  // 输入处理
   onUsernameInput(e) {
     this.setData({
       'loginForm.username': e.detail.value
     });
   },
 
-  // 密码输入
   onPasswordInput(e) {
     this.setData({
       'loginForm.password': e.detail.value
     });
   },
 
+  onConfirmPasswordInput(e) {
+    this.setData({
+      'loginForm.confirmPassword': e.detail.value
+    });
+  },
+
+  onNicknameInput(e) {
+    this.setData({
+      'loginForm.nickname': e.detail.value
+    });
+  },
+
   // 处理登录
   async handleLogin() {
     const { username, password } = this.data.loginForm;
+
     if (!username || !password) {
       wx.showToast({
-        title: '请填写完整信息',
+        title: '请输入用户名和密码',
         icon: 'none'
       });
       return;
     }
 
     this.setData({ loginLoading: true });
+
     try {
       const res = await request({
         url: '/wx/user/login',
         method: 'POST',
         data: {
+          type: 1,
           username,
-          password,
-          type: 1
+          password
         }
       });
 
-      // 保存 token
+      // 保存Token
       wx.setStorageSync('fm_token', res.data);
 
-      // 重新加载用户信息
+      // 获取用户信息
       await this.loadUserInfo();
 
-      this.setData({ showLogin: false });
+      this.hideLoginModal();
       wx.showToast({
         title: '登录成功',
         icon: 'success'
       });
     } catch (error) {
-      console.error('登录失败:', error);
       wx.showToast({
         title: error.message || '登录失败',
+        icon: 'none'
+      });
+    } finally {
+      this.setData({ loginLoading: false });
+    }
+  },
+
+  // 处理注册
+  async handleRegister() {
+    const { username, password, confirmPassword, nickname } = this.data.loginForm;
+
+    if (!username || !password) {
+      wx.showToast({
+        title: '请输入用户名和密码',
+        icon: 'none'
+      });
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      wx.showToast({
+        title: '两次密码不一致',
+        icon: 'none'
+      });
+      return;
+    }
+
+    this.setData({ loginLoading: true });
+
+    try {
+      await request({
+        url: '/wx/user/register',
+        method: 'POST',
+        data: {
+          username,
+          password,
+          nickname,
+          phone: '' // Optional
+        }
+      });
+
+      wx.showToast({
+        title: '注册成功',
+        icon: 'success'
+      });
+
+      // 延迟切换到登录模式
+      setTimeout(() => {
+        this.toggleLoginMode();
+        this.setData({
+          'loginForm.username': username
+        });
+      }, 1500);
+
+    } catch (error) {
+      wx.showToast({
+        title: error.message || '注册失败',
         icon: 'none'
       });
     } finally {

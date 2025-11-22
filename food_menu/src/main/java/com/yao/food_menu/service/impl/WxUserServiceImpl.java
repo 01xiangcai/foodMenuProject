@@ -118,6 +118,37 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
     }
 
     @Override
+    public void register(com.yao.food_menu.dto.RegisterDto registerDto) {
+        // Check if username exists
+        LambdaQueryWrapper<WxUser> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(WxUser::getUsername, registerDto.getUsername());
+        if (this.count(queryWrapper) > 0) {
+            throw new RuntimeException("用户名已存在");
+        }
+
+        // Check if phone exists (if provided)
+        if (StringUtils.hasText(registerDto.getPhone())) {
+            LambdaQueryWrapper<WxUser> phoneWrapper = new LambdaQueryWrapper<>();
+            phoneWrapper.eq(WxUser::getPhone, registerDto.getPhone());
+            if (this.count(phoneWrapper) > 0) {
+                throw new RuntimeException("手机号已注册");
+            }
+        }
+
+        // Create new user
+        WxUser user = new WxUser();
+        user.setUsername(registerDto.getUsername());
+        user.setPassword(passwordEncoder.encode(registerDto.getPassword()));
+        user.setNickname(StringUtils.hasText(registerDto.getNickname()) ? registerDto.getNickname()
+                : "用户_" + registerDto.getUsername());
+        user.setPhone(registerDto.getPhone());
+        user.setStatus(1); // Normal status
+        user.setGender(0); // Unknown gender
+
+        this.save(user);
+    }
+
+    @Override
     public String wxLogin(String code) {
         // TODO: Implement WeChat login
         // 1. Call WeChat API to get openid using code

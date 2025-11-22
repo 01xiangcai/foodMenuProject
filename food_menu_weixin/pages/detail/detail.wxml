@@ -1,4 +1,4 @@
-<view class="detail-page" wx:if="{{dish}}">
+<view class="detail-page {{theme}}" wx:if="{{dish}}">
   <image class="hero-photo" mode="aspectFill" src="{{dish.image}}" />
   <view class="glass-card head-card">
     <view class="title-row">
@@ -58,7 +58,7 @@
   </view>
 </view>
 
-<view class="empty-page" wx:else>
+<view class="empty-page {{theme}}" wx:else>
   <text>暂无菜品信息</text>
 </view>
 

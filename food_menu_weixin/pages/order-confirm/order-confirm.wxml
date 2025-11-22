@@ -1,0 +1,39 @@
+<view class="page {{theme}}">
+  <view class="glass-card section">
+    <text class="section-title">订单详情</text>
+    <view class="order-list">
+      <block wx:for="{{cartList}}" wx:key="id">
+        <view class="order-item">
+          <image class="item-img" src="{{item.image}}" mode="aspectFill"></image>
+          <view class="item-info">
+            <text class="item-name">{{item.name}}</text>
+            <text class="item-price">¥{{item.price}}</text>
+          </view>
+          <text class="item-count">x{{item.count}}</text>
+        </view>
+      </block>
+    </view>
+    <view class="total-row">
+      <text>小计</text>
+      <text class="total-price">¥{{totalPrice}}</text>
+    </view>
+  </view>
+
+  <view class="glass-card section">
+    <text class="section-title">备注</text>
+    <textarea 
+      class="remark-input" 
+      placeholder="口味偏好、餐具数量等" 
+      bindinput="onRemarkInput"
+      value="{{remark}}"
+    ></textarea>
+  </view>
+
+  <view class="bottom-bar glass-card">
+    <view class="price-info">
+      <text>合计:</text>
+      <text class="final-price">¥{{totalPrice}}</text>
+    </view>
+    <button class="btn-submit" bindtap="handleSubmitOrder" loading="{{submitting}}">提交订单</button>
+  </view>
+</view>

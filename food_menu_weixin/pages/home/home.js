@@ -13,7 +13,14 @@ Page({
       { title: '妈妈的招牌番茄牛腩', tag: '暖胃', energy: '482 kcal' },
       { title: '爸爸的柠檬烤鱼', tag: '低油', energy: '328 kcal' },
       { title: '可可的芝士焗南瓜', tag: '甜蜜', energy: '266 kcal' }
-    ]
+    ],
+    theme: 'tech'
+  },
+
+  onShow() {
+    this.setData({
+      theme: getApp().globalData.theme
+    });
   },
 
   onLoad() {

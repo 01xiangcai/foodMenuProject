@@ -1,4 +1,4 @@
-<view class="profile-page">
+<view class="profile-page {{theme}}">
   <!-- 用户信息卡片 -->
   <view class="glass-card user-card">
     <view class="user-header" wx:if="{{user}}">
@@ -46,6 +46,11 @@
 
   <!-- 设置菜单 -->
   <view class="glass-card menu-section">
+    <view class="menu-item" bindtap="handleToggleTheme">
+      <view class="menu-icon">🎨</view>
+      <text class="menu-text">切换主题</text>
+      <text class="menu-arrow">{{theme === 'family' ? '温馨' : '科技'}} ›</text>
+    </view>
     <view class="menu-item" bindtap="showAbout">
       <view class="menu-icon">ℹ️</view>
       <text class="menu-text">关于我们</text>
@@ -78,7 +83,25 @@
           <text class="input-label">密码</text>
           <input class="input-field" type="password" placeholder="请输入密码" value="{{loginForm.password}}" bindinput="onPasswordInput" />
         </view>
-        <button class="submit-btn" bindtap="handleLogin" loading="{{loginLoading}}">登录</button>
+        
+        <block wx:if="{{isRegister}}">
+          <view class="input-group">
+            <text class="input-label">确认密码</text>
+            <input class="input-field" type="password" placeholder="请再次输入密码" value="{{loginForm.confirmPassword}}" bindinput="onConfirmPasswordInput" />
+          </view>
+          <view class="input-group">
+            <text class="input-label">昵称 (选填)</text>
+            <input class="input-field" type="text" placeholder="请输入昵称" value="{{loginForm.nickname}}" bindinput="onNicknameInput" />
+          </view>
+        </block>
+
+        <button class="submit-btn" bindtap="{{isRegister ? 'handleRegister' : 'handleLogin'}}" loading="{{loginLoading}}">
+          {{isRegister ? '注册' : '登录'}}
+        </button>
+        
+        <view class="toggle-area" bindtap="toggleLoginMode">
+          <text class="toggle-text">{{isRegister ? '已有账号？去登录' : '没有账号？去注册'}}</text>
+        </view>
       </view>
     </view>
   </view>

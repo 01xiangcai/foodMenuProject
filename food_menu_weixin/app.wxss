@@ -1,16 +1,25 @@
+@import 'styles/theme.wxss';
+
 page {
-  background: radial-gradient(circle at top, #101737 0%, #050a1f 60%, #030614 100%);
-  color: #f8fafc;
   font-family: 'HarmonyOS Sans', 'DIN Alternate', system-ui;
 }
 
+.tech, .family {
+  background: var(--bg-color);
+  color: var(--text-color);
+  min-height: 100vh;
+  transition: background 0.3s, color 0.3s;
+  box-sizing: border-box;
+}
+
 .glass-card {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   border-radius: 24rpx;
   padding: 28rpx;
-  box-shadow: 0 30rpx 60rpx rgba(10, 20, 50, 0.35);
+  box-shadow: var(--glass-shadow);
   backdrop-filter: blur(20rpx);
+  transition: all 0.3s;
 }
 
 .section-title {

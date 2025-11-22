@@ -25,6 +25,11 @@ public interface WxUserService extends IService<WxUser> {
     WxUser getCurrentUser(Long userId);
 
     /**
+     * User register
+     */
+    void register(com.yao.food_menu.dto.RegisterDto registerDto);
+
+    /**
      * WeChat login (reserved for future implementation)
      */
     String wxLogin(String code);

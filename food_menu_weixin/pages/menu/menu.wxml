@@ -1,4 +1,4 @@
-<view class="menu-page">
+<view class="menu-page {{theme}}">
   <scroll-view class="side-nav" scroll-y="true">
     <block wx:for="{{categories}}" wx:key="id">
       <view
@@ -35,10 +35,28 @@
           </view>
         </view>
         <view class="action">
-          <text class="plus">＋</text>
+          <view class="quantity-control" wx:if="{{cartList[item.id] && cartList[item.id].count > 0}}">
+            <view class="btn-minus" catchtap="removeFromCart" data-item="{{item}}">-</view>
+            <text class="count">{{cartList[item.id].count}}</text>
+          </view>
+          <view class="btn-plus" catchtap="addToCart" data-item="{{item}}">＋</view>
         </view>
       </navigator>
     </block>
+    <view class="list-bottom-placeholder"></view>
   </scroll-view>
+
+  <!-- 底部购物车条 -->
+  <view class="cart-bar glass-card" wx:if="{{totalCount > 0}}" bindtap="goToCheckout">
+    <view class="cart-icon-wrap">
+      <text class="cart-icon">🛒</text>
+      <view class="badge">{{totalCount}}</view>
+    </view>
+    <view class="price-info">
+      <text class="total-price">¥{{totalPrice}}</text>
+      <text class="delivery-tip">免配送费</text>
+    </view>
+    <view class="btn-checkout">去结算</view>
+  </view>
 </view>
 
