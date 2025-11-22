@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-FoodMenuApplication<food_menu>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.yao.food_menu.FoodMenuApplication",
+            "projectName": "food_menu",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}

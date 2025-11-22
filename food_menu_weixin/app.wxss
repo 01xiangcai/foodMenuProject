@@ -1,0 +1,40 @@
+page {
+  background: radial-gradient(circle at top, #101737 0%, #050a1f 60%, #030614 100%);
+  color: #f8fafc;
+  font-family: 'HarmonyOS Sans', 'DIN Alternate', system-ui;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24rpx;
+  padding: 28rpx;
+  box-shadow: 0 30rpx 60rpx rgba(10, 20, 50, 0.35);
+  backdrop-filter: blur(20rpx);
+}
+
+.section-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  margin-bottom: 16rpx;
+}
+
+.pulse {
+  animation: pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+

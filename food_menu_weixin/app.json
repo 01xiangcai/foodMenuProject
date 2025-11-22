@@ -1,0 +1,18 @@
+{
+  "pages": [
+    "pages/home/home",
+    "pages/menu/menu",
+    "pages/detail/detail",
+    "pages/orders/orders"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#050a1f",
+    "navigationBarTitleText": "家宴点餐",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#050a1f"
+  },
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents"
+}
+

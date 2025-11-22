@@ -1,0 +1,39 @@
+:root {
+  --neo-bg: #020617;
+  --neo-card: rgba(15, 23, 42, 0.9);
+  --neo-border: rgba(255, 255, 255, 0.08);
+  --neo-primary: #14b8ff;
+  --neo-secondary: #7c3aed;
+  --neo-accent: #00ffb3;
+  --neo-text: #f8fafc;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(20, 184, 255, 0.7), rgba(124, 58, 237, 0.7));
+}
+
+.glass-card {
+  background: var(--neo-card);
+  border: 1px solid var(--neo-border);
+  border-radius: 20px;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.glow-border {
+  box-shadow: 0 0 40px rgba(20, 184, 255, 0.2);
+}
+
+.grid-auto {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+

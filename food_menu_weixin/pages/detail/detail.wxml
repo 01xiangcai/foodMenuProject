@@ -1,0 +1,64 @@
+<view class="detail-page" wx:if="{{dish}}">
+  <image class="hero-photo" mode="aspectFill" src="{{dish.image}}" />
+  <view class="glass-card head-card">
+    <view class="title-row">
+      <text class="title">{{dish.name}}</text>
+      <text class="badge" wx:if="{{dish.categoryName}}">{{dish.categoryName}}</text>
+    </view>
+    <view class="meta">
+      <text>¥{{dish.price}}</text>
+      <text>·</text>
+      <text>家庭菜谱</text>
+    </view>
+    <text class="flavor">{{dish.code || ''}}</text>
+    <text class="description">{{dish.description}}</text>
+    <view class="tips" wx:if="{{dish.tips && dish.tips.length}}">
+      <text class="tips-title">家人小贴士</text>
+      <block wx:for="{{dish.tips}}" wx:key="index">
+        <text class="tips-item">· {{item}}</text>
+      </block>
+    </view>
+  </view>
+
+  <view class="glass-card comment-section">
+    <view class="comment-header">
+      <text class="section-title">家庭评论</text>
+      <text class="mini-tip">{{comments.length}} 条留言</text>
+    </view>
+    <view class="comment-list" wx:if="{{comments.length}}">
+      <block wx:for="{{comments}}" wx:key="id">
+        <view class="comment-card">
+          <view class="comment-head">
+            <text class="author">{{item.authorName}}</text>
+            <text class="time">{{item.createTime}}</text>
+          </view>
+          <text class="comment-content">{{item.content}}</text>
+          <view
+            class="toggle"
+            data-index="{{index}}"
+            bindtap="toggleReplies"
+            wx:if="{{item.replies && item.replies.length}}"
+          >
+            <text>{{item.expanded ? '收起回复' : '展开回复'}}</text>
+            <text class="count">({{item.replies.length}})</text>
+          </view>
+          <view class="replies" wx:if="{{item.expanded}}">
+              <block wx:for="{{item.replies}}" wx:key="id">
+              <view class="reply">
+                  <text class="author">{{item.authorName}}</text>
+                  <text class="reply-content">{{item.content}}</text>
+                  <text class="time">{{item.createTime}}</text>
+              </view>
+            </block>
+          </view>
+        </view>
+      </block>
+    </view>
+    <view class="empty-tip" wx:else>第一条味觉灵感等你来写～</view>
+  </view>
+</view>
+
+<view class="empty-page" wx:else>
+  <text>暂无菜品信息</text>
+</view>
+

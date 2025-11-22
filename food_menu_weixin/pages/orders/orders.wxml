@@ -1,0 +1,36 @@
+<view class="page">
+  <view class="glass-card timeline-card">
+    <text class="section-title">协同时间线</text>
+    <view class="timeline">
+      <block wx:for="{{timeline}}" wx:key="time">
+        <view class="timeline-row">
+          <view class="dot" style="background: {{item.glow}}"></view>
+          <view class="content">
+            <text class="time">{{item.time}}</text>
+            <text class="title">{{item.title}}</text>
+            <text class="status">{{item.status}}</text>
+          </view>
+        </view>
+      </block>
+    </view>
+  </view>
+
+  <view class="glass-card history-card">
+    <text class="section-title">历史订单</text>
+    <view class="history-list">
+      <block wx:for="{{history}}" wx:key="number">
+        <view class="history-row">
+          <view>
+            <text class="number">{{item.number}}</text>
+            <text class="dish">{{item.dish}}</text>
+          </view>
+          <view class="amount-area">
+            <text class="amount">{{item.amount}}</text>
+            <text class="status-pill">{{item.status}}</text>
+          </view>
+        </view>
+      </block>
+    </view>
+  </view>
+</view>
+
