@@ -7,57 +7,57 @@ import com.yao.food_menu.dto.WxUserQueryDto;
 import com.yao.food_menu.entity.WxUser;
 
 /**
- * WxUser Service
+ * 微信用户服务接口
  */
 public interface WxUserService extends IService<WxUser> {
 
     /**
-     * Send verification code
+     * 发送验证码
      */
     void sendCode(String phone);
 
     /**
-     * User login
+     * 用户登录
      */
     String login(LoginDto loginDto);
 
     /**
-     * Get current user
+     * 获取当前用户
      */
     WxUser getCurrentUser(Long userId);
 
     /**
-     * User register
+     * 用户注册
      */
     void register(com.yao.food_menu.dto.RegisterDto registerDto);
 
     /**
-     * WeChat login (reserved for future implementation)
+     * 微信登录(预留功能)
      */
     String wxLogin(String code);
 
     /**
-     * Page query users
+     * 分页查询用户
      */
     Page<WxUser> pageUsers(WxUserQueryDto queryDto);
 
     /**
-     * Update wx user (for admin)
+     * 更新微信用户(管理员)
      */
     void updateWxUser(WxUser wxUser);
 
     /**
-     * Update user status
+     * 更新用户状态
      */
     void updateUserStatus(Long id, Integer status);
 
     /**
-     * Delete user (soft delete by setting status to 0)
+     * 删除用户(软删除,将状态设置为0)
      */
     void deleteUser(Long id);
 
     /**
-     * Reset user password
+     * 重置用户密码
      */
     String resetPassword(Long id);
 }

@@ -3,26 +3,26 @@ package com.yao.food_menu.dto;
 import lombok.Data;
 
 /**
- * WxUser query DTO for pagination and filtering
+ * 微信用户查询DTO,用于分页和过滤
  */
 @Data
 public class WxUserQueryDto {
 
-    // Page number
+    // 页码
     private Integer page = 1;
 
-    // Page size
+    // 每页大小
     private Integer pageSize = 10;
 
-    // Nickname (fuzzy search)
+    // 昵称(模糊搜索)
     private String nickname;
 
-    // Phone number (fuzzy search)
+    // 手机号(模糊搜索)
     private String phone;
 
-    // Username (fuzzy search)
+    // 用户名(模糊搜索)
     private String username;
 
-    // Status: 0-disabled, 1-enabled
+    // 状态: 0-禁用, 1-启用
     private Integer status;
 }

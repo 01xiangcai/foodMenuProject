@@ -10,7 +10,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * WeChat Mini Program User entity
+ * 微信小程序用户实体类
  */
 @Data
 @TableName("wx_user")
@@ -21,31 +21,31 @@ public class WxUser implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    // WeChat OpenID (unique identifier from WeChat)
+    // 微信OpenID(微信唯一标识符)
     private String openid;
 
-    // WeChat UnionID (for multi-app scenarios, reserved)
+    // 微信UnionID(多应用场景使用,预留)
     private String unionid;
 
-    // Username (for username/password login)
+    // 用户名(用于用户名/密码登录)
     private String username;
 
-    // Password (encrypted, for username/password login)
+    // 密码(加密存储,用于用户名/密码登录)
     private String password;
 
-    // Phone number
+    // 手机号
     private String phone;
 
-    // Nickname
+    // 昵称
     private String nickname;
 
-    // Avatar URL
+    // 头像URL
     private String avatar;
 
-    // Gender: 0-unknown, 1-male, 2-female
+    // 性别: 0-未知, 1-男, 2-女
     private Integer gender;
 
-    // Status: 0-disabled, 1-normal
+    // 状态: 0-禁用, 1-正常
     private Integer status;
 
     @TableField(fill = FieldFill.INSERT)

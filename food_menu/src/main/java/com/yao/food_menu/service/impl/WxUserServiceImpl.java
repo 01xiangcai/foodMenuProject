@@ -24,15 +24,15 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
 
     private static final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    // Simulated verification code storage (in production, use Redis)
+    // 模拟验证码存储(生产环境应使用Redis)
     private static final Map<String, String> CODE_CACHE = new HashMap<>();
 
     @Override
     public void sendCode(String phone) {
-        // Simulate sending verification code
-        String code = "1234"; // Fixed code for testing
+        // 模拟发送验证码
+        String code = "1234"; // 测试用固定验证码
         CODE_CACHE.put(phone, code);
-        log.info("Verification code sent to {}: {}", phone, code);
+        log.info("验证码已发送到 {}: {}", phone, code);
     }
 
     @Override
@@ -41,31 +41,31 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
         Integer type = resolveLoginType(loginDto);
 
         if (type == 1) {
-            // Username/Password login
+            // 用户名/密码登录
             LambdaQueryWrapper<WxUser> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(WxUser::getUsername, loginDto.getUsername());
             user = this.getOne(queryWrapper);
 
             if (user == null) {
-                throw new RuntimeException("User not found");
+                throw new RuntimeException("用户不存在");
             }
 
             if (!passwordEncoder.matches(loginDto.getPassword(), user.getPassword())) {
-                throw new RuntimeException("Incorrect password");
+                throw new RuntimeException("密码错误");
             }
 
         } else if (type == 2) {
-            // Phone/Code login
+            // 手机号/验证码登录
             String cachedCode = CODE_CACHE.get(loginDto.getPhone());
             if (cachedCode == null || !cachedCode.equals(loginDto.getCode())) {
-                throw new RuntimeException("Invalid verification code");
+                throw new RuntimeException("验证码无效");
             }
 
             LambdaQueryWrapper<WxUser> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(WxUser::getPhone, loginDto.getPhone());
             user = this.getOne(queryWrapper);
 
-            // Auto register if user doesn't exist
+            // 如果用户不存在则自动注册
             if (user == null) {
                 user = new WxUser();
                 user.setPhone(loginDto.getPhone());
@@ -74,22 +74,22 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
                 this.save(user);
             }
 
-            // Clear used code
+            // 清除已使用的验证码
             CODE_CACHE.remove(loginDto.getPhone());
         } else {
-            throw new RuntimeException("Invalid login type");
+            throw new RuntimeException("无效的登录类型");
         }
 
         if (user.getStatus() == 0) {
-            throw new RuntimeException("User is disabled");
+            throw new RuntimeException("用户已被禁用");
         }
 
-        // Generate JWT token
+        // 生成JWT token
         return JwtUtil.generateToken(user.getId(), user.getUsername() != null ? user.getUsername() : user.getPhone());
     }
 
     /**
-     * Resolve login type from payload, fallback to inferred type when omitted.
+     * 从请求中解析登录类型,当未指定时回退到推断类型
      */
     private Integer resolveLoginType(LoginDto loginDto) {
         if (loginDto.getType() != null) {
@@ -101,7 +101,7 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
         boolean hasPhoneCode = StringUtils.hasText(loginDto.getPhone()) && StringUtils.hasText(loginDto.getCode());
 
         if (hasCredential && hasPhoneCode) {
-            throw new RuntimeException("Please choose login type explicitly when multiple credentials are provided");
+            throw new RuntimeException("提供多个凭证时请明确指定登录类型");
         }
 
         if (hasCredential) {
@@ -112,7 +112,7 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
             return 2;
         }
 
-        throw new RuntimeException("Login type is required");
+        throw new RuntimeException("登录类型不能为空");
     }
 
     @Override
@@ -122,14 +122,14 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
 
     @Override
     public void register(com.yao.food_menu.dto.RegisterDto registerDto) {
-        // Check if username exists
+        // 检查用户名是否已存在
         LambdaQueryWrapper<WxUser> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(WxUser::getUsername, registerDto.getUsername());
         if (this.count(queryWrapper) > 0) {
             throw new RuntimeException("用户名已存在");
         }
 
-        // Check if phone exists (if provided)
+        // 检查手机号是否已存在(如果提供)
         if (StringUtils.hasText(registerDto.getPhone())) {
             LambdaQueryWrapper<WxUser> phoneWrapper = new LambdaQueryWrapper<>();
             phoneWrapper.eq(WxUser::getPhone, registerDto.getPhone());
@@ -138,26 +138,26 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
             }
         }
 
-        // Create new user
+        // 创建新用户
         WxUser user = new WxUser();
         user.setUsername(registerDto.getUsername());
         user.setPassword(passwordEncoder.encode(registerDto.getPassword()));
         user.setNickname(StringUtils.hasText(registerDto.getNickname()) ? registerDto.getNickname()
                 : "用户_" + registerDto.getUsername());
         user.setPhone(registerDto.getPhone());
-        user.setStatus(1); // Normal status
-        user.setGender(0); // Unknown gender
+        user.setStatus(1); // 正常状态
+        user.setGender(0); // 未知性别
 
         this.save(user);
     }
 
     @Override
     public String wxLogin(String code) {
-        // TODO: Implement WeChat login
-        // 1. Call WeChat API to get openid using code
-        // 2. Find or create user by openid
-        // 3. Generate and return JWT token
-        throw new RuntimeException("WeChat login not implemented yet");
+        // TODO: 实现微信登录
+        // 1. 使用code调用微信API获取openid
+        // 2. 根据openid查找或创建用户
+        // 3. 生成并返回JWT token
+        throw new RuntimeException("微信登录功能尚未实现");
     }
 
     @Override
@@ -165,27 +165,27 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
         Page<WxUser> page = new Page<>(queryDto.getPage(), queryDto.getPageSize());
         LambdaQueryWrapper<WxUser> queryWrapper = new LambdaQueryWrapper<>();
 
-        // Fuzzy search by nickname
+        // 按昵称模糊搜索
         if (StringUtils.hasText(queryDto.getNickname())) {
             queryWrapper.like(WxUser::getNickname, queryDto.getNickname());
         }
 
-        // Fuzzy search by phone
+        // 按手机号模糊搜索
         if (StringUtils.hasText(queryDto.getPhone())) {
             queryWrapper.like(WxUser::getPhone, queryDto.getPhone());
         }
 
-        // Fuzzy search by username
+        // 按用户名模糊搜索
         if (StringUtils.hasText(queryDto.getUsername())) {
             queryWrapper.like(WxUser::getUsername, queryDto.getUsername());
         }
 
-        // Filter by status
+        // 按状态过滤
         if (queryDto.getStatus() != null) {
             queryWrapper.eq(WxUser::getStatus, queryDto.getStatus());
         }
 
-        // Order by create time descending
+        // 按创建时间降序排序
         queryWrapper.orderByDesc(WxUser::getCreateTime);
 
         return this.page(page, queryWrapper);
@@ -195,10 +195,10 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
     public void updateWxUser(WxUser wxUser) {
         WxUser existingUser = this.getById(wxUser.getId());
         if (existingUser == null) {
-            throw new RuntimeException("User not found");
+            throw new RuntimeException("用户不存在");
         }
 
-        // Update allowed fields
+        // 更新允许的字段
         if (StringUtils.hasText(wxUser.getNickname())) {
             existingUser.setNickname(wxUser.getNickname());
         }
@@ -219,7 +219,7 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
     public void updateUserStatus(Long id, Integer status) {
         WxUser user = this.getById(id);
         if (user == null) {
-            throw new RuntimeException("User not found");
+            throw new RuntimeException("用户不存在");
         }
 
         user.setStatus(status);
@@ -230,10 +230,10 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
     public void deleteUser(Long id) {
         WxUser user = this.getById(id);
         if (user == null) {
-            throw new RuntimeException("User not found");
+            throw new RuntimeException("用户不存在");
         }
 
-        // Soft delete by setting status to 0
+        // 软删除,将状态设置为0
         user.setStatus(0);
         this.updateById(user);
     }
@@ -242,10 +242,10 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
     public String resetPassword(Long id) {
         WxUser user = this.getById(id);
         if (user == null) {
-            throw new RuntimeException("User not found");
+            throw new RuntimeException("用户不存在");
         }
 
-        // Generate random 8-character password
+        // 生成8位随机密码
         String newPassword = generateRandomPassword(8);
         user.setPassword(passwordEncoder.encode(newPassword));
         this.updateById(user);
@@ -254,7 +254,7 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
     }
 
     /**
-     * Generate random password
+     * 生成随机密码
      */
     private String generateRandomPassword(int length) {
         String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";

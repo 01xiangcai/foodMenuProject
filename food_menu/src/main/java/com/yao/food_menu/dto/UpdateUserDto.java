@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 /**
- * DTO for updating user information
+ * 用户信息更新DTO
  */
 @Data
 @Schema(description = "用户信息更新对象")

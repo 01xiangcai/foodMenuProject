@@ -3,23 +3,23 @@ package com.yao.food_menu.dto;
 import lombok.Data;
 
 /**
- * User login DTO
+ * 用户登录DTO
  */
 @Data
 public class LoginDto {
 
-    // Login type: 1-username/password, 2-phone/code
+    // 登录类型: 1-用户名/密码, 2-手机号/验证码
     private Integer type;
 
-    // Username (for type 1)
+    // 用户名(类型1使用)
     private String username;
 
-    // Password (for type 1)
+    // 密码(类型1使用)
     private String password;
 
-    // Phone number (for type 2)
+    // 手机号(类型2使用)
     private String phone;
 
-    // Verification code (for type 2)
+    // 验证码(类型2使用)
     private String code;
 }

@@ -92,58 +92,58 @@ public class WxUserController {
     @Operation(summary = "微信一键登录", description = "使用微信授权code登录(预留)")
     @PostMapping("/wxlogin")
     public Result<String> wxLogin(@RequestParam String code) {
-        log.info("WeChat login with code: {}", code);
+        log.info("微信登录,code: {}", code);
 
         try {
             String token = wxUserService.wxLogin(code);
             return Result.success(token);
         } catch (Exception e) {
-            log.error("WeChat login failed: {}", e.getMessage());
+            log.error("微信登录失败: {}", e.getMessage());
             return Result.error(e.getMessage());
         }
     }
 
     /**
-     * Upload avatar
+     * 上传头像
      */
     @Operation(summary = "上传头像", description = "上传用户头像到OSS专用文件夹")
     @PostMapping("/avatar")
     public Result<UploadResult> uploadAvatar(MultipartFile file, @RequestHeader("Authorization") String token) {
-        log.info("Upload avatar for user");
+        log.info("用户上传头像");
 
         try {
             if (file == null || file.isEmpty()) {
                 return Result.error("文件不能为空");
             }
 
-            // Verify token
+            // 验证token
             if (token.startsWith("Bearer ")) {
                 token = token.substring(7);
             }
             Long userId = com.yao.food_menu.common.util.JwtUtil.getUserId(token);
 
-            // Upload to OSS
+            // 上传到OSS
             String objectKey = ossService.uploadAvatar(file);
             String presignedUrl = ossService.generatePresignedUrl(objectKey);
 
             UploadResult result = new UploadResult(objectKey, presignedUrl);
             return Result.success(result);
         } catch (Exception e) {
-            log.error("Upload avatar failed: {}", e.getMessage());
+            log.error("上传头像失败: {}", e.getMessage());
             return Result.error("上传失败: " + e.getMessage());
         }
     }
 
     /**
-     * Get current user info
+     * 获取当前用户信息
      */
     @Operation(summary = "获取用户信息", description = "根据Token获取当前登录用户信息")
     @GetMapping("/info")
     public Result<WxUser> getUserInfo(@RequestHeader("Authorization") String token) {
-        log.info("Get user info with token: {}", token);
+        log.info("获取用户信息,token: {}", token);
 
         try {
-            // Remove "Bearer " prefix if exists
+            // 移除"Bearer "前缀(如果存在)
             if (token.startsWith("Bearer ")) {
                 token = token.substring(7);
             }
@@ -151,10 +151,10 @@ public class WxUserController {
             Long userId = com.yao.food_menu.common.util.JwtUtil.getUserId(token);
             WxUser user = wxUserService.getCurrentUser(userId);
 
-            // Don't return password
+            // 不返回密码
             user.setPassword(null);
 
-            // Convert avatar objectKey to presigned URL if exists
+            // 如果存在头像,将objectKey转换为预签名URL
             if (StringUtils.hasText(user.getAvatar())) {
                 String presignedUrl = ossService.generatePresignedUrl(user.getAvatar());
                 user.setAvatar(presignedUrl);
@@ -162,33 +162,33 @@ public class WxUserController {
 
             return Result.success(user);
         } catch (Exception e) {
-            log.error("Get user info failed: {}", e.getMessage());
-            return Result.error("Invalid token");
+            log.error("获取用户信息失败: {}", e.getMessage());
+            return Result.error("无效的token");
         }
     }
 
     /**
-     * Update user info
+     * 更新用户信息
      */
     @Operation(summary = "更新用户信息", description = "更新当前用户的昵称、头像等信息")
     @PutMapping
     public Result<String> update(@RequestBody UpdateUserDto updateDto, @RequestHeader("Authorization") String token) {
-        log.info("Update user: {}", updateDto);
+        log.info("更新用户信息: {}", updateDto);
 
         try {
-            // Remove "Bearer " prefix if exists
+            // 移除"Bearer "前缀(如果存在)
             if (token.startsWith("Bearer ")) {
                 token = token.substring(7);
             }
 
             Long userId = com.yao.food_menu.common.util.JwtUtil.getUserId(token);
 
-            // Build WxUser entity for update
+            // 构建WxUser实体用于更新
             WxUser user = new WxUser();
             user.setId(userId);
             user.setNickname(updateDto.getNickname());
 
-            // Extract object key if avatar is a full URL
+            // 如果头像是完整URL,提取objectKey
             String avatarKey = ossService.extractKeyFromUrl(updateDto.getAvatar());
             user.setAvatar(avatarKey);
 
@@ -197,137 +197,137 @@ public class WxUserController {
             wxUserService.updateById(user);
             return Result.success("用户信息更新成功");
         } catch (Exception e) {
-            log.error("Update user failed: {}", e.getMessage());
+            log.error("更新用户信息失败: {}", e.getMessage());
             return Result.error("更新失败");
         }
     }
 
     /**
-     * Page query users (for admin)
+     * 分页查询用户(管理员)
      */
     @Operation(summary = "分页查询微信用户", description = "管理员查询微信用户列表")
     @GetMapping("/page")
     public Result<Page<WxUser>> page(WxUserQueryDto queryDto) {
-        log.info("Page query wx users: {}", queryDto);
+        log.info("分页查询微信用户: {}", queryDto);
 
         try {
             Page<WxUser> page = wxUserService.pageUsers(queryDto);
-            // Remove passwords and convert avatar URLs
+            // 移除密码并转换头像URL
             page.getRecords().forEach(user -> {
                 user.setPassword(null);
-                // Convert avatar objectKey to presigned URL if exists
+                // 如果存在头像,将objectKey转换为预签名URL
                 if (StringUtils.hasText(user.getAvatar())) {
                     try {
-                        log.debug("Generating presigned URL for avatar: {}", user.getAvatar());
+                        log.debug("为头像生成预签名URL: {}", user.getAvatar());
                         String presignedUrl = ossService.generatePresignedUrl(user.getAvatar());
                         user.setAvatar(presignedUrl);
-                        log.debug("Generated presigned URL: {}", presignedUrl);
+                        log.debug("已生成预签名URL: {}", presignedUrl);
                     } catch (Exception e) {
-                        log.error("Failed to generate presigned URL for avatar: {}, error: {}",
+                        log.error("为头像生成预签名URL失败: {}, 错误: {}",
                                 user.getAvatar(), e.getMessage(), e);
-                        // Fallback: construct public OSS URL
+                        // 降级方案:构造公共OSS URL
                         try {
                             String publicUrl = constructPublicOssUrl(user.getAvatar());
                             user.setAvatar(publicUrl);
-                            log.info("Using public URL fallback: {}", publicUrl);
+                            log.info("使用公共URL降级方案: {}", publicUrl);
                         } catch (Exception ex) {
-                            log.error("Failed to construct public URL: {}", ex.getMessage());
-                            // Keep the original avatar value if all fails
+                            log.error("构造公共URL失败: {}", ex.getMessage());
+                            // 如果全部失败,保留原始头像值
                         }
                     }
                 } else {
-                    log.debug("User {} has no avatar", user.getId());
+                    log.debug("用户 {} 没有头像", user.getId());
                 }
             });
             return Result.success(page);
         } catch (Exception e) {
-            log.error("Page query failed: {}", e.getMessage(), e);
-            return Result.error("Query failed");
+            log.error("分页查询失败: {}", e.getMessage(), e);
+            return Result.error("查询失败");
         }
     }
 
     /**
-     * Construct public OSS URL as fallback
+     * 构造公共OSS URL作为降级方案
      */
     private String constructPublicOssUrl(String objectKey) {
-        // Format: https://bucket-name.endpoint/objectKey
-        // Hardcoded for now - ideally should inject AliyunOssProperties
+        // 格式: https://bucket-name.endpoint/objectKey
+        // 目前硬编码 - 理想情况下应该注入AliyunOssProperties
         return "https://food-menu-yao.oss-cn-shenzhen.aliyuncs.com/" + objectKey;
     }
 
     /**
-     * Update wx user (for admin)
+     * 更新微信用户(管理员)
      */
     @Operation(summary = "更新微信用户", description = "管理员更新微信用户信息")
     @PutMapping("/admin/update")
     public Result<String> adminUpdate(@RequestBody WxUser wxUser) {
-        log.info("Admin update wx user: {}", wxUser);
+        log.info("管理员更新微信用户: {}", wxUser);
 
         try {
             if (wxUser.getId() == null) {
-                return Result.error("User ID is required");
+                return Result.error("用户ID不能为空");
             }
 
             wxUserService.updateWxUser(wxUser);
-            return Result.success("User updated successfully");
+            return Result.success("用户更新成功");
         } catch (Exception e) {
-            log.error("Update wx user failed: {}", e.getMessage());
+            log.error("更新微信用户失败: {}", e.getMessage());
             return Result.error(e.getMessage());
         }
     }
 
     /**
-     * Update user status (for admin)
+     * 更新用户状态(管理员)
      */
     @Operation(summary = "更新用户状态", description = "管理员启用或禁用微信用户")
     @PutMapping("/status")
     public Result<String> updateStatus(@RequestParam Long id, @RequestParam Integer status) {
-        log.info("Update wx user status, id: {}, status: {}", id, status);
+        log.info("更新微信用户状态, id: {}, status: {}", id, status);
 
         try {
             if (status != 0 && status != 1) {
-                return Result.error("Invalid status value");
+                return Result.error("无效的状态值");
             }
 
             wxUserService.updateUserStatus(id, status);
-            return Result.success("Status updated successfully");
+            return Result.success("状态更新成功");
         } catch (Exception e) {
-            log.error("Update status failed: {}", e.getMessage());
-            return Result.error("Update failed");
+            log.error("更新状态失败: {}", e.getMessage());
+            return Result.error("更新失败");
         }
     }
 
     /**
-     * Delete user (for admin)
+     * 删除用户(管理员)
      */
     @Operation(summary = "删除微信用户", description = "管理员删除微信用户（软删除）")
     @DeleteMapping("/{id}")
     public Result<String> delete(@PathVariable Long id) {
-        log.info("Delete wx user, id: {}", id);
+        log.info("删除微信用户, id: {}", id);
 
         try {
             wxUserService.deleteUser(id);
-            return Result.success("User deleted successfully");
+            return Result.success("用户删除成功");
         } catch (Exception e) {
-            log.error("Delete user failed: {}", e.getMessage());
-            return Result.error("Delete failed");
+            log.error("删除用户失败: {}", e.getMessage());
+            return Result.error("删除失败");
         }
     }
 
     /**
-     * Reset user password (for admin)
+     * 重置用户密码(管理员)
      */
     @Operation(summary = "重置用户密码", description = "管理员重置微信用户密码为随机密码并返回")
     @PutMapping("/reset-password/{id}")
     public Result<String> resetPassword(@PathVariable Long id) {
-        log.info("Reset password for wx user: {}", id);
+        log.info("重置微信用户密码: {}", id);
 
         try {
             String newPassword = wxUserService.resetPassword(id);
             return Result.success(newPassword);
         } catch (Exception e) {
-            log.error("Reset password failed: {}", e.getMessage());
-            return Result.error("Reset failed");
+            log.error("重置密码失败: {}", e.getMessage());
+            return Result.error("重置失败");
         }
     }
 }
