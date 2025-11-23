@@ -1,0 +1,27 @@
+/* 全局样式变量 */
+$primary-color: #14b8ff;
+$bg-dark: #050a1f;
+$bg-card: #0a1120;
+$text-primary: #e2e8f0;
+$text-secondary: #8b8fa3;
+$border-color: rgba(255, 255, 255, 0.1);
+
+/* 玻璃拟态效果 */
+@mixin glass-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+}
+
+/* 渐变背景 */
+@mixin gradient-bg {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Flex 居中 */
+@mixin flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

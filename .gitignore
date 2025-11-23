@@ -1,0 +1,56 @@
+# 依赖目录
+node_modules/
+**/node_modules/
+
+# uni-app 编译产物
+unpackage/
+dist/
+**/unpackage/
+**/dist/
+
+# 临时文件
+.temp/
+.cache/
+
+# 日志文件
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 编辑器配置
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# 微信小程序
+**/project.private.config.json
+
+# HBuilderX 相关
+.hbuilderx/
+
+# Maven
+food_menu/target/
+food_menu/.mvn/
+
+# 前端构建产物
+food_menu_admin/dist/
+food_menu_admin/node_modules/
+food_menu_uniapp/node_modules/
+food_menu_uniapp/unpackage/
+food_menu_uniapp/dist/
+
+# 系统文件
+Thumbs.db
+Desktop.ini
