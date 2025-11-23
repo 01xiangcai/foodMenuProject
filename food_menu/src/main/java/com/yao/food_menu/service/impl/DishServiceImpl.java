@@ -25,13 +25,13 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
     private DishFlavorService dishFlavorService;
 
     /**
-     * Save dish with flavor
+     * 保存菜品及口味
      * 
      * @param dishDto
      */
     @Transactional
     public void saveWithFlavor(DishDto dishDto) {
-        // Save dish basic info
+        // 保存菜品基本信息
         this.save(dishDto);
 
         Long dishId = dishDto.getId();
@@ -42,24 +42,24 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
             return item;
         }).collect(Collectors.toList());
 
-        // Save dish flavors
+        // 保存菜品口味
         dishFlavorService.saveBatch(flavors);
     }
 
     /**
-     * Get dish with flavor by id
+     * 根据ID获取菜品及口味
      * 
      * @param id
      * @return
      */
     public DishDto getByIdWithFlavor(Long id) {
-        // Query dish basic info
+        // 查询菜品基本信息
         Dish dish = this.getById(id);
 
         DishDto dishDto = new DishDto();
         BeanUtils.copyProperties(dish, dishDto);
 
-        // Query dish flavors
+        // 查询菜品口味
         LambdaQueryWrapper<DishFlavor> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(DishFlavor::getDishId, dish.getId());
         List<DishFlavor> flavors = dishFlavorService.list(queryWrapper);
@@ -71,15 +71,15 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
     @Override
     @Transactional
     public void updateWithFlavor(DishDto dishDto) {
-        // Update dish basic info
+        // 更新菜品基本信息
         this.updateById(dishDto);
 
-        // Clear current flavors
+        // 清除当前口味
         LambdaQueryWrapper<DishFlavor> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(DishFlavor::getDishId, dishDto.getId());
         dishFlavorService.remove(queryWrapper);
 
-        // Add new flavors
+        // 添加新口味
         List<DishFlavor> flavors = dishDto.getFlavors();
         flavors = flavors.stream().map((item) -> {
             item.setDishId(dishDto.getId());

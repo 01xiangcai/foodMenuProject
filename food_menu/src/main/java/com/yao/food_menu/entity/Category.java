@@ -8,6 +8,9 @@ import lombok.Data;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
+/**
+ * 分类实体类
+ */
 @Data
 public class Category implements Serializable {
 
@@ -16,10 +19,13 @@ public class Category implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
 
+    // 类型: 1-菜品分类, 2-套餐分类
     private Integer type;
 
+    // 分类名称
     private String name;
 
+    // 排序
     private Integer sort;
 
     @TableField(fill = FieldFill.INSERT)

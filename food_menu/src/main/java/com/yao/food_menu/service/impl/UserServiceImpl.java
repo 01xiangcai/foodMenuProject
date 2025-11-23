@@ -26,15 +26,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     private static final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    // Simulated verification code storage (in production, use Redis)
+    // 模拟验证码存储(生产环境应使用Redis)
     private static final Map<String, String> CODE_CACHE = new HashMap<>();
 
     @Override
     public void sendCode(String phone) {
-        // Simulate sending verification code
-        String code = "1234"; // Fixed code for testing
+        // 模拟发送验证码
+        String code = "1234"; // 测试用固定验证码
         CODE_CACHE.put(phone, code);
-        log.info("Verification code sent to {}: {}", phone, code);
+        log.info("验证码已发送到 {}: {}", phone, code);
     }
 
     @Override
@@ -43,55 +43,55 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         Integer type = resolveLoginType(loginDto);
 
         if (type == 1) {
-            // Username/Password login
+            // 用户名/密码登录
             LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(User::getUsername, loginDto.getUsername());
             user = this.getOne(queryWrapper);
 
             if (user == null) {
-                throw new RuntimeException("User not found");
+                throw new RuntimeException("用户不存在");
             }
 
             if (!passwordEncoder.matches(loginDto.getPassword(), user.getPassword())) {
-                throw new RuntimeException("Incorrect password");
+                throw new RuntimeException("密码错误");
             }
 
         } else if (type == 2) {
-            // Phone/Code login
+            // 手机号/验证码登录
             String cachedCode = CODE_CACHE.get(loginDto.getPhone());
             if (cachedCode == null || !cachedCode.equals(loginDto.getCode())) {
-                throw new RuntimeException("Invalid verification code");
+                throw new RuntimeException("验证码无效");
             }
 
             LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(User::getPhone, loginDto.getPhone());
             user = this.getOne(queryWrapper);
 
-            // Auto register if user doesn't exist
+            // 如果用户不存在则自动注册
             if (user == null) {
                 user = new User();
                 user.setPhone(loginDto.getPhone());
-                user.setName("User_" + loginDto.getPhone().substring(7));
+                user.setName("用户_" + loginDto.getPhone().substring(7));
                 user.setStatus(1);
                 this.save(user);
             }
 
-            // Clear used code
+            // 清除已使用的验证码
             CODE_CACHE.remove(loginDto.getPhone());
         } else {
-            throw new RuntimeException("Invalid login type");
+            throw new RuntimeException("无效的登录类型");
         }
 
         if (user.getStatus() == 0) {
-            throw new RuntimeException("User is disabled");
+            throw new RuntimeException("用户已被禁用");
         }
 
-        // Generate JWT token
+        // 生成JWT token
         return JwtUtil.generateToken(user.getId(), user.getUsername() != null ? user.getUsername() : user.getPhone());
     }
 
     /**
-     * Resolve login type from payload, fallback to inferred type when omitted.
+     * 从请求中解析登录类型,当未指定时回退到推断类型
      */
     private Integer resolveLoginType(LoginDto loginDto) {
         if (loginDto.getType() != null) {
@@ -103,7 +103,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         boolean hasPhoneCode = StringUtils.hasText(loginDto.getPhone()) && StringUtils.hasText(loginDto.getCode());
 
         if (hasCredential && hasPhoneCode) {
-            throw new RuntimeException("Please choose login type explicitly when multiple credentials are provided");
+            throw new RuntimeException("提供多个凭证时请明确指定登录类型");
         }
 
         if (hasCredential) {
@@ -114,7 +114,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             return 2;
         }
 
-        throw new RuntimeException("Login type is required");
+        throw new RuntimeException("登录类型不能为空");
     }
 
     @Override
@@ -143,25 +143,25 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Override
     public void createUser(UserDto userDto) {
-        // Check if username already exists
+        // 检查用户名是否已存在
         LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(User::getUsername, userDto.getUsername());
         User existingUser = this.getOne(queryWrapper);
 
         if (existingUser != null) {
-            throw new RuntimeException("Username already exists");
+            throw new RuntimeException("用户名已存在");
         }
 
-        // Create new user
+        // 创建新用户
         User user = new User();
         BeanUtils.copyProperties(userDto, user);
 
-        // Encrypt password
+        // 加密密码
         user.setPassword(passwordEncoder.encode(userDto.getPassword()));
 
-        // Set default values
+        // 设置默认值
         if (user.getStatus() == null) {
-            user.setStatus(1); // Enabled by default
+            user.setStatus(1); // 默认启用
         }
 
         this.save(user);
@@ -171,10 +171,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public void updateUser(UserDto userDto) {
         User user = this.getById(userDto.getId());
         if (user == null) {
-            throw new RuntimeException("User not found");
+            throw new RuntimeException("用户不存在");
         }
 
-        // Update allowed fields
+        // 更新允许的字段
         if (StringUtils.hasText(userDto.getName())) {
             user.setName(userDto.getName());
         }
@@ -192,10 +192,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public void deleteUser(Long id) {
         User user = this.getById(id);
         if (user == null) {
-            throw new RuntimeException("User not found");
+            throw new RuntimeException("用户不存在");
         }
 
-        // Soft delete: set status to disabled
+        // 软删除:设置状态为禁用
         user.setStatus(0);
         this.updateById(user);
     }
@@ -204,7 +204,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public void updateUserStatus(Long id, Integer status) {
         User user = this.getById(id);
         if (user == null) {
-            throw new RuntimeException("User not found");
+            throw new RuntimeException("用户不存在");
         }
 
         user.setStatus(status);
@@ -215,17 +215,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public String resetPassword(Long id) {
         User user = this.getById(id);
         if (user == null) {
-            throw new RuntimeException("User not found");
+            throw new RuntimeException("用户不存在");
         }
 
-        // Generate random password (8 characters)
+        // 生成8位随机密码
         String newPassword = UUID.randomUUID().toString().substring(0, 8);
 
-        // Encrypt and save
+        // 加密并保存
         user.setPassword(passwordEncoder.encode(newPassword));
         this.updateById(user);
 
-        // Return plain password for admin to notify user
+        // 返回明文密码供管理员通知用户
         return newPassword;
     }
 }

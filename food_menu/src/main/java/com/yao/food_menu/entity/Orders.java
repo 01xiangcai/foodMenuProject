@@ -11,7 +11,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * Order entity
+ * 订单实体类
  */
 @Data
 @TableName("orders")
@@ -22,19 +22,19 @@ public class Orders implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    // Order number
+    // 订单号
     private String orderNumber;
 
-    // User id
+    // 用户ID
     private Long userId;
 
-    // Total amount
+    // 总金额
     private BigDecimal totalAmount;
 
-    // Order status: 0-pending, 1-preparing, 2-delivering, 3-completed, 4-cancelled
+    // 订单状态: 0-待处理, 1-准备中, 2-配送中, 3-已完成, 4-已取消
     private Integer status;
 
-    // Remark
+    // 备注
     private String remark;
 
     @TableField(fill = FieldFill.INSERT)

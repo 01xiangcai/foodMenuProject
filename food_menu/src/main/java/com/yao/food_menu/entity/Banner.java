@@ -10,7 +10,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * Banner entity for carousel images
+ * 轮播图实体类
  */
 @Data
 public class Banner implements Serializable {
@@ -20,22 +20,22 @@ public class Banner implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    // Banner image URL (OSS object key)
+    // 轮播图图片URL(OSS对象键)
     private String image;
 
-    // Banner title
+    // 轮播图标题
     private String title;
 
-    // Banner description
+    // 轮播图描述
     private String description;
 
-    // Link URL (optional, for navigation)
+    // 链接URL(可选,用于导航)
     private String linkUrl;
 
-    // Sort order
+    // 排序顺序
     private Integer sort;
 
-    // Status: 0-disabled, 1-enabled
+    // 状态: 0-禁用, 1-启用
     private Integer status;
 
     @TableField(fill = FieldFill.INSERT)
@@ -50,8 +50,7 @@ public class Banner implements Serializable {
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private Long updateUser;
 
-    // Logic delete
+    // 逻辑删除
     @TableLogic
     private Integer isDeleted;
 }
-

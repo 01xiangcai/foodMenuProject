@@ -3,29 +3,29 @@ package com.yao.food_menu.dto;
 import lombok.Data;
 
 /**
- * User query DTO for pagination and filtering
+ * 用户查询DTO,用于分页和过滤
  */
 @Data
 public class UserQueryDto {
 
-    // Page number
+    // 页码
     private Integer page = 1;
 
-    // Page size
+    // 每页大小
     private Integer pageSize = 10;
 
-    // Username (fuzzy search)
+    // 用户名(模糊搜索)
     private String username;
 
-    // Phone number (fuzzy search)
+    // 手机号(模糊搜索)
     private String phone;
 
-    // Name (fuzzy search)
+    // 姓名(模糊搜索)
     private String name;
 
-    // User type: 0-admin, 1-wx user
+    // 用户类型: 0-管理员, 1-微信用户
     private Integer type;
 
-    // Status: 0-disabled, 1-enabled
+    // 状态: 0-禁用, 1-启用
     private Integer status;
 }

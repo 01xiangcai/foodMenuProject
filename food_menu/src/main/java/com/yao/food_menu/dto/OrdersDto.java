@@ -8,18 +8,18 @@ import lombok.EqualsAndHashCode;
 import java.util.List;
 
 /**
- * Orders DTO
+ * 订单DTO
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class OrdersDto extends Orders {
 
-    // Order items
+    // 订单项列表
     @JsonProperty("orderItems")
     private List<OrderItem> orderItems;
 
-    // User information (for admin panel)
-    private String userNickname; // User nickname
-    private String userPhone; // User phone
-    private String userAvatar; // User avatar
+    // 用户信息(用于管理面板)
+    private String userNickname; // 用户昵称
+    private String userPhone; // 用户手机号
+    private String userAvatar; // 用户头像
 }

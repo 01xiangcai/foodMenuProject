@@ -4,14 +4,17 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.yao.food_menu.dto.DishDto;
 import com.yao.food_menu.entity.Dish;
 
+/**
+ * 菜品服务接口
+ */
 public interface DishService extends IService<Dish> {
 
-    // Save dish with flavor
+    // 保存菜品及口味
     public void saveWithFlavor(DishDto dishDto);
 
-    // Get dish with flavor by id
+    // 根据ID获取菜品及口味
     public DishDto getByIdWithFlavor(Long id);
 
-    // Update dish with flavor
+    // 更新菜品及口味
     public void updateWithFlavor(DishDto dishDto);
 }

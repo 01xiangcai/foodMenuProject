@@ -3,31 +3,31 @@ package com.yao.food_menu.dto;
 import lombok.Data;
 
 /**
- * User creation/update DTO
+ * 用户创建/更新DTO
  */
 @Data
 public class UserDto {
 
     private Long id;
 
-    // Username (required for creation)
+    // 用户名(创建时必填)
     private String username;
 
-    // Password (required for creation, optional for update)
+    // 密码(创建时必填,更新时可选)
     private String password;
 
-    // Phone number
+    // 手机号
     private String phone;
 
-    // Name
+    // 姓名
     private String name;
 
-    // Avatar URL
+    // 头像URL
     private String avatar;
 
-    // User type: 0-admin, 1-wx user
+    // 用户类型: 0-管理员, 1-微信用户
     private Integer type;
 
-    // Status: 0-disabled, 1-enabled
+    // 状态: 0-禁用, 1-启用
     private Integer status;
 }

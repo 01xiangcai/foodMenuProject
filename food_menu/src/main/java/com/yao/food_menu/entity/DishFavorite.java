@@ -10,7 +10,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * Dish favorite entity
+ * 菜品收藏实体类
  */
 @Data
 public class DishFavorite implements Serializable {
@@ -20,14 +20,13 @@ public class DishFavorite implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    // User id
+    // 用户ID
     private Long userId;
 
-    // Dish id
+    // 菜品ID
     private Long dishId;
 
-    // Create time (favorite time)
+    // 创建时间(收藏时间)
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 }
-

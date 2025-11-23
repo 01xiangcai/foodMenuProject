@@ -9,7 +9,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * User entity
+ * 用户实体类
  */
 @Data
 public class User implements Serializable {
@@ -19,22 +19,22 @@ public class User implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    // Username
+    // 用户名
     private String username;
 
-    // Password (encrypted)
+    // 密码(加密存储)
     private String password;
 
-    // Phone number
+    // 手机号
     private String phone;
 
-    // Name
+    // 姓名
     private String name;
 
-    // Avatar
+    // 头像
     private String avatar;
 
-    // Status 0:disabled 1:normal
+    // 状态: 0-禁用, 1-正常
     private Integer status;
 
     @TableField(fill = FieldFill.INSERT)

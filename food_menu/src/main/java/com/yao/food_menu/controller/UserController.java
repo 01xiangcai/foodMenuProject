@@ -14,7 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * User Controller
+ * 用户控制器
  */
 @Tag(name = "用户管理", description = "用户登录、注册、信息管理")
 @RestController
@@ -26,48 +26,48 @@ public class UserController {
     private UserService userService;
 
     /**
-     * Send verification code
+     * 发送验证码
      */
     @Operation(summary = "发送验证码", description = "向指定手机号发送验证码(测试环境固定为1234)")
     @PostMapping("/sendcode")
     public Result<String> sendCode(@RequestParam String phone) {
-        log.info("Send code to phone: {}", phone);
+        log.info("发送验证码到手机: {}", phone);
 
         if (phone == null || phone.length() != 11) {
-            return Result.error("Invalid phone number");
+            return Result.error("无效的手机号码");
         }
 
         userService.sendCode(phone);
-        return Result.success("Verification code sent successfully");
+        return Result.success("验证码发送成功");
     }
 
     /**
-     * User login
+     * 用户登录
      */
     @Operation(summary = "用户登录", description = "支持用户名/密码登录(type=1)和手机号/验证码登录(type=2)")
     @PostMapping("/login")
     public Result<String> login(@RequestBody LoginDto loginDto) {
-        log.info("User login: {}", loginDto);
+        log.info("用户登录: {}", loginDto);
 
         try {
             String token = userService.login(loginDto);
             return Result.success(token);
         } catch (Exception e) {
-            log.error("Login failed: {}", e.getMessage());
+            log.error("登录失败: {}", e.getMessage());
             return Result.error(e.getMessage());
         }
     }
 
     /**
-     * Get current user info
+     * 获取当前用户信息
      */
     @Operation(summary = "获取用户信息", description = "根据Token获取当前登录用户信息")
     @GetMapping("/info")
     public Result<User> getUserInfo(@RequestHeader("Authorization") String token) {
-        log.info("Get user info with token: {}", token);
+        log.info("获取用户信息,token: {}", token);
 
         try {
-            // Remove "Bearer " prefix if exists
+            // 移除"Bearer "前缀(如果存在)
             if (token.startsWith("Bearer ")) {
                 token = token.substring(7);
             }
@@ -75,26 +75,26 @@ public class UserController {
             Long userId = com.yao.food_menu.common.util.JwtUtil.getUserId(token);
             User user = userService.getCurrentUser(userId);
 
-            // Don't return password
+            // 不返回密码
             user.setPassword(null);
 
             return Result.success(user);
         } catch (Exception e) {
-            log.error("Get user info failed: {}", e.getMessage());
-            return Result.error("Invalid token");
+            log.error("获取用户信息失败: {}", e.getMessage());
+            return Result.error("无效的token");
         }
     }
 
     /**
-     * Update user info
+     * 更新用户信息
      */
     @Operation(summary = "更新用户信息", description = "更新当前用户的姓名、头像等信息")
     @PutMapping
     public Result<String> update(@RequestBody User user, @RequestHeader("Authorization") String token) {
-        log.info("Update user: {}", user);
+        log.info("更新用户信息: {}", user);
 
         try {
-            // Remove "Bearer " prefix if exists
+            // 移除"Bearer "前缀(如果存在)
             if (token.startsWith("Bearer ")) {
                 token = token.substring(7);
             }
@@ -102,144 +102,144 @@ public class UserController {
             Long userId = com.yao.food_menu.common.util.JwtUtil.getUserId(token);
             user.setId(userId);
 
-            // Don't allow updating password, phone, status
+            // 不允许更新密码、手机号、状态
             user.setPassword(null);
             user.setPhone(null);
             user.setStatus(null);
 
             userService.updateById(user);
-            return Result.success("User updated successfully");
+            return Result.success("用户信息更新成功");
         } catch (Exception e) {
-            log.error("Update user failed: {}", e.getMessage());
-            return Result.error("Update failed");
+            log.error("更新用户信息失败: {}", e.getMessage());
+            return Result.error("更新失败");
         }
     }
 
     /**
-     * Page query users
+     * 分页查询用户
      */
     @Operation(summary = "分页查询用户", description = "支持按用户名、手机号、类型、状态筛选")
     @GetMapping("/page")
     public Result<Page<User>> page(UserQueryDto queryDto) {
-        log.info("Page query users: {}", queryDto);
+        log.info("分页查询用户: {}", queryDto);
 
         try {
             Page<User> page = userService.pageUsers(queryDto);
-            // Remove passwords from response
+            // 从响应中移除密码
             page.getRecords().forEach(user -> user.setPassword(null));
             return Result.success(page);
         } catch (Exception e) {
-            log.error("Page query failed: {}", e.getMessage());
-            return Result.error("Query failed");
+            log.error("分页查询失败: {}", e.getMessage());
+            return Result.error("查询失败");
         }
     }
 
     /**
-     * Create user (admin only)
+     * 创建用户(仅管理员)
      */
     @Operation(summary = "创建用户", description = "创建管理员用户")
     @PostMapping
     public Result<String> create(@RequestBody UserDto userDto) {
-        log.info("Create user: {}", userDto);
+        log.info("创建用户: {}", userDto);
 
         try {
             if (userDto.getUsername() == null || userDto.getPassword() == null) {
-                return Result.error("Username and password are required");
+                return Result.error("用户名和密码不能为空");
             }
 
             userService.createUser(userDto);
-            return Result.success("User created successfully");
+            return Result.success("用户创建成功");
         } catch (Exception e) {
-            log.error("Create user failed: {}", e.getMessage());
+            log.error("创建用户失败: {}", e.getMessage());
             return Result.error(e.getMessage());
         }
     }
 
     /**
-     * Update user (for admin)
+     * 更新用户(管理员)
      */
     @Operation(summary = "更新用户", description = "管理员更新用户信息")
     @PutMapping("/admin/update")
     public Result<String> adminUpdate(@RequestBody UserDto userDto) {
-        log.info("Admin update user: {}", userDto);
+        log.info("管理员更新用户: {}", userDto);
 
         try {
             if (userDto.getId() == null) {
-                return Result.error("User ID is required");
+                return Result.error("用户ID不能为空");
             }
 
             userService.updateUser(userDto);
-            return Result.success("User updated successfully");
+            return Result.success("用户更新成功");
         } catch (Exception e) {
-            log.error("Update user failed: {}", e.getMessage());
+            log.error("更新用户失败: {}", e.getMessage());
             return Result.error(e.getMessage());
         }
     }
 
     /**
-     * Delete user
+     * 删除用户
      */
     @Operation(summary = "删除用户", description = "软删除用户（设置状态为禁用）")
     @DeleteMapping("/{id}")
     public Result<String> delete(@PathVariable Long id, @RequestHeader("Authorization") String token) {
-        log.info("Delete user, id: {}", id);
+        log.info("删除用户, id: {}", id);
 
         try {
-            // Remove "Bearer " prefix if exists
+            // 移除"Bearer "前缀(如果存在)
             if (token.startsWith("Bearer ")) {
                 token = token.substring(7);
             }
 
             Long currentUserId = com.yao.food_menu.common.util.JwtUtil.getUserId(token);
 
-            // Cannot delete yourself
+            // 不能删除自己
             if (id.equals(currentUserId)) {
-                return Result.error("Cannot delete yourself");
+                return Result.error("不能删除自己");
             }
 
             userService.deleteUser(id);
-            return Result.success("User deleted successfully");
+            return Result.success("用户删除成功");
         } catch (Exception e) {
-            log.error("Delete user failed: {}", e.getMessage());
-            return Result.error("Delete failed");
+            log.error("删除用户失败: {}", e.getMessage());
+            return Result.error("删除失败");
         }
     }
 
     /**
-     * Update user status
+     * 更新用户状态
      */
     @Operation(summary = "更新用户状态", description = "启用或禁用用户")
     @PutMapping("/status")
     public Result<String> updateStatus(@RequestParam Long id, @RequestParam Integer status) {
-        log.info("Update user status, id: {}, status: {}", id, status);
+        log.info("更新用户状态, id: {}, status: {}", id, status);
 
         try {
             if (status != 0 && status != 1) {
-                return Result.error("Invalid status value");
+                return Result.error("无效的状态值");
             }
 
             userService.updateUserStatus(id, status);
-            return Result.success("Status updated successfully");
+            return Result.success("状态更新成功");
         } catch (Exception e) {
-            log.error("Update status failed: {}", e.getMessage());
-            return Result.error("Update failed");
+            log.error("更新状态失败: {}", e.getMessage());
+            return Result.error("更新失败");
         }
     }
 
     /**
-     * Reset user password
+     * 重置用户密码
      */
     @Operation(summary = "重置用户密码", description = "重置用户密码为随机密码并返回")
     @PutMapping("/reset-password/{id}")
     public Result<String> resetPassword(@PathVariable Long id) {
-        log.info("Reset password for user: {}", id);
+        log.info("重置用户密码: {}", id);
 
         try {
             String newPassword = userService.resetPassword(id);
             return Result.success(newPassword);
         } catch (Exception e) {
-            log.error("Reset password failed: {}", e.getMessage());
-            return Result.error("Reset failed");
+            log.error("重置密码失败: {}", e.getMessage());
+            return Result.error("重置失败");
         }
     }
 }
