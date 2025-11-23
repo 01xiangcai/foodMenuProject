@@ -1,11 +1,12 @@
 # 家宴菜单管理系统
 
-一个现代化的家庭菜单管理系统，支持菜品管理、订单管理、用户管理等功能。
+一个现代化的家庭菜单管理系统，包含后台管理系统和微信小程序端，支持菜品管理、订单管理、用户管理等功能。
 
 ## 📋 目录
 
 - [项目简介](#项目简介)
 - [技术栈](#技术栈)
+- [项目结构](#项目结构)
 - [快速开始](#快速开始)
 - [本地开发](#本地开发)
 - [生产部署](#生产部署)
@@ -13,12 +14,15 @@
 
 ## 🎯 项目简介
 
-本项目包含两个主要模块：
+本项目包含三个主要模块：
 
 - **后端服务** (`food_menu`)：基于 Spring Boot 的 RESTful API 服务
-- **前端管理后台** (`food_menu_admin`)：基于 Vue 3 的现代化管理界面
+- **管理后台** (`food_menu_admin`)：基于 Vue 3 的现代化管理界面
+- **微信小程序** (`food_menu_weixin`)：面向C端用户的点餐小程序
 
 ### 主要功能
+
+#### 管理后台
 
 - 🍽️ 菜品分类管理
 - 📝 菜品信息管理（支持图片上传）
@@ -28,7 +32,16 @@
 - 🌓 深色/浅色主题切换
 - 📱 响应式设计
 
-## 🛠️ 技术栈
+#### 微信小程序
+
+- 🏠 首页展示（轮播图、推荐菜品）
+- 🍜 菜品浏览与搜索
+- � 购物车管理
+- 📋 订单下单与查询
+- ❤️ 收藏功能
+- 👤 个人中心
+
+## �🛠️ 技术栈
 
 ### 后端
 
@@ -39,7 +52,7 @@
 - 阿里云 OSS（图片存储）
 - Knife4j（API 文档）
 
-### 前端
+### 管理后台
 
 - Vue 3
 - TypeScript
@@ -47,6 +60,43 @@
 - Pinia（状态管理）
 - UnoCSS（原子化 CSS）
 - Vite
+
+### 微信小程序
+
+- 微信小程序原生开发
+- ES6+
+- Promise 封装
+
+## 📁 项目结构
+
+```
+foodMenuProject/
+├── food_menu/              # 后端服务
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── java/
+│   │   │   └── resources/
+│   │   └── test/
+│   └── pom.xml
+├── food_menu_admin/        # 管理后台
+│   ├── src/
+│   │   ├── api/
+│   │   ├── components/
+│   │   ├── layouts/
+│   │   ├── store/
+│   │   ├── styles/
+│   │   └── views/
+│   ├── package.json
+│   └── vite.config.ts
+├── food_menu_weixin/       # 微信小程序
+│   ├── pages/
+│   ├── utils/
+│   ├── app.js
+│   ├── app.json
+│   └── project.config.json
+├── deploy.sh               # 一键部署脚本
+└── README.md
+```
 
 ## 🚀 快速开始
 
@@ -56,6 +106,7 @@
 - **Node.js**: 18 或更高版本
 - **MySQL**: 8.0 或更高版本
 - **Maven**: 3.6+ （或使用项目自带的 mvnw）
+- **微信开发者工具**: 最新稳定版
 
 ### 克隆项目
 
@@ -111,7 +162,7 @@ cd food_menu
 
 API 文档访问：`http://localhost:8080/doc.html`
 
-### 4. 启动前端开发服务器
+### 4. 启动管理后台
 
 ```bash
 cd food_menu_admin
@@ -119,12 +170,42 @@ npm install
 npm run dev
 ```
 
-前端将在 `http://localhost:5173` 启动。
+管理后台将在 `http://localhost:5173` 启动。
 
-### 5. 默认登录账号
+### 5. 启动微信小程序
 
-- **用户名**: `admin`
-- **密码**: `123456`
+1. **配置 API 地址**
+
+编辑 `food_menu_weixin/utils/request.js`：
+
+```javascript
+const BASE_URL = 'http://localhost:8080'; // 本地开发
+// const BASE_URL = 'https://your-domain.com/api'; // 生产环境
+```
+
+2. **打开微信开发者工具**
+
+- 导入项目：选择 `food_menu_weixin` 目录
+- AppID：使用测试号或您的小程序 AppID
+- 点击"编译"即可预览
+
+3. **配置合法域名**（生产环境必需）
+
+在微信公众平台 > 开发 > 开发管理 > 开发设置 > 服务器域名中配置：
+
+- request合法域名：`https://your-domain.com`
+- uploadFile合法域名：`https://your-oss-domain.com`
+
+### 6. 默认登录账号
+
+**管理后台**：
+
+- 用户名: `admin`
+- 密码: `123456`
+
+**微信小程序**：
+
+- 支持手机号验证码登录（测试环境验证码固定为 `1234`）
 
 > ⚠️ **安全提示**：首次登录后请立即修改默认密码！
 
@@ -133,16 +214,31 @@ npm run dev
 ### 部署架构
 
 ```
-用户浏览器
-    ↓
-Nginx (80/443)
-    ├─→ 前端静态资源 (/var/www/food-menu-admin)
-    └─→ 后端 API (/api → localhost:8080)
-         ↓
-    MySQL 数据库
+                    ┌─────────────────┐
+                    │   用户/管理员    │
+                    └────────┬────────┘
+                             │
+                    ┌────────▼────────┐
+                    │  Nginx (80/443) │
+                    └────────┬────────┘
+                             │
+              ┌──────────────┼──────────────┐
+              │              │              │
+    ┌─────────▼────────┐ ┌──▼──────┐ ┌────▼────────┐
+    │  管理后台静态资源 │ │ API代理 │ │ 微信小程序   │
+    │  /var/www/admin  │ │  /api   │ │  (云端)     │
+    └──────────────────┘ └──┬──────┘ └─────────────┘
+                            │
+                    ┌───────▼────────┐
+                    │  后端服务:8080  │
+                    └───────┬────────┘
+                            │
+                    ┌───────▼────────┐
+                    │  MySQL 数据库   │
+                    └────────────────┘
 ```
 
-### 方式一：手动部署（推荐学习）
+### 方式一：手动部署（完整流程）
 
 #### 步骤 1：准备服务器
 
@@ -221,6 +317,7 @@ cd food_menu
 ```bash
 # 在本地执行
 scp target/food_menu-0.0.1-SNAPSHOT.jar user@your-server-ip:/opt/food-menu/
+scp src/main/resources/application-prod.yml user@your-server-ip:/opt/food-menu/
 ```
 
 4. **创建 systemd 服务**
@@ -236,7 +333,7 @@ After=network.target mysql.service
 Type=simple
 User=www-data
 WorkingDirectory=/opt/food-menu
-ExecStart=/usr/bin/java -Xms512m -Xmx1024m -jar /opt/food-menu/food_menu-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
+ExecStart=/usr/bin/java -Xms512m -Xmx1024m -jar /opt/food-menu/food_menu-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod --spring.config.additional-location=/opt/food-menu/application-prod.yml
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal
@@ -261,9 +358,22 @@ sudo systemctl status food-menu
 sudo journalctl -u food-menu -f
 ```
 
-#### 步骤 3：部署前端
+#### 步骤 3：部署管理后台
 
-1. **构建生产版本**
+1. **配置生产环境 API 地址**
+
+编辑 `food_menu_admin/src/api/http.ts`：
+
+```typescript
+const http = axios.create({
+  baseURL: process.env.NODE_ENV === 'production' 
+    ? '/api'  // 生产环境通过 Nginx 代理
+    : '/api', // 开发环境通过 Vite 代理
+  timeout: 10000
+});
+```
+
+2. **构建生产版本**
 
 ```bash
 cd food_menu_admin
@@ -271,7 +381,7 @@ npm install
 npm run build
 ```
 
-2. **上传到服务器**
+3. **上传到服务器**
 
 ```bash
 # 在本地执行
@@ -285,7 +395,56 @@ sudo mkdir -p /var/www/food-menu-admin
 # 将 dist 内容上传到此目录
 ```
 
-#### 步骤 4：配置 Nginx
+#### 步骤 4：部署微信小程序
+
+1. **配置生产环境 API**
+
+编辑 `food_menu_weixin/utils/request.js`：
+
+```javascript
+// 生产环境使用 HTTPS 域名
+const BASE_URL = 'https://your-domain.com/api';
+```
+
+2. **配置小程序 AppID**
+
+编辑 `food_menu_weixin/project.config.json`：
+
+```json
+{
+  "appid": "your-miniprogram-appid",
+  "projectname": "food_menu_weixin"
+}
+```
+
+3. **配置服务器域名**
+
+登录[微信公众平台](https://mp.weixin.qq.com/)：
+
+- 开发 > 开发管理 > 开发设置 > 服务器域名
+- 配置以下域名：
+  - **request合法域名**: `https://your-domain.com`
+  - **uploadFile合法域名**: `https://your-oss-endpoint.com`
+  - **downloadFile合法域名**: `https://your-oss-endpoint.com`
+
+4. **上传小程序代码**
+
+使用微信开发者工具：
+
+- 打开项目 `food_menu_weixin`
+- 点击右上角"上传"
+- 填写版本号和项目备注
+- 上传成功后，登录微信公众平台提交审核
+
+5. **提交审核**
+
+- 登录微信公众平台
+- 管理 > 版本管理
+- 选择开发版本，点击"提交审核"
+- 填写审核信息（功能介绍、测试账号等）
+- 等待审核通过后发布
+
+#### 步骤 5：配置 Nginx
 
 1. **创建 Nginx 配置**
 
@@ -298,9 +457,9 @@ upstream backend_api {
 
 server {
     listen 80;
-    server_name your-domain.com;  # 替换为您的域名或服务器IP
+    server_name your-domain.com;  # 替换为您的域名
     
-    # 前端静态资源
+    # 管理后台静态资源
     location / {
         root /var/www/food-menu-admin;
         try_files $uri $uri/ /index.html;
@@ -312,7 +471,7 @@ server {
         }
     }
     
-    # API 代理
+    # API 代理（管理后台 + 小程序共用）
     location /api/ {
         proxy_pass http://backend_api/;
         proxy_set_header Host $host;
@@ -341,11 +500,12 @@ server {
 
 ```bash
 sudo ln -s /etc/nginx/sites-available/food-menu /etc/nginx/sites-enabled/
+sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-3. **配置 HTTPS（推荐）**
+3. **配置 HTTPS（必需，小程序要求）**
 
 ```bash
 # 安装 Certbot
@@ -358,7 +518,7 @@ sudo certbot --nginx -d your-domain.com
 sudo certbot renew --dry-run
 ```
 
-#### 步骤 5：配置防火墙
+#### 步骤 6：配置防火墙
 
 ```bash
 # 允许 HTTP 和 HTTPS
@@ -373,15 +533,7 @@ sudo ufw status
 
 我们提供了自动化部署脚本，简化部署流程。
 
-#### 1. 下载部署脚本
-
-```bash
-# 在服务器上执行
-wget https://raw.githubusercontent.com/your-repo/deploy.sh
-chmod +x deploy.sh
-```
-
-#### 2. 配置部署参数
+#### 1. 配置部署参数
 
 编辑 `deploy.sh`，修改以下变量：
 
@@ -393,9 +545,16 @@ OSS_SECRET_KEY="your_secret_key"
 DOMAIN="your-domain.com"
 ```
 
-#### 3. 执行部署
+#### 2. 执行部署
 
 ```bash
+# 上传脚本到服务器
+scp deploy.sh user@your-server:/tmp/
+
+# 在服务器上执行
+ssh user@your-server
+cd /tmp
+chmod +x deploy.sh
 sudo ./deploy.sh
 ```
 
@@ -404,9 +563,24 @@ sudo ./deploy.sh
 - ✅ 安装所有依赖
 - ✅ 配置数据库
 - ✅ 部署后端服务
-- ✅ 部署前端资源
 - ✅ 配置 Nginx
 - ✅ 配置 SSL 证书
+
+#### 3. 手动上传代码
+
+脚本执行完成后，需要手动上传：
+
+```bash
+# 上传后端 JAR
+scp target/food_menu-0.0.1-SNAPSHOT.jar user@your-server:/opt/food-menu/
+
+# 上传管理后台
+scp -r food_menu_admin/dist/* user@your-server:/var/www/food-menu-admin/
+
+# 启动后端服务
+ssh user@your-server
+sudo systemctl start food-menu
+```
 
 ### 方式三：使用宝塔面板（适合新手）
 
@@ -435,11 +609,16 @@ wget -O install.sh https://download.bt.cn/install/install-ubuntu_6.0.sh && sudo 
 - 配置启动参数：`--spring.profiles.active=prod`
 - 启动项目
 
-5. **部署前端**
+5. **部署管理后台**
 
 - 上传 `dist` 目录到 `/www/wwwroot/food-menu-admin/`
 - 在网站管理中添加站点
 - 配置反向代理：`/api` → `http://127.0.0.1:8080`
+
+6. **配置 SSL**
+
+- 在网站设置中申请 Let's Encrypt 证书
+- 开启强制 HTTPS
 
 ## 📦 部署检查清单
 
@@ -452,12 +631,22 @@ wget -O install.sh https://download.bt.cn/install/install-ubuntu_6.0.sh && sudo 
 - [ ] API 接口可访问：`curl http://localhost:8080/api/health`
 - [ ] 日志无错误：`sudo journalctl -u food-menu -n 50`
 
-### 前端检查
+### 管理后台检查
 
-- [ ] 页面可正常访问
+- [ ] 页面可正常访问：`https://your-domain.com`
 - [ ] 静态资源加载正常（无 404）
 - [ ] 登录功能正常
 - [ ] API 请求成功（检查浏览器控制台）
+- [ ] 图片上传功能正常
+
+### 微信小程序检查
+
+- [ ] 服务器域名已配置
+- [ ] HTTPS 证书有效
+- [ ] 小程序可正常登录
+- [ ] 菜品列表加载正常
+- [ ] 下单功能正常
+- [ ] 图片显示正常
 
 ### 安全检查
 
@@ -466,6 +655,7 @@ wget -O install.sh https://download.bt.cn/install/install-ubuntu_6.0.sh && sudo 
 - [ ] 生产环境已关闭 Swagger
 - [ ] 防火墙已配置
 - [ ] HTTPS 已启用
+- [ ] OSS 访问权限正确配置
 
 ## 🔧 运维管理
 
@@ -558,7 +748,7 @@ scp target/food_menu-0.0.1-SNAPSHOT.jar user@your-server:/opt/food-menu/
 sudo systemctl restart food-menu
 ```
 
-#### 更新前端
+#### 更新管理后台
 
 ```bash
 # 1. 构建新版本
@@ -569,6 +759,14 @@ npm run build
 scp -r dist/* user@your-server:/var/www/food-menu-admin/
 
 # 3. 清除浏览器缓存或使用 Ctrl+F5 强制刷新
+```
+
+#### 更新微信小程序
+
+```bash
+# 1. 修改代码后，在微信开发者工具中点击"上传"
+# 2. 登录微信公众平台提交审核
+# 3. 审核通过后发布新版本
 ```
 
 ## ❓ 常见问题
@@ -589,7 +787,7 @@ sudo journalctl -u food-menu -n 100
 # - Java 版本不对：java -version（需要 17+）
 ```
 
-### 2. 前端无法访问后端 API
+### 2. 管理后台无法访问后端 API
 
 **问题**：浏览器控制台显示 CORS 错误或 404
 
@@ -606,7 +804,18 @@ curl http://localhost:8080/api/health
 sudo tail -f /var/log/nginx/error.log
 ```
 
-### 3. 图片上传失败
+### 3. 小程序无法连接后端
+
+**问题**：小程序提示"网络请求失败"
+
+**解决方案**：
+
+- 检查服务器域名是否已在微信公众平台配置
+- 确认域名使用 HTTPS（小程序要求）
+- 检查 SSL 证书是否有效
+- 在微信开发者工具中查看详细错误信息
+
+### 4. 图片上传失败
 
 **问题**：上传图片时报错
 
@@ -615,8 +824,9 @@ sudo tail -f /var/log/nginx/error.log
 - 检查 OSS 配置是否正确
 - 检查 Nginx `client_max_body_size` 设置（默认 20M）
 - 查看后端日志中的详细错误信息
+- 确认 OSS Bucket 权限配置正确
 
-### 4. 数据库连接失败
+### 5. 数据库连接失败
 
 **问题**：后端日志显示数据库连接错误
 
@@ -638,15 +848,21 @@ mysql> GRANT ALL PRIVILEGES ON food_menu.* TO 'food_menu'@'localhost';
 mysql> FLUSH PRIVILEGES;
 ```
 
-### 5. HTTPS 证书配置失败
+### 6. 小程序审核被拒
 
-**问题**：Certbot 无法获取证书
+**常见原因**：
+
+- 缺少用户协议和隐私政策
+- 功能描述不清晰
+- 测试账号无法正常使用
+- 缺少必要的资质证明
 
 **解决方案**：
 
-- 确保域名已正确解析到服务器 IP
-- 检查防火墙是否开放 80 端口
-- 确保 Nginx 配置中的 `server_name` 正确
+- 完善用户协议和隐私政策页面
+- 提供详细的功能说明和操作步骤
+- 确保测试账号可以正常登录和使用
+- 根据审核意见补充相关资质
 
 ## 📞 技术支持
 
