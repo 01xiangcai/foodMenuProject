@@ -113,21 +113,21 @@ const dishOption = computed(() => {
   return {
     backgroundColor: 'transparent',
     tooltip: {
-      trigger: 'axis'
+      trigger: 'axis' as const
     },
     xAxis: {
-      type: 'category',
+      type: 'category' as const,
       data: labels,
       axisLine: { lineStyle: { color: 'rgba(255,255,255,0.4)' } }
     },
     yAxis: {
-      type: 'value',
+      type: 'value' as const,
       axisLine: { show: false },
       splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } }
     },
     series: [
       {
-        type: 'line',
+        type: 'line' as const,
         smooth: true,
         lineStyle: {
           width: 3,
@@ -139,7 +139,7 @@ const dishOption = computed(() => {
         data
       },
       {
-        type: 'bar',
+        type: 'bar' as const,
         barWidth: 14,
         data,
         itemStyle: {
@@ -198,6 +198,12 @@ onMounted(() => {
 .dashboard {
   display: flex;
   flex-direction: column;
+  gap: 32px;
+}
+
+.grid-auto {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 24px;
 }
 
@@ -208,9 +214,87 @@ onMounted(() => {
 }
 
 h3 {
-  margin-bottom: 16px;
-  font-size: 18px;
-  letter-spacing: 1px;
+  margin: 0 0 20px 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+h3::before {
+  content: '';
+  width: 4px;
+  height: 20px;
+  background: var(--gradient-primary);
+  border-radius: 2px;
+}
+
+/* Card Enhancements */
+:deep(.glass-card) {
+  animation: slideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 24px;
+}
+
+:deep(.glass-card:nth-child(1)) {
+  animation-delay: 0.1s;
+}
+
+:deep(.glass-card:nth-child(2)) {
+  animation-delay: 0.2s;
+}
+
+.nebula-grid {
+  position: relative;
+  overflow: hidden;
+}
+
+.nebula-grid::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, var(--primary-color) 0%, transparent 70%);
+  opacity: 0.1;
+  filter: blur(40px);
+  pointer-events: none;
+}
+
+/* ECharts Container */
+:deep(.echarts-container) {
+  min-height: 300px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .dashboard {
+    gap: 20px;
+  }
+
+  .grid-2 {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  h3 {
+    font-size: 18px;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>
+
 

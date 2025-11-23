@@ -87,7 +87,7 @@
           </NFormItem>
         </template>
 
-        <NFormItem label="手机号">
+        <NFormItem label="手机号" required>
           <NInput v-model:value="userModal.form.phone" placeholder="13800138000" />
         </NFormItem>
         
@@ -197,7 +197,7 @@ const loading = ref(false);
 const filters = reactive({
   userType: 'all' as 'all' | 'admin' | 'wxuser',
   search: '',
-  status: null as number | null
+  status: 0 as number | null
 });
 
 const pagination = reactive<PaginationProps>({
@@ -250,9 +250,9 @@ const userTypeOptions = [
 ];
 
 const statusOptions = [
-  { label: '全部', value: null },
+  { label: '全部', value: 0 }, // Changed from null to 0 to avoid type error, need to handle in fetch
   { label: '启用', value: 1 },
-  { label: '禁用', value: 0 }
+  { label: '禁用', value: 2 } // Changed 0 to 2 to avoid conflict if 0 is 'all'
 ];
 
 const columns: DataTableColumns<UnifiedUserRecord> = [
@@ -427,6 +427,10 @@ const saveUser = async () => {
       message.warning('密码至少6位');
       return;
     }
+    if (!userModal.form.phone) {
+      message.warning('请输入手机号');
+      return;
+    }
   }
 
   userModal.loading = true;
@@ -553,7 +557,7 @@ const loadUsers = async () => {
           pageSize: Math.ceil(pageSize / 2),
           username: filters.search || undefined,
           phone: filters.search || undefined,
-          status: filters.status ?? undefined
+          status: (filters.status === 0 || filters.status === null) ? undefined : (filters.status === 2 ? 0 : filters.status)
         }),
         fetchWxUsers({
           page,
@@ -561,7 +565,7 @@ const loadUsers = async () => {
           username: filters.search || undefined,
           nickname: filters.search || undefined,
           phone: filters.search || undefined,
-          status: filters.status ?? undefined
+          status: (filters.status === 0 || filters.status === null) ? undefined : (filters.status === 2 ? 0 : filters.status)
         })
       ]);
 
@@ -599,7 +603,7 @@ const loadUsers = async () => {
         pageSize,
         username: filters.search || undefined,
         phone: filters.search || undefined,
-        status: filters.status ?? undefined
+        status: (filters.status === 0 || filters.status === null) ? undefined : (filters.status === 2 ? 0 : filters.status)
       });
 
       users.value = (result.data?.records || []).map((user: any) => ({
@@ -621,7 +625,7 @@ const loadUsers = async () => {
         username: filters.search || undefined,
         nickname: filters.search || undefined,
         phone: filters.search || undefined,
-        status: filters.status ?? undefined
+        status: (filters.status === 0 || filters.status === null) ? undefined : (filters.status === 2 ? 0 : filters.status)
       });
 
       users.value = (result.data?.records || []).map((user: any) => ({
@@ -660,7 +664,20 @@ onMounted(() => {
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+}
+
+.table-header h2 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+  color: var(--text-primary);
+}
+
+.table-header p {
+  font-size: 14px;
+  color: var(--text-tertiary);
+  margin: 0;
 }
 
 .table-actions {
@@ -676,15 +693,177 @@ onMounted(() => {
   gap: 12px;
 }
 
+/* Enhanced Button Styles */
 :deep(.n-button.primary-soft) {
-  background: linear-gradient(120deg, #14b8ff, #a855f7);
+  background: var(--gradient-primary);
   border: none;
-  color: #021221;
+  color: white;
   font-weight: 600;
-  box-shadow: 0 8px 24px rgba(20, 184, 255, 0.35);
+  box-shadow: var(--shadow-glow);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 :deep(.n-button.primary-soft:not(.n-button--disabled):hover) {
-  filter: brightness(1.05);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  filter: brightness(1.1);
+}
+
+:deep(.n-button.primary-soft:not(.n-button--disabled):active) {
+  transform: translateY(0);
+}
+
+/* Data Table Enhancements */
+:deep(.n-data-table) {
+  background: transparent;
+}
+
+:deep(.n-data-table-th) {
+  background: rgba(var(--primary-h), var(--primary-s), var(--primary-l), 0.05);
+  border-bottom: 1px solid var(--border-primary);
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+
+:deep(.n-data-table-td) {
+  border-bottom: 1px solid var(--border-secondary);
+  color: var(--text-primary);
+  background: transparent;
+}
+
+:deep(.n-data-table-tr:hover .n-data-table-td) {
+  background: rgba(var(--primary-h), var(--primary-s), var(--primary-l), 0.05) !important;
+}
+
+/* Input and Select Styles */
+:deep(.n-input),
+:deep(.n-base-selection) {
+  background: var(--bg-glass) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-primary) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 8px !important;
+}
+
+:deep(.n-input:hover),
+:deep(.n-base-selection:hover) {
+  border-color: var(--text-tertiary) !important;
+}
+
+:deep(.n-input:focus-within),
+:deep(.n-base-selection:focus-within) {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 3px var(--border-focus) !important;
+}
+
+/* Modal Enhancements */
+:deep(.n-card) {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-lg);
+  border-radius: 16px;
+}
+
+:deep(.n-card-header) {
+  border-bottom: 1px solid var(--border-secondary);
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 18px;
+}
+
+/* Tag Enhancements */
+:deep(.n-tag) {
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 2px 10px;
+}
+
+/* Avatar Enhancements */
+:deep(.n-avatar) {
+  border: 2px solid var(--bg-card);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Pagination Enhancements */
+:deep(.n-pagination) {
+  margin-top: 24px;
+}
+
+:deep(.n-pagination-item) {
+  background: transparent;
+  border: 1px solid var(--border-primary);
+  color: var(--text-secondary);
+  transition: all 0.3s;
+  border-radius: 8px;
+}
+
+:deep(.n-pagination-item:hover) {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+:deep(.n-pagination-item--active) {
+  background: var(--gradient-primary);
+  color: white !important;
+  border: none;
+  box-shadow: var(--shadow-glow);
+}
+
+
+/* Form Item Enhancements */
+:deep(.n-form-item-label) {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* Switch Enhancements */
+:deep(.n-switch) {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:deep(.n-switch:hover) {
+  transform: scale(1.05);
+}
+
+/* Radio Enhancements */
+:deep(.n-radio) {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:deep(.n-radio:hover) {
+  transform: translateX(2px);
+}
+
+/* Loading State */
+:deep(.n-data-table--loading) {
+  opacity: 0.6;
+}
+
+/* Empty State */
+:deep(.n-data-table-empty) {
+  color: var(--text-tertiary);
+  padding: 40px 20px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .table-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .table-actions {
+    width: 100%;
+  }
+
+  .table-actions > * {
+    flex: 1;
+    min-width: 0;
+  }
 }
 </style>
+

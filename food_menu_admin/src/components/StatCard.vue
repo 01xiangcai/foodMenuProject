@@ -28,27 +28,39 @@ defineProps<{
   display: inline-flex;
   padding: 4px 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--primary-h), var(--primary-s), var(--primary-l), 0.1);
+  color: var(--primary-color);
   font-size: 12px;
+  font-weight: 600;
   margin-bottom: 12px;
 }
 
 .label {
   opacity: 0.7;
-  letter-spacing: 3px;
+  letter-spacing: 2px;
   text-transform: uppercase;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .value {
   font-size: 36px;
   font-weight: 700;
   margin: 8px 0;
+  color: var(--text-primary);
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .trend {
-  color: #00ffb3;
-  letter-spacing: 2px;
+  color: var(--accent-success);
+  letter-spacing: 1px;
   text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 600;
 }
 </style>
 

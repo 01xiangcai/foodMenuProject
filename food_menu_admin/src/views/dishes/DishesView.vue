@@ -278,6 +278,27 @@ const dishModal = reactive({
 });
 
 const columns: DataTableColumns<DishRecord> = [
+  {
+    title: '图片',
+    key: 'image',
+    width: 80,
+    render: (row) =>
+      h(
+        NImage,
+        {
+          width: 48,
+          height: 48,
+          src: row.image,
+          objectFit: 'cover',
+          style: {
+            borderRadius: '8px',
+            boxShadow: 'var(--shadow-sm)',
+            border: '1px solid var(--border-secondary)'
+          },
+          fallbackSrc: 'https://dummyimage.com/100x100/e2e8f0/94a3b8&text=No+Image'
+        }
+      )
+  },
   { title: '菜品', key: 'name', ellipsis: { tooltip: true } },
   {
     title: '分类',
@@ -601,8 +622,8 @@ const loadDishes = async () => {
   dishLoading.value = true;
   try {
     const result = await fetchDishes({
-      page: pagination.page,
-      pageSize: pagination.pageSize,
+      page: pagination.page || 1,
+      pageSize: pagination.pageSize || 10,
       name: keyword.value || undefined,
       categoryId: selectedCategoryId.value ?? undefined
     });
@@ -647,23 +668,29 @@ onMounted(async () => {
 }
 
 .category-item {
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-secondary);
   border-radius: 16px;
-  background: rgba(15, 23, 42, 0.4);
+  background: var(--bg-card);
   padding: 14px 16px;
   width: 100%;
-  color: inherit;
+  color: var(--text-primary);
   text-align: left;
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  transition: 0.2s;
+  transition: all 0.2s;
   cursor: pointer;
 }
 
+.category-item:hover {
+  border-color: var(--primary-color);
+  transform: translateX(4px);
+}
+
 .category-item.active {
-  border-color: rgba(20, 184, 255, 0.5);
-  box-shadow: 0 8px 28px rgba(20, 184, 255, 0.2);
+  border-color: var(--primary-color);
+  background: rgba(var(--primary-h), var(--primary-s), var(--primary-l), 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .category-actions {
@@ -675,6 +702,7 @@ onMounted(async () => {
   text-align: center;
   padding: 32px 0;
   opacity: 0.7;
+  color: var(--text-secondary);
 }
 
 .table-header {
@@ -706,11 +734,11 @@ onMounted(async () => {
 
 .image-preview {
   border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-md);
 }
 
 .upload-inner {
-  color: #cbd5f5;
+  color: var(--text-secondary);
   text-align: center;
 }
 
@@ -721,15 +749,16 @@ onMounted(async () => {
 }
 
 :deep(.n-button.primary-soft) {
-  background: linear-gradient(120deg, #14b8ff, #a855f7);
+  background: var(--gradient-primary);
   border: none;
-  color: #021221;
+  color: white;
   font-weight: 600;
-  box-shadow: 0 8px 24px rgba(20, 184, 255, 0.35);
+  box-shadow: var(--shadow-glow);
 }
 
 :deep(.n-button.primary-soft:not(.n-button--disabled):hover) {
-  filter: brightness(1.05);
+  filter: brightness(1.1);
+  transform: translateY(-2px);
 }
 
 @media (max-width: 1024px) {

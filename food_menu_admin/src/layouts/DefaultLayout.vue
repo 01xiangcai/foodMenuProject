@@ -1,85 +1,178 @@
 <template>
-  <div class="layout">
-    <aside class="sidebar">
-      <div class="logo">
-        <span class="glow-dot" />
-        <div>
-          <p class="logo-title">家宴菜单</p>
-          <p class="logo-sub">一起准备下一顿饭</p>
+  <n-layout has-sider class="h-screen bg-bg-body transition-colors duration-300">
+    <n-layout-sider
+      bordered
+      collapse-mode="width"
+      :collapsed-width="64"
+      :width="240"
+      :collapsed="themeStore.sidebarCollapsed"
+      @collapse="themeStore.sidebarCollapsed = true"
+      @expand="themeStore.sidebarCollapsed = false"
+      class="glass-heavy z-50"
+      :native-scrollbar="false"
+    >
+      <div class="flex flex-col h-full">
+        <!-- Logo -->
+        <div class="h-16 flex items-center justify-center relative overflow-hidden">
+          <div class="flex items-center gap-3 transition-all duration-300" :class="{ 'scale-0 opacity-0': themeStore.sidebarCollapsed }">
+            <img src="/assets/logo.png" alt="Logo" class="w-10 h-10 rounded-xl shadow-lg object-cover" />
+            <span class="font-bold text-xl tracking-wide text-gray-900 dark:text-white">
+              家宴菜单
+            </span>
+          </div>
+          <!-- Collapsed Logo -->
+          <div class="absolute inset-0 flex items-center justify-center transition-all duration-300" :class="{ 'scale-0 opacity-0': !themeStore.sidebarCollapsed }">
+             <img src="/assets/logo.png" alt="Logo" class="w-10 h-10 rounded-xl shadow-lg object-cover" />
+          </div>
+        </div>
+
+        <!-- Menu -->
+        <n-menu
+          :collapsed="themeStore.sidebarCollapsed"
+          :collapsed-width="64"
+          :collapsed-icon-size="22"
+          :options="menuOptions"
+          :value="activeKey"
+          class="flex-1"
+        />
+
+        <!-- Footer -->
+        <div class="p-4 border-t border-gray-200 dark:border-gray-700/50">
+           <div class="flex items-center justify-center gap-2" :class="{ 'flex-col': themeStore.sidebarCollapsed }">
+
+             <button 
+               class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-text-secondary"
+               @click="themeStore.toggleSidebar"
+             >
+               <i :class="themeStore.sidebarCollapsed ? 'i-tabler-layout-sidebar-right' : 'i-tabler-layout-sidebar-left'" class="text-xl" />
+             </button>
+           </div>
         </div>
       </div>
-      <nav>
-        <RouterLink v-for="link in links" :key="link.path" :to="link.path" class="nav-item">
-          <i :class="link.icon" />
-          <span>{{ link.label }}</span>
-        </RouterLink>
-      </nav>
-      <div class="sidebar-footer">
-        <p>家庭联机</p>
-        <div class="pulse-dot" />
-      </div>
-    </aside>
-    <main class="content">
-      <header>
-        <div>
-          <h1>欢迎回来，{{ welcomeName }}</h1>
-          <p>现在是 {{ now }} · 一起决定餐桌上的味道</p>
+    </n-layout-sider>
+
+    <n-layout class="bg-transparent h-full flex flex-col">
+      <n-layout-header class="glass z-40 h-16 px-6 flex items-center justify-between sticky top-0">
+        <!-- Left: Breadcrumb or Title -->
+        <div class="flex items-center gap-4">
+           <div class="text-xl font-bold text-text-primary fade-in-down">
+             {{ currentRouteTitle }}
+           </div>
         </div>
-        <div class="header-actions">
-          <RouterLink class="ghost-button" to="/dishes">管理菜品</RouterLink>
-          <button class="primary-button" @click="syncFamily">
-            同步家庭信息
-          </button>
+
+        <!-- Right: Actions -->
+        <div class="flex items-center gap-4">
+          <ThemeToggle />
+          <div class="hidden md:flex items-center gap-2 text-sm text-text-secondary bg-gray-100 dark:bg-gray-800/50 px-3 py-1 rounded-full">
+             <i class="i-tabler-clock" />
+             <span>{{ now }}</span>
+          </div>
+          
+          <n-dropdown :options="userOptions" @select="handleUserSelect">
+            <div class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 px-2 py-1 rounded-lg transition-colors">
+              <n-avatar
+                round
+                size="small"
+                class="bg-gradient-to-br from-primary to-secondary text-white"
+              >
+                {{ userAvatar }}
+              </n-avatar>
+              <span class="text-sm font-medium text-text-primary hidden sm:block">{{ userName }}</span>
+            </div>
+          </n-dropdown>
         </div>
-      </header>
-      <section class="view-container">
-        <RouterView />
-      </section>
-    </main>
-  </div>
+      </n-layout-header>
+
+      <n-layout-content 
+        class="bg-transparent flex-1 p-6 relative overflow-hidden" 
+        :native-scrollbar="false"
+        content-style="min-height: 100%; display: flex; flex-direction: column;"
+      >
+         <router-view v-slot="{ Component }">
+          <transition name="page" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
+      </n-layout-content>
+    </n-layout>
+  </n-layout>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { storeToRefs } from 'pinia';
-import { useMessage } from 'naive-ui';
+import { ref, computed, onMounted, onBeforeUnmount, h } from 'vue';
+import { useRoute, useRouter, RouterLink } from 'vue-router';
+import { NLayout, NLayoutSider, NLayoutHeader, NLayoutContent, NMenu, NDropdown, NAvatar, useMessage } from 'naive-ui';
+import type { MenuOption } from 'naive-ui';
+import { useThemeStore } from '@/store/theme';
 import { useUserStore } from '@/store/useUserStore';
+import ThemeToggle from '@/components/ThemeToggle.vue';
+import { storeToRefs } from 'pinia';
 
-const links = [
-  { path: '/', label: '家庭看板', icon: 'i-tabler-dashboard' },
-  { path: '/dishes', label: '家庭菜单', icon: 'i-tabler-notebook' },
-  { path: '/orders', label: '订单记录', icon: 'i-tabler-activity-heartbeat' },
-  { path: '/banners', label: '轮播图管理', icon: 'i-tabler-photo' },
-  { path: '/users', label: '用户管理', icon: 'i-tabler-users' }
+const themeStore = useThemeStore();
+const userStore = useUserStore();
+const route = useRoute();
+const router = useRouter();
+const message = useMessage();
+const { profile } = storeToRefs(userStore);
+
+// Menu Options
+const renderIcon = (icon: string) => {
+  return () => h('i', { class: `${icon} text-lg` });
+};
+
+const renderLabel = (label: string, to: string) => {
+  return () => h(RouterLink, { to }, { default: () => label });
+};
+
+const menuOptions: MenuOption[] = [
+  { label: renderLabel('家庭看板', '/'), key: 'dashboard', icon: renderIcon('i-tabler-dashboard') },
+  { label: renderLabel('家庭菜单', '/dishes'), key: 'dishes', icon: renderIcon('i-tabler-notebook') },
+  { label: renderLabel('订单记录', '/orders'), key: 'orders', icon: renderIcon('i-tabler-activity-heartbeat') },
+  { label: renderLabel('轮播图管理', '/banners'), key: 'banners', icon: renderIcon('i-tabler-photo') },
+  { label: renderLabel('用户管理', '/users'), key: 'users', icon: renderIcon('i-tabler-users') }
 ];
 
+const activeKey = computed(() => (route.name as string) || 'dashboard');
+const currentRouteTitle = computed(() => (route.meta.title as string) || '未来食堂');
+
+// User Info
+const userName = computed(() => profile.value?.name || profile.value?.username || '家人');
+const userAvatar = computed(() => userName.value.charAt(0).toUpperCase());
+
+const userOptions = [
+  { label: '同步家庭信息', key: 'sync', icon: renderIcon('i-tabler-refresh') },
+  { label: '退出登录', key: 'logout', icon: renderIcon('i-tabler-logout') }
+];
+
+const handleUserSelect = async (key: string) => {
+  if (key === 'logout') {
+    userStore.logout();
+    router.push('/login');
+    message.success('已退出登录');
+  } else if (key === 'sync') {
+    try {
+      await userStore.loadProfile();
+      message.success('家庭信息已更新');
+    } catch (error) {
+      message.error('同步失败');
+    }
+  }
+};
+
+// Clock
 const now = ref('');
+let clockTimer: number | null = null;
 const updateClock = () => {
   now.value = new Intl.DateTimeFormat('zh-CN', {
     hour: '2-digit',
     minute: '2-digit',
-    second: '2-digit'
+    second: '2-digit',
+    weekday: 'short'
   }).format(new Date());
-};
-updateClock();
-let clockTimer: number | null = null;
-
-const userStore = useUserStore();
-const { profile } = storeToRefs(userStore);
-const message = useMessage();
-
-const welcomeName = computed(() => profile.value?.name || profile.value?.username || '家人');
-
-const syncFamily = async () => {
-  try {
-    await userStore.loadProfile();
-    message.success('家庭信息已更新');
-  } catch (error) {
-    message.error((error as Error).message);
-  }
 };
 
 onMounted(() => {
+  updateClock();
   clockTimer = window.setInterval(updateClock, 1000);
   if (userStore.token && !profile.value) {
     userStore.loadProfile().catch(() => undefined);
@@ -89,168 +182,33 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (clockTimer) {
     clearInterval(clockTimer);
-    clockTimer = null;
   }
 });
 </script>
 
 <style scoped>
-.layout {
-  display: grid;
-  grid-template-columns: 260px 1fr;
-  min-height: 100vh;
-  backdrop-filter: blur(20px);
-}
-
-.sidebar {
-  background: linear-gradient(180deg, rgba(10, 17, 40, 0.9), rgba(6, 8, 20, 0.95));
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
-  padding: 32px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.logo-title {
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: 1px;
-}
-
-.logo-sub {
-  font-size: 12px;
-  opacity: 0.8;
-}
-
-.glow-dot {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: radial-gradient(circle, #4cfff7 0%, transparent 70%);
-  box-shadow: 0 0 15px #4cfff7;
-}
-
-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
+/* Custom override for Naive UI Menu to match glassmorphism */
+:deep(.n-menu .n-menu-item-content) {
   border-radius: 12px;
-  background: transparent;
-  color: #cbd5f5;
-  text-decoration: none;
-  transition: 0.3s;
-  font-weight: 500;
+  margin: 4px 8px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.nav-item.router-link-active {
-  background: linear-gradient(90deg, rgba(20, 184, 255, 0.25), rgba(124, 58, 237, 0.15));
-  color: #fff;
-  box-shadow: 0 10px 40px rgba(20, 184, 255, 0.1);
+:deep(.n-menu .n-menu-item-content:hover) {
+  background-color: rgba(var(--primary-h), var(--primary-s), var(--primary-l), 0.1);
 }
 
-.nav-item:hover {
-  transform: translateX(6px);
-  background: rgba(255, 255, 255, 0.04);
+:deep(.n-menu .n-menu-item-content--selected) {
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-color-pressed));
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.sidebar-footer {
-  margin-top: auto;
-  padding: 18px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(255, 255, 255, 0.02);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
+:deep(.n-menu .n-menu-item-content--selected .n-menu-item-content-header a) {
+  color: white !important;
 }
 
-.pulse-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #00ffb3;
-  box-shadow: 0 0 16px #00ffb3;
-  animation: pulse 1.8s ease-in-out infinite;
-}
-
-.content {
-  padding: 32px;
-}
-
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-.header-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.ghost-button,
-.primary-button {
-  padding: 10px 18px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: transparent;
-  color: #fff;
-  cursor: pointer;
-  transition: 0.3s;
-}
-
-.primary-button {
-  background: linear-gradient(120deg, #3b82f6, #a855f7, #14b8ff);
-  border: none;
-  box-shadow: 0 10px 40px rgba(59, 130, 246, 0.35);
-}
-
-.view-container {
-  min-height: calc(100vh - 140px);
-}
-
-@media (max-width: 1024px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-  }
-}
-
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.4);
-    opacity: 0.4;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
+:deep(.n-menu .n-menu-item-content--selected .n-menu-item-content__icon) {
+  color: white !important;
 }
 </style>
-

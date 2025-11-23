@@ -148,15 +148,15 @@
           <div class="order-actions">
             <NButton size="small" tertiary @click="openDetail(order.id)"> 详情 </NButton>
 
-            <NButton v-if="order.status === 0" size="small" type="info" @click="updateStatus(order.id, 1)">
+            <NButton v-if="order.status === 0" size="small" type="primary" class="action-btn" @click="updateStatus(order.id, 1)">
               接单
             </NButton>
 
-            <NButton v-if="order.status === 1" size="small" type="warning" @click="updateStatus(order.id, 2)">
+            <NButton v-if="order.status === 1" size="small" type="warning" class="action-btn-warning" @click="updateStatus(order.id, 2)">
               配送
             </NButton>
 
-            <NButton v-if="order.status === 2" size="small" type="success" @click="updateStatus(order.id, 3)">
+            <NButton v-if="order.status === 2" size="small" type="success" class="action-btn-success" @click="updateStatus(order.id, 3)">
               完成
             </NButton>
 
@@ -349,7 +349,7 @@ const detailModal = reactive({
 });
 
 const statusOptions = [
-  { label: '全部状态', value: null },
+  { label: '全部状态', value: -1 },
   { label: '待接单', value: 0 },
   { label: '准备中', value: 1 },
   { label: '配送中', value: 2 },
@@ -400,7 +400,7 @@ const filteredOrders = computed(() => {
     });
   }
 
-  if (filters.status !== null) {
+  if (filters.status !== null && filters.status !== -1) {
     result = result.filter((o) => o.status === filters.status);
   }
 
@@ -522,12 +522,14 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-lg);
   transition: transform 0.3s;
+  color: white;
 }
 
 .stat-card:hover {
   transform: translateY(-4px);
+  box-shadow: var(--shadow-glow);
 }
 
 .gradient-purple {
@@ -606,26 +608,27 @@ onMounted(() => {
   border-radius: 16px;
   border-left: 4px solid transparent;
   transition: all 0.3s;
+  background: var(--bg-card);
 }
 
 .order-card.status-0 {
-  border-left-color: #faad14;
+  border-left-color: var(--accent-warning);
 }
 
 .order-card.status-1 {
-  border-left-color: #1890ff;
+  border-left-color: var(--primary-color);
 }
 
 .order-card.status-2 {
-  border-left-color: #722ed1;
+  border-left-color: var(--secondary-color);
 }
 
 .order-card.status-3 {
-  border-left-color: #52c41a;
+  border-left-color: var(--accent-success);
 }
 
 .order-card.status-4 {
-  border-left-color: #f5222d;
+  border-left-color: var(--accent-error);
 }
 
 .order-header {
@@ -634,18 +637,20 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--border-secondary);
 }
 
 .order-number .label {
   font-size: 12px;
   opacity: 0.7;
   margin-right: 8px;
+  color: var(--text-secondary);
 }
 
 .order-number .value {
   font-weight: 600;
   font-size: 14px;
+  color: var(--text-primary);
 }
 
 .order-dishes {
@@ -657,7 +662,7 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   padding: 8px 0;
-  border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+  border-bottom: 1px dashed var(--border-secondary);
 }
 
 .dish-item:last-child {
@@ -669,7 +674,7 @@ onMounted(() => {
   height: 50px;
   border-radius: 8px;
   object-fit: cover;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-body);
 }
 
 .dish-info {
@@ -683,16 +688,18 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--text-primary);
 }
 
 .dish-detail {
   font-size: 12px;
   opacity: 0.7;
+  color: var(--text-secondary);
 }
 
 .dish-subtotal {
   font-weight: 600;
-  color: #14b8ff;
+  color: var(--primary-color);
 }
 
 .more-dishes {
@@ -700,9 +707,10 @@ onMounted(() => {
   padding: 8px;
   font-size: 12px;
   opacity: 0.7;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg-body);
   border-radius: 8px;
   margin-top: 8px;
+  color: var(--text-secondary);
 }
 
 .order-footer {
@@ -724,7 +732,7 @@ onMounted(() => {
   gap: 10px;
   margin-bottom: 8px;
   padding: 8px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg-body);
   border-radius: 8px;
 }
 
@@ -733,7 +741,7 @@ onMounted(() => {
   height: 36px;
   border-radius: 50%;
   object-fit: cover;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--bg-card);
 }
 
 .user-info {
@@ -748,27 +756,31 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--text-primary);
 }
 
 .user-phone {
   font-size: 12px;
   opacity: 0.7;
+  color: var(--text-secondary);
 }
 
 .order-time {
   font-size: 12px;
   opacity: 0.7;
   margin-bottom: 4px;
+  color: var(--text-secondary);
 }
 
 .order-amount {
   font-size: 14px;
+  color: var(--text-primary);
 }
 
 .amount-value {
   font-size: 20px;
   font-weight: 700;
-  color: #14b8ff;
+  color: var(--primary-color);
   margin-left: 4px;
 }
 
@@ -781,12 +793,43 @@ onMounted(() => {
 .order-remark {
   margin-top: 12px;
   padding: 10px;
-  background: rgba(20, 184, 255, 0.1);
+  background: rgba(var(--primary-h), var(--primary-s), var(--primary-l), 0.1);
   border-radius: 8px;
   font-size: 13px;
   display: flex;
   align-items: center;
   gap: 8px;
+  color: var(--text-primary);
+}
+
+.action-btn {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+}
+
+.action-btn:hover {
+  background-color: var(--primary-color-hover);
+}
+
+.action-btn-warning {
+  background-color: var(--accent-warning);
+  color: white;
+  border: none;
+}
+
+.action-btn-warning:hover {
+  filter: brightness(1.1);
+}
+
+.action-btn-success {
+  background-color: var(--accent-success);
+  color: white;
+  border: none;
+}
+
+.action-btn-success:hover {
+  filter: brightness(1.1);
 }
 
 .remark-icon {
