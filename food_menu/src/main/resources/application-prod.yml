@@ -1,0 +1,49 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: food_menu
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/food_menu?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: root
+    password: fTAwMDizF8ExjTGH
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 30MB
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# 关闭 Swagger（生产环境）
+knife4j:
+  enable: false
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+
+aliyun:
+  oss:
+    endpoint: https://food-menu-yao.oss-cn-shenzhen.aliyuncs.com
+    access-key-id: LTAI5tMRyKmbt7EZRgXjJRTk
+    access-key-secret: ueDZl8rmIIl4aVWzC7vM751eCZv0nf
+    bucket-name: food-menu-yao
+    folder: food-menu/
+    avatar-folder: avatars/
+    presigned-url-expiration-hours: 24

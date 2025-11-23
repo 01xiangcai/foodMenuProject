@@ -1,7 +1,9 @@
 import axios from 'axios';
 
 const http = axios.create({
-  baseURL: '/api',
+  baseURL: process.env.NODE_ENV === 'production'
+    ? '/api'  // 生产环境通过 Nginx 代理
+    : '/api', // 开发环境通过 Vite 代理
   timeout: 10000
 });
 
