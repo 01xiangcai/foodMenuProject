@@ -15,7 +15,7 @@ onHide(() => {
 </script>
 
 <style lang="scss">
-@import './styles/global.scss';
+@import '@/styles/global.scss';
 
 page {
   background-color: #050a1f;
