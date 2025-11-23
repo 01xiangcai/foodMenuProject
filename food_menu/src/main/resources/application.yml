@@ -52,3 +52,4 @@ aliyun:
     bucket-name: food-menu-yao
     folder: food-menu/
     avatar-folder: avatars/
+    presigned-url-expiration-hours: 24

@@ -7,18 +7,18 @@
           <p>管理员和小程序用户的统一管理</p>
         </div>
         <div class="table-actions">
-          <NInput
-            v-model:value="filters.username"
-            clearable
-            placeholder="用户名"
+          <NSelect
+            v-model:value="filters.userType"
+            placeholder="用户类型"
+            :options="userTypeOptions"
             style="width: 150px"
-            @keydown.enter.prevent="refreshUsers"
+            @update:value="handleUserTypeChange"
           />
           <NInput
-            v-model:value="filters.phone"
+            v-model:value="filters.search"
             clearable
-            placeholder="手机号"
-            style="width: 150px"
+            placeholder="用户名/昵称/手机号"
+            style="width: 200px"
             @keydown.enter.prevent="refreshUsers"
           />
           <NSelect
@@ -42,31 +42,55 @@
     </section>
 
     <!-- Create/Edit User Modal -->
-    <NModal v-model:show="userModal.show" preset="card" style="max-width: 520px">
+    <NModal v-model:show="userModal.show" preset="card" style="max-width: 600px">
       <template #header>
         {{ userModal.form.id ? '编辑用户' : '新增用户' }}
       </template>
-      <NForm :model="userModal.form" label-placement="left" label-width="80" @submit.prevent>
-        <NFormItem label="用户名" required>
-          <NInput v-model:value="userModal.form.username" placeholder="admin" :disabled="!!userModal.form.id" />
+      <NForm :model="userModal.form" label-placement="left" label-width="100" @submit.prevent>
+        <NFormItem label="用户类型" required>
+          <NRadioGroup v-model:value="userModal.form.userType" :disabled="!!userModal.form.id">
+            <NRadio value="admin">管理员</NRadio>
+            <NRadio value="wxuser">小程序用户</NRadio>
+          </NRadioGroup>
         </NFormItem>
-        <NFormItem label="密码" :required="!userModal.form.id">
+        
+        <NFormItem label="用户名" required v-if="!userModal.form.id">
+          <NInput v-model:value="userModal.form.username" placeholder="用户名" :disabled="!!userModal.form.id" />
+        </NFormItem>
+        
+        <NFormItem label="密码" :required="!userModal.form.id" v-if="!userModal.form.id">
           <NInput
             v-model:value="userModal.form.password"
             type="password"
             placeholder="至少6位"
-            :disabled="!!userModal.form.id"
           />
-          <template #feedback v-if="userModal.form.id">
-            <span style="font-size: 12px; opacity: 0.7">编辑时不可修改密码，请使用重置密码功能</span>
-          </template>
         </NFormItem>
-        <NFormItem label="姓名">
-          <NInput v-model:value="userModal.form.name" placeholder="张三" />
-        </NFormItem>
+
+        <!-- Admin-specific fields -->
+        <template v-if="userModal.form.userType === 'admin'">
+          <NFormItem label="姓名">
+            <NInput v-model:value="userModal.form.name" placeholder="张三" />
+          </NFormItem>
+        </template>
+
+        <!-- WxUser-specific fields -->
+        <template v-if="userModal.form.userType === 'wxuser'">
+          <NFormItem label="昵称">
+            <NInput v-model:value="userModal.form.nickname" placeholder="用户昵称" />
+          </NFormItem>
+          <NFormItem label="性别">
+            <NRadioGroup v-model:value="userModal.form.gender">
+              <NRadio :value="0">未知</NRadio>
+              <NRadio :value="1">男</NRadio>
+              <NRadio :value="2">女</NRadio>
+            </NRadioGroup>
+          </NFormItem>
+        </template>
+
         <NFormItem label="手机号">
           <NInput v-model:value="userModal.form.phone" placeholder="13800138000" />
         </NFormItem>
+        
         <NFormItem label="状态">
           <NSwitch v-model:value="userModal.form.status" :checked-value="1" :unchecked-value="0">
             <template #checked>启用</template>
@@ -116,12 +140,15 @@
 <script setup lang="ts">
 import { h, onMounted, reactive, ref } from 'vue';
 import {
+  NAvatar,
   NButton,
   NDataTable,
   NForm,
   NFormItem,
   NInput,
   NModal,
+  NRadio,
+  NRadioGroup,
   NSelect,
   NSpace,
   NSwitch,
@@ -133,19 +160,30 @@ import {
 } from 'naive-ui';
 import {
   createUser,
+  createWxUser,
   deleteUser,
+  deleteWxUser,
   fetchUsers,
+  fetchWxUsers,
   resetUserPassword,
+  resetWxUserPassword,
+  updateUser,
   updateUserStatus,
-  type UserPayload
+  updateWxUser,
+  updateWxUserStatus,
+  type UserPayload,
+  type WxUserPayload
 } from '@/api/modules';
 
-type UserRecord = {
+type UnifiedUserRecord = {
   id: number;
-  username: string;
+  userType: 'admin' | 'wxuser';
+  username?: string;
+  nickname?: string;
   name?: string;
   phone?: string;
   avatar?: string;
+  gender?: number;
   status: number;
   createTime: string;
 };
@@ -153,12 +191,12 @@ type UserRecord = {
 const message = useMessage();
 const dialog = useDialog();
 
-const users = ref<UserRecord[]>([]);
+const users = ref<UnifiedUserRecord[]>([]);
 const loading = ref(false);
 
 const filters = reactive({
-  username: '',
-  phone: '',
+  userType: 'all' as 'all' | 'admin' | 'wxuser',
+  search: '',
   status: null as number | null
 });
 
@@ -186,10 +224,13 @@ const userModal = reactive({
   loading: false,
   form: {
     id: undefined as number | undefined,
+    userType: 'admin' as 'admin' | 'wxuser',
     username: '',
     password: '',
     name: '',
+    nickname: '',
     phone: '',
+    gender: 0,
     status: 1
   }
 });
@@ -198,8 +239,15 @@ const passwordModal = reactive({
   show: false,
   loading: false,
   userId: null as number | null,
+  userType: 'admin' as 'admin' | 'wxuser',
   newPassword: ''
 });
+
+const userTypeOptions = [
+  { label: '全部用户', value: 'all' },
+  { label: '管理员', value: 'admin' },
+  { label: '小程序用户', value: 'wxuser' }
+];
 
 const statusOptions = [
   { label: '全部', value: null },
@@ -207,13 +255,38 @@ const statusOptions = [
   { label: '禁用', value: 0 }
 ];
 
-const columns: DataTableColumns<UserRecord> = [
+const columns: DataTableColumns<UnifiedUserRecord> = [
   { title: 'ID', key: 'id', width: 80 },
-  { title: '用户名', key: 'username', ellipsis: { tooltip: true } },
   {
-    title: '姓名',
-    key: 'name',
-    render: (row) => row.name || '—'
+    title: '用户类型',
+    key: 'userType',
+    width: 120,
+    render: (row) =>
+      h(
+        NTag,
+        { type: row.userType === 'admin' ? 'info' : 'success', bordered: false },
+        { default: () => (row.userType === 'admin' ? '管理员' : '小程序用户') }
+      )
+  },
+  {
+    title: '头像',
+    key: 'avatar',
+    width: 80,
+    render: (row) =>
+      row.avatar
+        ? h(NAvatar, { src: row.avatar, size: 40, round: true })
+        : h(NAvatar, { size: 40, round: true }, { default: () => row.nickname?.[0] || row.username?.[0] || '?' })
+  },
+  {
+    title: '用户名',
+    key: 'username',
+    ellipsis: { tooltip: true },
+    render: (row) => row.username || '—'
+  },
+  {
+    title: '姓名/昵称',
+    key: 'displayName',
+    render: (row) => row.name || row.nickname || '—'
   },
   {
     title: '手机号',
@@ -240,13 +313,22 @@ const columns: DataTableColumns<UserRecord> = [
   {
     title: '操作',
     key: 'actions',
-    width: 280,
+    width: 320,
     render: (row) =>
       h(
         NSpace,
         { size: 8 },
         {
           default: () => [
+            h(
+              NButton,
+              {
+                size: 'small',
+                tertiary: true,
+                onClick: () => openEditModal(row)
+              },
+              { default: () => '编辑' }
+            ),
             h(
               NButton,
               {
@@ -259,7 +341,7 @@ const columns: DataTableColumns<UserRecord> = [
             ),
             h(
               NButton,
-              { size: 'small', tertiary: true, onClick: () => openPasswordModal(row.id) },
+              { size: 'small', tertiary: true, onClick: () => openPasswordModal(row.id, row.userType) },
               { default: () => '重置密码' }
             ),
             h(
@@ -268,7 +350,7 @@ const columns: DataTableColumns<UserRecord> = [
                 size: 'small',
                 tertiary: true,
                 type: 'error',
-                onClick: () => handleDeleteUser(row.id)
+                onClick: () => handleDeleteUser(row.id, row.userType)
               },
               { default: () => '删除' }
             )
@@ -290,6 +372,11 @@ const formatTime = (timeStr: string) => {
   });
 };
 
+const handleUserTypeChange = () => {
+  pagination.page = 1;
+  loadUsers();
+};
+
 const refreshUsers = () => {
   pagination.page = 1;
   loadUsers();
@@ -297,10 +384,13 @@ const refreshUsers = () => {
 
 const resetUserForm = () => {
   userModal.form.id = undefined;
+  userModal.form.userType = 'admin';
   userModal.form.username = '';
   userModal.form.password = '';
   userModal.form.name = '';
+  userModal.form.nickname = '';
   userModal.form.phone = '';
+  userModal.form.gender = 0;
   userModal.form.status = 1;
 };
 
@@ -309,32 +399,71 @@ const openUserModal = () => {
   userModal.show = true;
 };
 
+const openEditModal = (user: UnifiedUserRecord) => {
+  userModal.form.id = user.id;
+  userModal.form.userType = user.userType;
+  userModal.form.username = user.username || '';
+  userModal.form.password = '';
+  userModal.form.name = user.name || '';
+  userModal.form.nickname = user.nickname || '';
+  userModal.form.phone = user.phone || '';
+  userModal.form.gender = user.gender || 0;
+  userModal.form.status = user.status;
+  userModal.show = true;
+};
+
 const saveUser = async () => {
-  if (!userModal.form.username.trim()) {
-    message.warning('请输入用户名');
-    return;
-  }
-  if (!userModal.form.id && !userModal.form.password) {
-    message.warning('请输入密码');
-    return;
-  }
-  if (userModal.form.password && userModal.form.password.length < 6) {
-    message.warning('密码至少6位');
-    return;
+  // Validation for new users
+  if (!userModal.form.id) {
+    if (!userModal.form.username.trim()) {
+      message.warning('请输入用户名');
+      return;
+    }
+    if (!userModal.form.password) {
+      message.warning('请输入密码');
+      return;
+    }
+    if (userModal.form.password.length < 6) {
+      message.warning('密码至少6位');
+      return;
+    }
   }
 
   userModal.loading = true;
   try {
-    const payload: UserPayload = {
-      id: userModal.form.id,
-      username: userModal.form.username.trim(),
-      password: userModal.form.password || undefined,
-      name: userModal.form.name || undefined,
-      phone: userModal.form.phone || undefined,
-      status: userModal.form.status
-    };
-
-    await createUser(payload);
+    if (userModal.form.userType === 'admin') {
+      const payload: UserPayload = {
+        id: userModal.form.id,
+        username: userModal.form.username.trim(),
+        password: userModal.form.password || undefined,
+        name: userModal.form.name || undefined,
+        phone: userModal.form.phone || undefined,
+        status: userModal.form.status
+      };
+      
+      if (userModal.form.id) {
+        await updateUser(payload);
+      } else {
+        await createUser(payload);
+      }
+    } else {
+      const payload: WxUserPayload = {
+        id: userModal.form.id,
+        username: userModal.form.username.trim(),
+        password: userModal.form.password || undefined,
+        nickname: userModal.form.nickname || undefined,
+        phone: userModal.form.phone || undefined,
+        gender: userModal.form.gender,
+        status: userModal.form.status
+      };
+      
+      if (userModal.form.id) {
+        await updateWxUser(payload);
+      } else {
+        await createWxUser(payload);
+      }
+    }
+    
     message.success(userModal.form.id ? '用户已更新' : '用户已创建');
     userModal.show = false;
     await loadUsers();
@@ -345,10 +474,14 @@ const saveUser = async () => {
   }
 };
 
-const toggleUserStatus = async (user: UserRecord) => {
+const toggleUserStatus = async (user: UnifiedUserRecord) => {
   const nextStatus = user.status === 1 ? 0 : 1;
   try {
-    await updateUserStatus(user.id, nextStatus);
+    if (user.userType === 'admin') {
+      await updateUserStatus(user.id, nextStatus);
+    } else {
+      await updateWxUserStatus(user.id, nextStatus);
+    }
     message.success(nextStatus === 1 ? '已启用' : '已禁用');
     await loadUsers();
   } catch (error) {
@@ -356,7 +489,7 @@ const toggleUserStatus = async (user: UserRecord) => {
   }
 };
 
-const handleDeleteUser = (id: number) => {
+const handleDeleteUser = (id: number, userType: 'admin' | 'wxuser') => {
   dialog.warning({
     title: '确认删除',
     content: '删除后该用户将无法登录，确定要删除吗？',
@@ -364,7 +497,11 @@ const handleDeleteUser = (id: number) => {
     negativeText: '取消',
     onPositiveClick: async () => {
       try {
-        await deleteUser(id);
+        if (userType === 'admin') {
+          await deleteUser(id);
+        } else {
+          await deleteWxUser(id);
+        }
         message.success('用户已删除');
         await loadUsers();
       } catch (error) {
@@ -374,8 +511,9 @@ const handleDeleteUser = (id: number) => {
   });
 };
 
-const openPasswordModal = (userId: number) => {
+const openPasswordModal = (userId: number, userType: 'admin' | 'wxuser') => {
   passwordModal.userId = userId;
+  passwordModal.userType = userType;
   passwordModal.newPassword = '';
   passwordModal.show = true;
 };
@@ -385,7 +523,12 @@ const handleResetPassword = async () => {
 
   passwordModal.loading = true;
   try {
-    const result = await resetUserPassword(passwordModal.userId);
+    let result;
+    if (passwordModal.userType === 'admin') {
+      result = await resetUserPassword(passwordModal.userId);
+    } else {
+      result = await resetWxUserPassword(passwordModal.userId);
+    }
     passwordModal.newPassword = result.data;
     message.success('密码已重置');
   } catch (error) {
@@ -397,23 +540,105 @@ const handleResetPassword = async () => {
 };
 
 const loadUsers = async () => {
-  console.log('[DEBUG] loadUsers called');
   loading.value = true;
   try {
-    console.log('[DEBUG] Fetching users...');
-    const result = await fetchUsers({
-      page: pagination.page,
-      pageSize: pagination.pageSize,
-      username: filters.username || undefined,
-      phone: filters.phone || undefined,
-      status: filters.status ?? undefined
-    });
-    console.log('[DEBUG] Result:', result);
-    users.value = result.data?.records || [];
-    pagination.itemCount = result.data?.total || 0;
-    console.log('[DEBUG] Users loaded:', users.value.length);
+    const pageSize = pagination.pageSize || 10;
+    const page = pagination.page || 1;
+    
+    if (filters.userType === 'all') {
+      // Load both admin and wxuser
+      const [adminResult, wxUserResult] = await Promise.all([
+        fetchUsers({
+          page,
+          pageSize: Math.ceil(pageSize / 2),
+          username: filters.search || undefined,
+          phone: filters.search || undefined,
+          status: filters.status ?? undefined
+        }),
+        fetchWxUsers({
+          page,
+          pageSize: Math.ceil(pageSize / 2),
+          username: filters.search || undefined,
+          nickname: filters.search || undefined,
+          phone: filters.search || undefined,
+          status: filters.status ?? undefined
+        })
+      ]);
+
+      const adminUsers: UnifiedUserRecord[] = (adminResult.data?.records || []).map((user: any) => ({
+        id: user.id,
+        userType: 'admin' as const,
+        username: user.username,
+        name: user.name,
+        phone: user.phone,
+        avatar: user.avatar,
+        status: user.status,
+        createTime: user.createTime
+      }));
+
+      const wxUsers: UnifiedUserRecord[] = (wxUserResult.data?.records || []).map((user: any) => ({
+        id: user.id,
+        userType: 'wxuser' as const,
+        username: user.username,
+        nickname: user.nickname,
+        phone: user.phone,
+        avatar: user.avatar,
+        gender: user.gender,
+        status: user.status,
+        createTime: user.createTime
+      }));
+
+      users.value = [...adminUsers, ...wxUsers].sort(
+        (a, b) => new Date(b.createTime).getTime() - new Date(a.createTime).getTime()
+      );
+      pagination.itemCount = (adminResult.data?.total || 0) + (wxUserResult.data?.total || 0);
+    } else if (filters.userType === 'admin') {
+      // Load only admin users
+      const result = await fetchUsers({
+        page,
+        pageSize,
+        username: filters.search || undefined,
+        phone: filters.search || undefined,
+        status: filters.status ?? undefined
+      });
+
+      users.value = (result.data?.records || []).map((user: any) => ({
+        id: user.id,
+        userType: 'admin' as const,
+        username: user.username,
+        name: user.name,
+        phone: user.phone,
+        avatar: user.avatar,
+        status: user.status,
+        createTime: user.createTime
+      }));
+      pagination.itemCount = result.data?.total || 0;
+    } else {
+      // Load only wxuser
+      const result = await fetchWxUsers({
+        page,
+        pageSize,
+        username: filters.search || undefined,
+        nickname: filters.search || undefined,
+        phone: filters.search || undefined,
+        status: filters.status ?? undefined
+      });
+
+      users.value = (result.data?.records || []).map((user: any) => ({
+        id: user.id,
+        userType: 'wxuser' as const,
+        username: user.username,
+        nickname: user.nickname,
+        phone: user.phone,
+        avatar: user.avatar,
+        gender: user.gender,
+        status: user.status,
+        createTime: user.createTime
+      }));
+      pagination.itemCount = result.data?.total || 0;
+    }
   } catch (error) {
-    console.error('[DEBUG] Error:', error);
+    console.error('Load users error:', error);
     message.error((error as Error).message || '加载失败');
   } finally {
     loading.value = false;
@@ -421,7 +646,6 @@ const loadUsers = async () => {
 };
 
 onMounted(() => {
-  console.log('[DEBUG] UsersView mounted');
   loadUsers();
 });
 </script>

@@ -1,9 +1,11 @@
 package com.yao.food_menu.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.yao.food_menu.common.util.JwtUtil;
 import com.yao.food_menu.dto.LoginDto;
+import com.yao.food_menu.dto.WxUserQueryDto;
 import com.yao.food_menu.entity.WxUser;
 import com.yao.food_menu.mapper.WxUserMapper;
 import com.yao.food_menu.service.WxUserService;
@@ -14,6 +16,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
 @Service
 @Slf4j
@@ -155,5 +158,111 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
         // 2. Find or create user by openid
         // 3. Generate and return JWT token
         throw new RuntimeException("WeChat login not implemented yet");
+    }
+
+    @Override
+    public Page<WxUser> pageUsers(WxUserQueryDto queryDto) {
+        Page<WxUser> page = new Page<>(queryDto.getPage(), queryDto.getPageSize());
+        LambdaQueryWrapper<WxUser> queryWrapper = new LambdaQueryWrapper<>();
+
+        // Fuzzy search by nickname
+        if (StringUtils.hasText(queryDto.getNickname())) {
+            queryWrapper.like(WxUser::getNickname, queryDto.getNickname());
+        }
+
+        // Fuzzy search by phone
+        if (StringUtils.hasText(queryDto.getPhone())) {
+            queryWrapper.like(WxUser::getPhone, queryDto.getPhone());
+        }
+
+        // Fuzzy search by username
+        if (StringUtils.hasText(queryDto.getUsername())) {
+            queryWrapper.like(WxUser::getUsername, queryDto.getUsername());
+        }
+
+        // Filter by status
+        if (queryDto.getStatus() != null) {
+            queryWrapper.eq(WxUser::getStatus, queryDto.getStatus());
+        }
+
+        // Order by create time descending
+        queryWrapper.orderByDesc(WxUser::getCreateTime);
+
+        return this.page(page, queryWrapper);
+    }
+
+    @Override
+    public void updateWxUser(WxUser wxUser) {
+        WxUser existingUser = this.getById(wxUser.getId());
+        if (existingUser == null) {
+            throw new RuntimeException("User not found");
+        }
+
+        // Update allowed fields
+        if (StringUtils.hasText(wxUser.getNickname())) {
+            existingUser.setNickname(wxUser.getNickname());
+        }
+        if (StringUtils.hasText(wxUser.getPhone())) {
+            existingUser.setPhone(wxUser.getPhone());
+        }
+        if (wxUser.getGender() != null) {
+            existingUser.setGender(wxUser.getGender());
+        }
+        if (wxUser.getStatus() != null) {
+            existingUser.setStatus(wxUser.getStatus());
+        }
+
+        this.updateById(existingUser);
+    }
+
+    @Override
+    public void updateUserStatus(Long id, Integer status) {
+        WxUser user = this.getById(id);
+        if (user == null) {
+            throw new RuntimeException("User not found");
+        }
+
+        user.setStatus(status);
+        this.updateById(user);
+    }
+
+    @Override
+    public void deleteUser(Long id) {
+        WxUser user = this.getById(id);
+        if (user == null) {
+            throw new RuntimeException("User not found");
+        }
+
+        // Soft delete by setting status to 0
+        user.setStatus(0);
+        this.updateById(user);
+    }
+
+    @Override
+    public String resetPassword(Long id) {
+        WxUser user = this.getById(id);
+        if (user == null) {
+            throw new RuntimeException("User not found");
+        }
+
+        // Generate random 8-character password
+        String newPassword = generateRandomPassword(8);
+        user.setPassword(passwordEncoder.encode(newPassword));
+        this.updateById(user);
+
+        return newPassword;
+    }
+
+    /**
+     * Generate random password
+     */
+    private String generateRandomPassword(int length) {
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        Random random = new Random();
+        StringBuilder password = new StringBuilder();
+        for (int i = 0; i < length; i++) {
+            password.append(chars.charAt(random.nextInt(chars.length())));
+        }
+        return password.toString();
     }
 }

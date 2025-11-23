@@ -156,6 +156,27 @@ public class UserController {
     }
 
     /**
+     * Update user (for admin)
+     */
+    @Operation(summary = "更新用户", description = "管理员更新用户信息")
+    @PutMapping("/admin/update")
+    public Result<String> adminUpdate(@RequestBody UserDto userDto) {
+        log.info("Admin update user: {}", userDto);
+
+        try {
+            if (userDto.getId() == null) {
+                return Result.error("User ID is required");
+            }
+
+            userService.updateUser(userDto);
+            return Result.success("User updated successfully");
+        } catch (Exception e) {
+            log.error("Update user failed: {}", e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
      * Delete user
      */
     @Operation(summary = "删除用户", description = "软删除用户（设置状态为禁用）")

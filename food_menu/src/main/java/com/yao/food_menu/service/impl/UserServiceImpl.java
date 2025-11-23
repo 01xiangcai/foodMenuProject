@@ -168,6 +168,27 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
+    public void updateUser(UserDto userDto) {
+        User user = this.getById(userDto.getId());
+        if (user == null) {
+            throw new RuntimeException("User not found");
+        }
+
+        // Update allowed fields
+        if (StringUtils.hasText(userDto.getName())) {
+            user.setName(userDto.getName());
+        }
+        if (StringUtils.hasText(userDto.getPhone())) {
+            user.setPhone(userDto.getPhone());
+        }
+        if (userDto.getStatus() != null) {
+            user.setStatus(userDto.getStatus());
+        }
+
+        this.updateById(user);
+    }
+
+    @Override
     public void deleteUser(Long id) {
         User user = this.getById(id);
         if (user == null) {

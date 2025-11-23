@@ -35,6 +35,11 @@ public interface UserService extends IService<User> {
     void createUser(UserDto userDto);
 
     /**
+     * Update user (for admin)
+     */
+    void updateUser(UserDto userDto);
+
+    /**
      * Delete user (soft delete)
      */
     void deleteUser(Long id);

@@ -79,6 +79,26 @@ export type UserPayload = {
   status?: number;
 };
 
+export type WxUserQuery = {
+  page: number;
+  pageSize: number;
+  username?: string;
+  phone?: string;
+  nickname?: string;
+  status?: number;
+};
+
+export type WxUserPayload = {
+  id?: number;
+  username: string;
+  password?: string;
+  phone?: string;
+  nickname?: string;
+  avatar?: string;
+  gender?: number;
+  status?: number;
+};
+
 export const login = (data: LoginPayload) => http.post('/user/login', data);
 
 export const fetchProfile = () => http.get('/user/info');
@@ -126,9 +146,18 @@ export const removeBanner = (id: number) => http.delete('/banner', { params: { i
 
 export const fetchUsers = (params: UserQuery) => http.get('/user/page', { params });
 export const createUser = (data: UserPayload) => http.post('/user', data);
+export const updateUser = (data: UserPayload) => http.put('/user/admin/update', data);
 export const deleteUser = (id: number) => http.delete(`/user/${id}`);
 export const updateUserStatus = (id: number, status: number) =>
   http.put('/user/status', null, { params: { id, status } });
 export const resetUserPassword = (id: number) => http.put(`/user/reset-password/${id}`);
+
+export const fetchWxUsers = (params: WxUserQuery) => http.get('/wx/user/page', { params });
+export const createWxUser = (data: WxUserPayload) => http.post('/wx/user/register', data);
+export const updateWxUser = (data: WxUserPayload) => http.put('/wx/user/admin/update', data);
+export const deleteWxUser = (id: number) => http.delete(`/wx/user/${id}`);
+export const updateWxUserStatus = (id: number, status: number) =>
+  http.put('/wx/user/status', null, { params: { id, status } });
+export const resetWxUserPassword = (id: number) => http.put(`/wx/user/reset-password/${id}`);
 
 
