@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * WeChat User Controller
+ * 微信用户控制器
  */
 @Tag(name = "微信用户管理", description = "微信小程序用户登录、注册、信息管理")
 @RestController
@@ -33,45 +33,45 @@ public class WxUserController {
     private OssService ossService;
 
     /**
-     * Send verification code
+     * 发送验证码
      */
     @Operation(summary = "发送验证码", description = "向指定手机号发送验证码(测试环境固定为1234)")
     @PostMapping("/sendcode")
     public Result<String> sendCode(@RequestParam String phone) {
-        log.info("Send code to phone: {}", phone);
+        log.info("发送验证码到手机: {}", phone);
 
         if (phone == null || phone.length() != 11) {
-            return Result.error("Invalid phone number");
+            return Result.error("无效的手机号码");
         }
 
         wxUserService.sendCode(phone);
-        return Result.success("Verification code sent successfully");
+        return Result.success("验证码发送成功");
     }
 
     /**
-     * User login
+     * 用户登录
      */
     @Operation(summary = "用户登录", description = "支持用户名/密码登录(type=1)和手机号/验证码登录(type=2)")
     @PostMapping("/login")
     public Result<String> login(@RequestBody LoginDto loginDto) {
-        log.info("WeChat user login: {}", loginDto);
+        log.info("微信用户登录: {}", loginDto);
 
         try {
             String token = wxUserService.login(loginDto);
             return Result.success(token);
         } catch (Exception e) {
-            log.error("Login failed: {}", e.getMessage());
+            log.error("登录失败: {}", e.getMessage());
             return Result.error(e.getMessage());
         }
     }
 
     /**
-     * User register
+     * 用户注册
      */
     @Operation(summary = "用户注册", description = "用户名/密码注册")
     @PostMapping("/register")
     public Result<String> register(@RequestBody com.yao.food_menu.dto.RegisterDto registerDto) {
-        log.info("User register: {}", registerDto);
+        log.info("用户注册: {}", registerDto);
 
         try {
             if (!StringUtils.hasText(registerDto.getUsername()) || !StringUtils.hasText(registerDto.getPassword())) {
@@ -81,13 +81,13 @@ public class WxUserController {
             wxUserService.register(registerDto);
             return Result.success("注册成功");
         } catch (Exception e) {
-            log.error("Register failed: {}", e.getMessage());
+            log.error("注册失败: {}", e.getMessage());
             return Result.error(e.getMessage());
         }
     }
 
     /**
-     * WeChat login (reserved)
+     * 微信一键登录（预留）
      */
     @Operation(summary = "微信一键登录", description = "使用微信授权code登录(预留)")
     @PostMapping("/wxlogin")
