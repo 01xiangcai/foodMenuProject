@@ -57,7 +57,16 @@
             }
         },
         "devServer": {
-            "port": 5174
+            "port": 5174,
+            "proxy": {
+                "/api": {
+                    "target": "http://a9284666.natappfree.cc",
+                    "changeOrigin": true,
+                    "pathRewrite": {
+                        "^/api": ""
+                    }
+                }
+            }
         }
     },
     "vueVersion": "3"

@@ -2,7 +2,8 @@ App({
   globalData: {
     familyName: '周家·食光',
     themeColors: ['#14b8ff', '#a855f7'],
-    baseUrl: 'http://localhost:8080',
+    // baseUrl: 'http://localhost:8080',
+    baseUrl: 'http://a9284666.natappfree.cc',
     theme: 'family' // 默认主题: tech | family
   },
 
