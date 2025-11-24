@@ -35,7 +35,10 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useTheme } from '@/stores/theme'
+
+const { themeConfig, loadTheme } = useTheme()
 
 const favorites = ref([
   {
@@ -87,12 +90,17 @@ const goToMenu = () => {
     url: '/pages/menu/menu'
   })
 }
+
+onMounted(() => {
+  loadTheme()
+})
 </script>
 
 <style lang="scss" scoped>
 .page {
   min-height: 100vh;
-  background-color: #050a1f;
+  background-color: v-bind('themeConfig.bgPrimary');
+  transition: background-color 0.3s ease;
 }
 
 .favorites-scroll {

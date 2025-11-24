@@ -172,9 +172,10 @@ onLoad((options) => {
 <style lang="scss" scoped>
 .page {
   min-height: 100vh;
-  background-color: #050a1f;
+  background-color: v-bind('themeConfig.bgPrimary');
   padding: 20rpx;
   padding-bottom: 160rpx;
+  transition: background-color 0.3s ease;
 }
 
 .address-card {
@@ -182,6 +183,16 @@ onLoad((options) => {
   align-items: center;
   padding: 30rpx;
   margin-bottom: 20rpx;
+  background: v-bind('themeConfig.cardBg');
+  backdrop-filter: blur(10px);
+  border-radius: 24rpx;
+  border: 1px solid v-bind('themeConfig.cardBorder');
+  box-shadow: v-bind('themeConfig.shadowLight');
+  transition: all 0.3s ease;
+  
+  &:active {
+    transform: scale(0.98);
+  }
 }
 
 .address-info {
@@ -192,22 +203,23 @@ onLoad((options) => {
   display: flex;
   gap: 20rpx;
   margin-bottom: 16rpx;
+  align-items: baseline;
 }
 
 .name {
   font-size: 32rpx;
   font-weight: 600;
-  color: #fff;
+  color: v-bind('themeConfig.textPrimary');
 }
 
 .phone {
   font-size: 28rpx;
-  color: #8b8fa3;
+  color: v-bind('themeConfig.textSecondary');
 }
 
 .detail {
   font-size: 28rpx;
-  color: #8b8fa3;
+  color: v-bind('themeConfig.textSecondary');
   line-height: 1.6;
 }
 
@@ -223,13 +235,13 @@ onLoad((options) => {
   
   .text {
     font-size: 28rpx;
-    color: #8b8fa3;
+    color: v-bind('themeConfig.textSecondary');
   }
 }
 
 .arrow {
   font-size: 32rpx;
-  color: #8b8fa3;
+  color: v-bind('themeConfig.textSecondary');
   margin-left: 20rpx;
 }
 
@@ -238,15 +250,21 @@ onLoad((options) => {
 .fee-card {
   padding: 30rpx;
   margin-bottom: 20rpx;
+  background: v-bind('themeConfig.cardBg');
+  backdrop-filter: blur(10px);
+  border-radius: 24rpx;
+  border: 1px solid v-bind('themeConfig.cardBorder');
+  box-shadow: v-bind('themeConfig.shadowLight');
+  transition: all 0.3s ease;
 }
 
 .card-title {
   font-size: 32rpx;
   font-weight: 700;
-  color: #fff;
+  color: v-bind('themeConfig.textPrimary');
   margin-bottom: 30rpx;
   padding-bottom: 20rpx;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid v-bind('themeConfig.borderColor');
 }
 
 .order-item {
@@ -275,36 +293,42 @@ onLoad((options) => {
 
 .item-name {
   font-size: 28rpx;
-  color: #fff;
+  color: v-bind('themeConfig.textPrimary');
+  font-weight: 500;
 }
 
 .item-spec {
   font-size: 24rpx;
-  color: #8b8fa3;
+  color: v-bind('themeConfig.textSecondary');
 }
 
 .item-price {
   font-size: 28rpx;
-  color: #14b8ff;
+  color: v-bind('themeConfig.errorColor');
   font-weight: 600;
 }
 
 .label {
   display: block;
   font-size: 28rpx;
-  color: #fff;
+  color: v-bind('themeConfig.textPrimary');
   margin-bottom: 16rpx;
 }
 
 .textarea {
   width: 100%;
   min-height: 150rpx;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: v-bind('themeConfig.inputBg');
+  border: 1px solid v-bind('themeConfig.inputBorder');
   border-radius: 12rpx;
   padding: 20rpx;
   font-size: 28rpx;
-  color: #fff;
+  color: v-bind('themeConfig.textPrimary');
+  transition: all 0.3s ease;
+  
+  &:focus {
+    border-color: v-bind('themeConfig.primaryColor');
+  }
 }
 
 .fee-row {
@@ -318,23 +342,24 @@ onLoad((options) => {
   
   &.total {
     padding-top: 20rpx;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-top: 1px solid v-bind('themeConfig.borderColor');
+    margin-top: 20rpx;
   }
   
   .label {
     margin: 0;
     font-size: 28rpx;
-    color: #8b8fa3;
+    color: v-bind('themeConfig.textSecondary');
   }
   
   .value {
     font-size: 28rpx;
-    color: #fff;
+    color: v-bind('themeConfig.textPrimary');
     
     &.price {
       font-size: 36rpx;
       font-weight: 700;
-      color: #14b8ff;
+      color: v-bind('themeConfig.errorColor');
     }
   }
 }
@@ -344,13 +369,16 @@ onLoad((options) => {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 20rpx;
-  background: rgba(10, 17, 32, 0.95);
+  padding: 20rpx 30rpx;
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  background: v-bind('themeConfig.bgSecondary');
   backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid v-bind('themeConfig.borderColor');
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-shadow: 0 -4rpx 20rpx rgba(0,0,0,0.05);
+  z-index: 100;
 }
 
 .total {
@@ -359,26 +387,41 @@ onLoad((options) => {
   
   .label {
     font-size: 24rpx;
-    color: #8b8fa3;
+    color: v-bind('themeConfig.textSecondary');
     margin: 0;
   }
   
   .price {
     font-size: 36rpx;
     font-weight: 700;
-    color: #14b8ff;
+    color: v-bind('themeConfig.errorColor');
   }
 }
 
 .btn-submit {
   padding: 24rpx 80rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: v-bind('themeConfig.primaryGradient');
   border-radius: 40rpx;
+  box-shadow: v-bind('themeConfig.shadowMedium');
+  transition: all 0.3s ease;
+  
+  &:active {
+    transform: scale(0.95);
+    opacity: 0.9;
+  }
   
   text {
     font-size: 28rpx;
     color: #fff;
     font-weight: 600;
   }
+}
+
+// 玻璃拟态通用样式
+.glass-card {
+  background: v-bind('themeConfig.cardBg');
+  backdrop-filter: blur(10px);
+  border: 1px solid v-bind('themeConfig.cardBorder');
+  box-shadow: v-bind('themeConfig.shadowLight');
 }
 </style>

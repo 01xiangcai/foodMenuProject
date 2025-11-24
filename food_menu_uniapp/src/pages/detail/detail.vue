@@ -50,9 +50,12 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getDishDetail } from '@/api/index'
+import { useTheme } from '@/stores/theme'
+
+const { themeConfig, loadTheme } = useTheme()
 
 const dish = ref({
   id: 0,
@@ -118,13 +121,18 @@ onLoad((options) => {
     loadDishDetail(options.id)
   }
 })
+
+onMounted(() => {
+  loadTheme()
+})
 </script>
 
 <style lang="scss" scoped>
 .page {
   min-height: 100vh;
-  background-color: #050a1f;
+  background-color: v-bind('themeConfig.bgPrimary');
   padding-bottom: 160rpx;
+  transition: background-color 0.3s ease;
 }
 
 .image-container {
@@ -150,6 +158,11 @@ onLoad((options) => {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.2s ease;
+  
+  &:active {
+    transform: scale(0.9);
+  }
   
   text {
     font-size: 40rpx;
@@ -160,6 +173,12 @@ onLoad((options) => {
 .info-section {
   margin: 20rpx;
   padding: 30rpx;
+  background: v-bind('themeConfig.cardBg');
+  backdrop-filter: blur(10px);
+  border-radius: 24rpx;
+  border: 1px solid v-bind('themeConfig.cardBorder');
+  box-shadow: v-bind('themeConfig.shadowLight');
+  transition: all 0.3s ease;
 }
 
 .header {
@@ -172,31 +191,36 @@ onLoad((options) => {
 .dish-name {
   font-size: 40rpx;
   font-weight: 700;
-  color: #fff;
+  color: v-bind('themeConfig.textPrimary');
+  transition: color 0.3s ease;
 }
 
 .dish-price {
   font-size: 48rpx;
   font-weight: 700;
-  color: #14b8ff;
+  color: v-bind('themeConfig.errorColor');
+  transition: color 0.3s ease;
 }
 
 .dish-desc {
   display: block;
   font-size: 28rpx;
-  color: #8b8fa3;
+  color: v-bind('themeConfig.textSecondary');
   line-height: 1.6;
   margin-bottom: 30rpx;
+  transition: color 0.3s ease;
 }
 
 .quantity-selector {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding-top: 30rpx;
+  border-top: 1px solid v-bind('themeConfig.borderColor');
   
   .label {
     font-size: 28rpx;
-    color: #fff;
+    color: v-bind('themeConfig.textPrimary');
   }
   
   .selector {
@@ -207,22 +231,38 @@ onLoad((options) => {
     .btn {
       width: 60rpx;
       height: 60rpx;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.2);
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
+      transition: all 0.3s ease;
+      
+      &:first-child {
+        background: transparent;
+        border: 1px solid v-bind('themeConfig.textSecondary');
+        color: v-bind('themeConfig.textSecondary');
+      }
+      
+      &:last-child {
+        background: v-bind('themeConfig.primaryGradient');
+        border: none;
+        color: #fff;
+        box-shadow: v-bind('themeConfig.shadowLight');
+      }
+      
+      &:active {
+        transform: scale(0.9);
+      }
       
       text {
         font-size: 32rpx;
-        color: #fff;
       }
     }
     
     .quantity {
-      font-size: 32rpx;
-      color: #fff;
+      font-size: 36rpx;
+      font-weight: 600;
+      color: v-bind('themeConfig.textPrimary');
       min-width: 60rpx;
       text-align: center;
     }
@@ -234,27 +274,30 @@ onLoad((options) => {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 20rpx;
-  background: rgba(10, 17, 32, 0.95);
+  padding: 20rpx 30rpx;
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  background: v-bind('themeConfig.bgSecondary');
   backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid v-bind('themeConfig.borderColor');
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-shadow: 0 -4rpx 20rpx rgba(0,0,0,0.05);
+  z-index: 100;
 }
 
 .total {
   .label {
     display: block;
     font-size: 24rpx;
-    color: #8b8fa3;
+    color: v-bind('themeConfig.textSecondary');
     margin-bottom: 8rpx;
   }
   
   .price {
     font-size: 40rpx;
     font-weight: 700;
-    color: #14b8ff;
+    color: v-bind('themeConfig.errorColor');
   }
 }
 
@@ -265,20 +308,27 @@ onLoad((options) => {
 
 .btn-cart,
 .btn-buy {
-  padding: 24rpx 40rpx;
+  padding: 20rpx 40rpx;
   border-radius: 40rpx;
   font-size: 28rpx;
   font-weight: 600;
+  transition: all 0.3s ease;
+  
+  &:active {
+    transform: scale(0.95);
+    opacity: 0.9;
+  }
 }
 
 .btn-cart {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #fff;
+  background: v-bind('themeConfig.inputBg');
+  border: 1px solid v-bind('themeConfig.borderColor');
+  color: v-bind('themeConfig.textPrimary');
 }
 
 .btn-buy {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: v-bind('themeConfig.primaryGradient');
   color: #fff;
+  box-shadow: v-bind('themeConfig.shadowMedium');
 }
 </style>

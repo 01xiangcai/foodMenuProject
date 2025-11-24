@@ -86,6 +86,10 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { getBannerList } from '@/api/index'
+import { useTheme } from '@/stores/theme'
+
+// 使用主题
+const { themeConfig, loadTheme } = useTheme()
 
 // 响应式数据
 const currentTime = ref('')
@@ -157,6 +161,7 @@ const navigateTo = (url) => {
 
 // 生命周期
 onMounted(() => {
+  loadTheme()
   updateClock()
   timer = setInterval(updateClock, 1000)
   loadBanners()
@@ -173,6 +178,8 @@ onUnmounted(() => {
 .page {
   padding: 20rpx;
   min-height: 100vh;
+  background-color: v-bind('themeConfig.bgPrimary');
+  transition: background-color 0.3s ease;
 }
 
 .hero {
@@ -180,6 +187,11 @@ onUnmounted(() => {
   padding: 60rpx 40rpx;
   margin-bottom: 20rpx;
   overflow: hidden;
+  background: v-bind('themeConfig.cardBg');
+  backdrop-filter: blur(10px);
+  border: 1px solid v-bind('themeConfig.cardBorder');
+  border-radius: 16rpx;
+  transition: all 0.3s ease;
   
   .hero-text {
     position: relative;
@@ -188,24 +200,27 @@ onUnmounted(() => {
     .eyebrow {
       display: block;
       font-size: 24rpx;
-      color: #14b8ff;
+      color: v-bind('themeConfig.primaryColor');
       margin-bottom: 16rpx;
       font-weight: 600;
       letter-spacing: 2rpx;
+      transition: color 0.3s ease;
     }
     
     .hero-title {
       display: block;
       font-size: 48rpx;
       font-weight: 700;
-      color: #fff;
+      color: v-bind('themeConfig.textPrimary');
       margin-bottom: 16rpx;
+      transition: color 0.3s ease;
     }
     
     .hero-sub {
       display: block;
       font-size: 28rpx;
-      color: #8b8fa3;
+      color: v-bind('themeConfig.textSecondary');
+      transition: color 0.3s ease;
     }
   }
   
@@ -217,14 +232,20 @@ onUnmounted(() => {
     width: 300rpx;
     height: 300rpx;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(20, 184, 255, 0.2) 0%, transparent 70%);
+    background: radial-gradient(circle, v-bind('themeConfig.primaryColor + "33"') 0%, transparent 70%);
     z-index: 1;
+    transition: background 0.3s ease;
   }
 }
 
 .section {
   margin-bottom: 20rpx;
   padding: 30rpx;
+  background: v-bind('themeConfig.cardBg');
+  backdrop-filter: blur(10px);
+  border: 1px solid v-bind('themeConfig.cardBorder');
+  border-radius: 16rpx;
+  transition: all 0.3s ease;
   
   .section-header {
     display: flex;
@@ -235,12 +256,14 @@ onUnmounted(() => {
     .section-title {
       font-size: 32rpx;
       font-weight: 700;
-      color: #fff;
+      color: v-bind('themeConfig.textPrimary');
+      transition: color 0.3s ease;
     }
     
     .mini-tip {
       font-size: 24rpx;
-      color: #8b8fa3;
+      color: v-bind('themeConfig.textSecondary');
+      transition: color 0.3s ease;
     }
   }
 }
@@ -292,30 +315,32 @@ onUnmounted(() => {
   gap: 20rpx;
   
   .quick-card {
-    background: rgba(20, 184, 255, 0.1);
-    border: 1px solid rgba(20, 184, 255, 0.2);
+    background: v-bind('themeConfig.primaryColor + "1a"');
+    border: 1px solid v-bind('themeConfig.primaryColor + "33"');
     border-radius: 16rpx;
     padding: 30rpx 20rpx;
     text-align: center;
-    transition: all 0.3s;
+    transition: all 0.3s ease;
     
     &:active {
       transform: scale(0.95);
-      background: rgba(20, 184, 255, 0.2);
+      background: v-bind('themeConfig.primaryColor + "33"');
     }
     
     .label {
       display: block;
       font-size: 28rpx;
       font-weight: 600;
-      color: #14b8ff;
+      color: v-bind('themeConfig.primaryColor');
       margin-bottom: 8rpx;
+      transition: color 0.3s ease;
     }
     
     .desc {
       display: block;
       font-size: 22rpx;
-      color: #8b8fa3;
+      color: v-bind('themeConfig.textSecondary');
+      transition: color 0.3s ease;
     }
   }
 }
@@ -326,7 +351,8 @@ onUnmounted(() => {
     justify-content: space-between;
     align-items: center;
     padding: 24rpx 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid v-bind('themeConfig.borderColor');
+    transition: all 0.3s ease;
     
     &:last-child {
       border-bottom: none;
@@ -335,24 +361,38 @@ onUnmounted(() => {
     .dish-title {
       display: block;
       font-size: 28rpx;
-      color: #fff;
+      color: v-bind('themeConfig.textPrimary');
       margin-bottom: 8rpx;
+      transition: color 0.3s ease;
     }
     
     .dish-tag {
       display: inline-block;
       font-size: 22rpx;
-      color: #14b8ff;
-      background: rgba(20, 184, 255, 0.1);
+      color: v-bind('themeConfig.primaryColor');
+      background: v-bind('themeConfig.primaryColor + "1a"');
       padding: 4rpx 12rpx;
       border-radius: 8rpx;
       margin-left: 12rpx;
+      transition: all 0.3s ease;
     }
     
     .dish-energy {
       font-size: 24rpx;
-      color: #8b8fa3;
+      color: v-bind('themeConfig.textSecondary');
+      transition: color 0.3s ease;
     }
   }
 }
+
+// 玻璃拟态卡片样式
+.glass-card {
+  background: v-bind('themeConfig.cardBg');
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid v-bind('themeConfig.cardBorder');
+  box-shadow: v-bind('themeConfig.shadowLight');
+  transition: all 0.3s ease;
+}
 </style>
+

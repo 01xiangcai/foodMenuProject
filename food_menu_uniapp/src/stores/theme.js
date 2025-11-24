@@ -1,0 +1,162 @@
+import { ref, computed } from 'vue'
+
+// 主题类型：'dark' (科技) 或 'light' (家庭)
+const currentTheme = ref('dark')
+
+// 从本地存储加载主题
+const loadTheme = () => {
+    const savedTheme = uni.getStorageSync('app_theme')
+    if (savedTheme) {
+        currentTheme.value = savedTheme
+        // 延迟一点执行以确保页面加载完成
+        setTimeout(() => {
+            applyTheme(savedTheme)
+        }, 100)
+    }
+}
+
+// 保存主题到本地存储
+const saveTheme = (theme) => {
+    uni.setStorageSync('app_theme', theme)
+}
+
+// 应用主题到导航栏和TabBar
+const applyTheme = (theme) => {
+    const isDark = theme === 'dark'
+
+    // 更新导航栏颜色
+    try {
+        uni.setNavigationBarColor({
+            frontColor: isDark ? '#ffffff' : '#000000', // 浅色主题使用黑色文字/图标
+            backgroundColor: isDark ? '#050a1f' : '#fff9f0', // 浅色主题使用暖色背景
+            animation: {
+                duration: 300,
+                timingFunc: 'easeInOut'
+            }
+        })
+    } catch (e) {
+        console.log('设置导航栏颜色失败:', e)
+    }
+
+    // 更新TabBar样式
+    try {
+        uni.setTabBarStyle({
+            color: isDark ? '#8b8fa3' : '#9ca3af',
+            selectedColor: isDark ? '#14b8ff' : '#ff6b6b',
+            backgroundColor: isDark ? '#0a1120' : '#ffffff',
+            borderStyle: isDark ? 'black' : 'white'
+        })
+    } catch (e) {
+        console.log('设置TabBar样式失败:', e)
+    }
+}
+
+// 切换主题
+const toggleTheme = () => {
+    currentTheme.value = currentTheme.value === 'dark' ? 'light' : 'dark'
+    saveTheme(currentTheme.value)
+    applyTheme(currentTheme.value)
+}
+
+// 主题配置
+const themeConfig = computed(() => {
+    if (currentTheme.value === 'dark') {
+        // 科技主题 - 深色炫酷
+        return {
+            name: '科技',
+            // 背景色
+            bgPrimary: '#050a1f',
+            bgSecondary: '#0a1128',
+            bgTertiary: '#0f1729',
+
+            // 卡片背景（毛玻璃效果）
+            cardBg: 'rgba(15, 23, 41, 0.6)',
+            cardBorder: 'rgba(255, 255, 255, 0.1)',
+
+            // 文字颜色
+            textPrimary: '#ffffff',
+            textSecondary: '#8b8fa3',
+            textTertiary: '#5a5e73',
+
+            // 主题色（渐变）
+            primaryGradient: 'linear-gradient(135deg, #14b8ff 0%, #a855f7 100%)',
+            primaryColor: '#14b8ff',
+            secondaryColor: '#a855f7',
+
+            // 强调色
+            accentColor: '#14b8ff',
+            successColor: '#10b981',
+            warningColor: '#f59e0b',
+            errorColor: '#ef4444',
+
+            // 阴影
+            shadowLight: '0 4px 20px rgba(20, 184, 255, 0.1)',
+            shadowMedium: '0 8px 30px rgba(20, 184, 255, 0.15)',
+            shadowHeavy: '0 12px 40px rgba(20, 184, 255, 0.2)',
+
+            // 边框
+            borderColor: 'rgba(255, 255, 255, 0.1)',
+
+            // 输入框
+            inputBg: 'rgba(255, 255, 255, 0.05)',
+            inputBorder: 'rgba(255, 255, 255, 0.1)',
+
+            // 图标
+            iconColor: '#8b8fa3'
+        }
+    } else {
+        // 家庭主题 - 暖色温馨（重新设计）
+        return {
+            name: '温馨',
+            // 背景色 - 使用暖米色/奶油色代替冷白
+            bgPrimary: '#fff9f0', // 暖米色背景
+            bgSecondary: '#ffffff',
+            bgTertiary: '#fff5e6',
+
+            // 卡片背景 - 纯白卡片配暖色阴影
+            cardBg: 'rgba(255, 255, 255, 0.85)',
+            cardBorder: 'rgba(255, 230, 200, 0.3)', // 暖色边框
+
+            // 文字颜色 - 使用深暖灰/褐色
+            textPrimary: '#2d3436', // 深灰
+            textSecondary: '#636e72', // 中灰
+            textTertiary: '#b2bec3',
+
+            // 主题色（暖橙渐变）
+            primaryGradient: 'linear-gradient(135deg, #ff9a9e 0%, #fad0c4 99%, #fad0c4 100%)', // 桃粉色渐变
+            primaryColor: '#ff6b6b', // 珊瑚红
+            secondaryColor: '#ff9f43', // 暖橙
+
+            // 强调色
+            accentColor: '#ff6b6b',
+            successColor: '#00b894',
+            warningColor: '#fdcb6e',
+            errorColor: '#d63031',
+
+            // 阴影 - 暖色调阴影
+            shadowLight: '0 4px 12px rgba(255, 107, 107, 0.1)',
+            shadowMedium: '0 8px 24px rgba(255, 107, 107, 0.15)',
+            shadowHeavy: '0 12px 32px rgba(255, 107, 107, 0.2)',
+
+            // 边框
+            borderColor: 'rgba(0, 0, 0, 0.05)',
+
+            // 输入框
+            inputBg: '#ffffff',
+            inputBorder: 'rgba(0, 0, 0, 0.1)',
+
+            // 图标
+            iconColor: '#636e72'
+        }
+    }
+})
+
+// 导出主题相关功能
+export const useTheme = () => {
+    return {
+        currentTheme,
+        themeConfig,
+        toggleTheme,
+        loadTheme
+    }
+}

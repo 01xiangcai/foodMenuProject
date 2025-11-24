@@ -85,7 +85,7 @@ export const getOrderDetail = (id) => {
  */
 export const login = (data) => {
     return request({
-        url: '/user/login',
+        url: '/wx/user/login',
         method: 'POST',
         data
     })
@@ -97,7 +97,7 @@ export const login = (data) => {
  */
 export const sendCode = (phone) => {
     return request({
-        url: '/user/sendcode',
+        url: '/wx/user/sendcode',
         method: 'POST',
         data: { phone }
     })
@@ -108,7 +108,52 @@ export const sendCode = (phone) => {
  */
 export const getUserInfo = () => {
     return request({
-        url: '/user/info',
+        url: '/wx/user/info',
         method: 'GET'
+    })
+}
+
+/**
+ * 更新用户信息
+ * @param {Object} data 用户信息
+ */
+export const updateUserInfo = (data) => {
+    return request({
+        url: '/wx/user',
+        method: 'PUT',
+        data
+    })
+}
+
+/**
+ * 上传文件
+ * @param {String} filePath 文件路径
+ */
+export const uploadFile = (filePath) => {
+    const token = uni.getStorageSync('fm_token')
+    return new Promise((resolve, reject) => {
+        uni.uploadFile({
+            url: '/api/wx/user/avatar', // H5 代理路径
+            filePath: filePath,
+            name: 'file',
+            header: {
+                'Authorization': token ? `Bearer ${token}` : ''
+            },
+            success: (res) => {
+                if (res.statusCode === 200) {
+                    const data = JSON.parse(res.data)
+                    if (data.code === 1) {
+                        resolve(data)
+                    } else {
+                        reject(new Error(data.msg || '上传失败'))
+                    }
+                } else {
+                    reject(new Error(`上传失败(${res.statusCode})`))
+                }
+            },
+            fail: (err) => {
+                reject(err)
+            }
+        })
     })
 }

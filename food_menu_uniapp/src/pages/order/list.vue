@@ -67,7 +67,9 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { getOrderList } from '@/api/index'
+import { useTheme } from '@/stores/theme'
 
+const { themeConfig, loadTheme } = useTheme()
 const orders = ref([])
 const loading = ref(false)
 const page = ref(1)
@@ -209,6 +211,7 @@ const goToMenu = () => {
 }
 
 onMounted(() => {
+  loadTheme()
   loadOrders(true)
 })
 </script>
@@ -216,7 +219,8 @@ onMounted(() => {
 <style lang="scss" scoped>
 .page {
   min-height: 100vh;
-  background-color: #050a1f;
+  background-color: v-bind('themeConfig.bgPrimary');
+  transition: background-color 0.3s ease;
 }
 
 .order-scroll {
