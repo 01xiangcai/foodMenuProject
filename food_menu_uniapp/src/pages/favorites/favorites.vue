@@ -1,33 +1,54 @@
 <template>
   <view class="page">
     <scroll-view class="favorites-scroll" scroll-y>
-      <view class="favorites-grid" v-if="favorites.length > 0">
+      <view v-if="loading" class="state loading">
+        <view class="skeleton-card" v-for="n in 4" :key="n">
+          <view class="skeleton-cover"></view>
+          <view class="skeleton-line short"></view>
+          <view class="skeleton-line"></view>
+        </view>
+      </view>
+
+      <view v-else-if="favorites.length > 0" class="favorites-grid">
         <view 
-          class="dish-card glass-card"
+          class="fav-card glass-card"
           v-for="dish in favorites" 
           :key="dish.id"
           @tap="goToDetail(dish.id)"
         >
-          <image class="dish-image" :src="dish.image" mode="aspectFill" />
-          <view class="dish-info">
+          <view class="card-cover">
+            <image class="dish-image" :src="dish.image" mode="aspectFill" />
+            <view class="cover-tag">{{ dish.categoryName || '精选菜品' }}</view>
+          </view>
+          <view class="card-body">
             <text class="dish-name">{{ dish.name }}</text>
-            <text class="dish-desc">{{ dish.description }}</text>
-            <view class="dish-footer">
-              <text class="dish-price">¥{{ dish.price }}</text>
+            <text class="dish-desc">{{ dish.description || '用心烹饪的家常味道' }}</text>
+            <view class="card-footer">
+              <view class="price-box">
+                <text class="price">¥{{ dish.price }}</text>
+                <text class="unit">/份</text>
+              </view>
               <view class="btn-unfavorite" @tap.stop="unfavorite(dish.id)">
-                <text>❤️</text>
+                <text>{{ heartIcon }}</text>
               </view>
             </view>
           </view>
         </view>
       </view>
 
-      <!-- 空状态 -->
-      <view class="empty" v-else>
-        <text class="icon">❤️</text>
-        <text class="text">还没有收藏的菜品</text>
-        <view class="btn-go-shop" @tap="goToMenu">
-          <text>去点餐</text>
+      <view class="state empty" v-else>
+        <view class="icon-wrapper">
+          <text class="icon">❤</text>
+        </view>
+        <text class="empty-title">{{ needLogin ? '登录后查看收藏' : '还没有收藏的菜品' }}</text>
+        <text class="empty-subtitle">
+          {{ needLogin ? '登录同步你喜爱的菜品，随时随地查看' : '将喜欢的菜品收入囊中，随时点餐更快捷' }}
+        </text>
+        <view 
+          class="btn-go" 
+          @tap="needLogin ? goToLogin() : goToMenu()"
+        >
+          <text>{{ needLogin ? '立即登录' : '去点餐' }}</text>
         </view>
       </view>
     </scroll-view>
@@ -36,172 +57,306 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { useTheme } from '@/stores/theme'
+import { getFavoriteList, removeFavorite } from '@/api/index'
 
 const { themeConfig, loadTheme } = useTheme()
+const DEFAULT_IMAGE = 'https://dummyimage.com/600x400/0f172a/ffffff&text=family+dish'
+const heartIcon = '❤'
 
-const favorites = ref([
-  {
-    id: 1,
-    name: '宫保鸡丁',
-    description: '经典川菜，香辣可口',
-    price: 38,
-    image: 'https://dummyimage.com/400x300/ff6b6b/ffffff&text=宫保鸡丁'
-  },
-  {
-    id: 2,
-    name: '红烧肉',
-    description: '肥而不腻，入口即化',
-    price: 48,
-    image: 'https://dummyimage.com/400x300/4ecdc4/ffffff&text=红烧肉'
+const favorites = ref([])
+const loading = ref(false)
+const needLogin = ref(false)
+
+const mapFavorite = (item) => ({
+  id: item.id || item.dishId,
+  name: item.name || item.dishName,
+  description: item.description || item.dishDescription || '',
+  categoryName: item.categoryName,
+  price: item.price || item.dishPrice || 0,
+  image: item.image || item.dishImage || DEFAULT_IMAGE
+})
+
+const loadFavorites = async () => {
+  const token = uni.getStorageSync('fm_token')
+  if (!token) {
+    needLogin.value = true
+    favorites.value = []
+    return
   }
-])
 
-// 跳转详情
+  needLogin.value = false
+  loading.value = true
+  try {
+    const res = await getFavoriteList()
+    favorites.value = (res.data || []).map(mapFavorite)
+  } catch (error) {
+    console.error('加载收藏失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
 const goToDetail = (dishId) => {
   uni.navigateTo({
     url: `/pages/detail/detail?id=${dishId}`
   })
 }
 
-// 取消收藏
 const unfavorite = (dishId) => {
   uni.showModal({
     title: '提示',
     content: '确定要取消收藏吗？',
-    success: (res) => {
+    success: async (res) => {
       if (res.confirm) {
-        const index = favorites.value.findIndex(item => item.id === dishId)
-        if (index > -1) {
-          favorites.value.splice(index, 1)
+        try {
+          await removeFavorite(dishId)
+          favorites.value = favorites.value.filter(item => item.id !== dishId)
           uni.showToast({
             title: '已取消收藏',
             icon: 'success'
           })
+          if (!favorites.value.length) {
+            loadFavorites()
+          }
+        } catch (error) {
+          console.error('取消收藏失败:', error)
         }
       }
     }
   })
 }
 
-// 去点餐
 const goToMenu = () => {
   uni.switchTab({
     url: '/pages/menu/menu'
   })
 }
 
+const goToLogin = () => {
+  uni.navigateTo({
+    url: '/pages/login/login'
+  })
+}
+
 onMounted(() => {
   loadTheme()
+  loadFavorites()
+})
+
+onShow(() => {
+  loadFavorites()
 })
 </script>
 
 <style lang="scss" scoped>
 .page {
   min-height: 100vh;
-  background-color: v-bind('themeConfig.bgPrimary');
+  background: v-bind('themeConfig.bgPrimary');
   transition: background-color 0.3s ease;
 }
 
 .favorites-scroll {
   height: 100vh;
+  padding: 30rpx 24rpx 120rpx;
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30rpx;
+}
+
+.loading {
+  width: 100%;
+}
+
+.skeleton-card {
+  width: 100%;
+  border-radius: 24rpx;
+  background: v-bind('themeConfig.bgSecondary');
   padding: 20rpx;
+  margin-bottom: 20rpx;
+  animation: pulse 1.5s infinite;
+}
+
+.skeleton-cover {
+  width: 100%;
+  height: 240rpx;
+  border-radius: 20rpx;
+  background: rgba(255, 255, 255, 0.08);
+  margin-bottom: 20rpx;
+}
+
+.skeleton-line {
+  height: 24rpx;
+  border-radius: 12rpx;
+  background: rgba(255, 255, 255, 0.08);
+  margin-bottom: 14rpx;
+  
+  &.short {
+    width: 60%;
+  }
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
 }
 
 .favorites-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20rpx;
+  grid-template-columns: repeat(auto-fill, minmax(300rpx, 1fr));
+  gap: 24rpx;
 }
 
-.dish-card {
+.fav-card {
+  border-radius: 28rpx;
   overflow: hidden;
-  transition: transform 0.3s;
+  border: 1px solid v-bind('themeConfig.cardBorder');
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
   
   &:active {
-    transform: scale(0.95);
+    transform: scale(0.97);
   }
+}
+
+.card-cover {
+  position: relative;
 }
 
 .dish-image {
   width: 100%;
-  height: 300rpx;
-  border-radius: 12rpx;
+  height: 280rpx;
+  object-fit: cover;
 }
 
-.dish-info {
-  padding: 20rpx;
+.cover-tag {
+  position: absolute;
+  left: 24rpx;
+  top: 24rpx;
+  padding: 6rpx 20rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  backdrop-filter: blur(6px);
+}
+
+.card-body {
+  padding: 26rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
 }
 
 .dish-name {
-  display: block;
   font-size: 32rpx;
   font-weight: 600;
-  color: #fff;
-  margin-bottom: 8rpx;
+  color: v-bind('themeConfig.textPrimary');
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .dish-desc {
-  display: block;
-  font-size: 24rpx;
-  color: #8b8fa3;
-  margin-bottom: 16rpx;
+  font-size: 26rpx;
+  color: v-bind('themeConfig.textSecondary');
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.dish-footer {
+.card-footer {
+  margin-top: 10rpx;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.dish-price {
-  font-size: 36rpx;
+.price-box {
+  display: flex;
+  align-items: flex-end;
+  gap: 6rpx;
+}
+
+.price {
+  font-size: 42rpx;
   font-weight: 700;
-  color: #14b8ff;
+  color: v-bind('themeConfig.errorColor');
+}
+
+.unit {
+  font-size: 24rpx;
+  color: v-bind('themeConfig.textSecondary');
 }
 
 .btn-unfavorite {
-  width: 60rpx;
-  height: 60rpx;
+  width: 70rpx;
+  height: 70rpx;
+  border-radius: 50%;
+  background: v-bind('themeConfig.primaryGradient');
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: v-bind('themeConfig.shadowLight');
+  transition: transform 0.2s ease;
   
   text {
-    font-size: 40rpx;
+    font-size: 36rpx;
+    color: #fff;
+  }
+  
+  &:active {
+    transform: scale(0.9);
   }
 }
 
-.empty {
+.state.empty {
+  text-align: center;
+  padding-top: 120rpx;
+  gap: 10rpx;
+}
+
+.icon-wrapper {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 80vh;
-  
-  .icon {
-    font-size: 120rpx;
-    margin-bottom: 30rpx;
-  }
-  
-  .text {
-    font-size: 32rpx;
-    color: #8b8fa3;
-    margin-bottom: 40rpx;
-  }
+  box-shadow: v-bind('themeConfig.shadowLight');
 }
 
-.btn-go-shop {
-  padding: 24rpx 60rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 40rpx;
+.icon {
+  font-size: 64rpx;
+}
+
+.empty-title {
+  font-size: 34rpx;
+  color: v-bind('themeConfig.textPrimary');
+  font-weight: 600;
+}
+
+.empty-subtitle {
+  font-size: 26rpx;
+  color: v-bind('themeConfig.textSecondary');
+  margin-bottom: 30rpx;
+  line-height: 1.6;
+}
+
+.btn-go {
+  padding: 20rpx 80rpx;
+  border-radius: 999rpx;
+  background: v-bind('themeConfig.primaryGradient');
   color: #fff;
   font-size: 28rpx;
+  box-shadow: v-bind('themeConfig.shadowMedium');
 }
 </style>

@@ -4,26 +4,34 @@
     <scroll-view class="order-scroll" scroll-y @scrolltolower="loadMore">
       <view class="order-list">
         <view 
-          class="order-card glass-card"
+          class="order-card"
           v-for="order in orders" 
           :key="order.id"
-          @tap="goToDetail(order.id)"
         >
           <!-- 订单头部 -->
           <view class="order-header">
-            <text class="order-no">订单号：{{ order.orderNumber }}</text>
-            <text class="order-status" :class="getStatusClass(order.status)">
-              {{ getStatusText(order.status) }}
-            </text>
+            <view class="header-left">
+              <text class="order-label">订单号：</text>
+              <text class="order-no">{{ order.orderNumber }}</text>
+            </view>
+            <view class="status-badge" :class="getStatusClass(order.status)">
+              <text>{{ getStatusText(order.status) }}</text>
+            </view>
           </view>
+          
+          <view class="order-count">{{ order.items?.length || 0 }}个菜品</view>
 
-          <!-- 订单商品 -->
+          <!-- 订单商品列表 -->
           <view class="order-items">
             <view class="order-item" v-for="item in order.items" :key="item.id">
-              <image class="item-image" :src="item.image" mode="aspectFill" />
+              <!-- 如果有图片URL就显示图片，否则显示占位符 -->
+              <image v-if="item.image" class="item-image" :src="item.image" mode="aspectFill" @error="handleImageError" />
+              <view v-else class="item-placeholder">
+                <text class="placeholder-text">family dish</text>
+              </view>
               <view class="item-info">
                 <text class="item-name">{{ item.name }}</text>
-                <text class="item-spec">x{{ item.quantity }}</text>
+                <text class="item-quantity">x{{ item.quantity }}</text>
               </view>
               <text class="item-price">¥{{ item.price }}</text>
             </view>
@@ -31,17 +39,28 @@
 
           <!-- 订单底部 -->
           <view class="order-footer">
-            <text class="total-label">合计：</text>
-            <text class="total-price">¥{{ order.totalAmount }}</text>
-          </view>
-
-          <!-- 操作按钮 -->
-          <view class="order-actions" v-if="order.status !== 3">
-            <view class="btn-cancel" v-if="order.status === 0" @tap.stop="cancelOrder(order.id)">
-              <text>取消订单</text>
+            <view class="footer-left">
+              <text class="total-label">合计：</text>
+              <text class="total-price">¥{{ order.totalAmount }}</text>
             </view>
-            <view class="btn-primary" v-if="order.status === 0" @tap.stop="payOrder(order.id)">
-              <text>去支付</text>
+            
+            <view class="footer-actions">
+              <!-- 待接单订单显示取消和详情按钮 -->
+              <view class="action-btns" v-if="order.status === 0">
+                <view class="btn-cancel" @tap.stop="cancelOrder(order.id)">
+                  <text>取消订单</text>
+                </view>
+                <view class="btn-detail" @tap.stop="goToDetail(order.id)">
+                  <text>详情</text>
+                </view>
+              </view>
+              
+              <!-- 其他状态只显示详情按钮 -->
+              <view class="action-btns" v-else>
+                <view class="btn-detail" @tap.stop="goToDetail(order.id)">
+                  <text>详情</text>
+                </view>
+              </view>
             </view>
           </view>
         </view>
@@ -66,7 +85,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getOrderList } from '@/api/index'
+import { onShow } from '@dcloudio/uni-app'
+import { getOrderList, updateOrderStatus } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 
 const { themeConfig, loadTheme } = useTheme()
@@ -79,8 +99,8 @@ const noMore = ref(false)
 // 获取订单状态文本
 const getStatusText = (status) => {
   const statusMap = {
-    0: '待支付',
-    1: '待确认',
+    0: '待接单',
+    1: '准备中',
     2: '配送中',
     3: '已完成',
     4: '已取消'
@@ -91,8 +111,8 @@ const getStatusText = (status) => {
 // 获取订单状态样式
 const getStatusClass = (status) => {
   const classMap = {
-    0: 'status-pending',
-    1: 'status-confirmed',
+    0: 'status-waiting',
+    1: 'status-preparing',
     2: 'status-delivering',
     3: 'status-completed',
     4: 'status-cancelled'
@@ -103,7 +123,16 @@ const getStatusClass = (status) => {
 // 加载订单列表
 const loadOrders = async (reset = false) => {
   if (loading.value || noMore.value) return
-  
+
+  // 未登录则跳转到登录页，不请求全部订单
+  const token = uni.getStorageSync('fm_token')
+  if (!token) {
+    uni.navigateTo({
+      url: '/pages/login/login'
+    })
+    return
+  }
+
   if (reset) {
     page.value = 1
     orders.value = []
@@ -120,10 +149,22 @@ const loadOrders = async (reset = false) => {
     
     const list = res.data?.records || []
     
+    // 映射后端数据到前端格式
+    const mappedList = list.map(order => ({
+      ...order,
+      items: (order.orderItems || []).map(item => ({
+        id: item.id,
+        name: item.dishName,
+        image: item.dishImage,
+        price: item.price,
+        quantity: item.quantity
+      }))
+    }))
+    
     if (reset) {
-      orders.value = list
+      orders.value = mappedList
     } else {
-      orders.value = [...orders.value, ...list]
+      orders.value = [...orders.value, ...mappedList]
     }
     
     if (list.length < pageSize.value) {
@@ -131,33 +172,6 @@ const loadOrders = async (reset = false) => {
     }
   } catch (error) {
     console.error('加载订单失败:', error)
-    // 显示示例数据
-    if (reset) {
-      orders.value = [
-        {
-          id: 1,
-          orderNumber: '202311240001',
-          status: 1,
-          totalAmount: 86,
-          items: [
-            {
-              id: 1,
-              name: '宫保鸡丁',
-              quantity: 1,
-              price: 38,
-              image: 'https://dummyimage.com/200x200/ff6b6b/ffffff&text=宫保鸡丁'
-            },
-            {
-              id: 2,
-              name: '红烧肉',
-              quantity: 1,
-              price: 48,
-              image: 'https://dummyimage.com/200x200/4ecdc4/ffffff&text=红烧肉'
-            }
-          ]
-        }
-      ]
-    }
   } finally {
     loading.value = false
   }
@@ -171,7 +185,7 @@ const loadMore = () => {
   }
 }
 
-// 跳转详情
+// 跳转订单详情
 const goToDetail = (orderId) => {
   uni.navigateTo({
     url: `/pages/order/detail?id=${orderId}`
@@ -183,13 +197,18 @@ const cancelOrder = (orderId) => {
   uni.showModal({
     title: '提示',
     content: '确定要取消订单吗？',
-    success: (res) => {
+    success: async (res) => {
       if (res.confirm) {
-        uni.showToast({
-          title: '订单已取消',
-          icon: 'success'
-        })
-        loadOrders(true)
+        try {
+          await updateOrderStatus(orderId, 4)
+          uni.showToast({
+            title: '订单已取消',
+            icon: 'success'
+          })
+          loadOrders(true)
+        } catch (error) {
+          console.error('取消订单失败:', error)
+        }
       }
     }
   })
@@ -210,8 +229,18 @@ const goToMenu = () => {
   })
 }
 
+// 图片加载失败处理
+const handleImageError = (e) => {
+  console.warn('Image load failed:', e)
+}
+
 onMounted(() => {
   loadTheme()
+  loadOrders(true)
+})
+
+onShow(() => {
+  // 每次页面重新显示时刷新订单列表，确保状态及时更新
   loadOrders(true)
 })
 </script>
@@ -234,45 +263,83 @@ onMounted(() => {
 .order-card {
   margin-bottom: 20rpx;
   padding: 30rpx;
+  background: v-bind('themeConfig.cardBg');
+  backdrop-filter: blur(10px);
+  border-radius: 24rpx;
+  border: 1px solid v-bind('themeConfig.cardBorder');
+  box-shadow: v-bind('themeConfig.shadowLight');
+  transition: all 0.3s ease;
 }
 
 .order-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20rpx;
-  padding-bottom: 20rpx;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 16rpx;
+}
+
+.header-left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.order-label {
+  font-size: 28rpx;
+  color: v-bind('themeConfig.textSecondary');
+  transition: color 0.3s ease;
 }
 
 .order-no {
   font-size: 28rpx;
-  color: #8b8fa3;
+  color: v-bind('themeConfig.textPrimary');
+  font-weight: 500;
+  transition: color 0.3s ease;
 }
 
-.order-status {
-  font-size: 28rpx;
+.status-badge {
+  padding: 8rpx 20rpx;
+  border-radius: 20rpx;
+  font-size: 24rpx;
   font-weight: 600;
   
-  &.status-pending {
+  &.status-waiting {
+    background: rgba(255, 149, 0, 0.15);
     color: #ff9500;
+    border: 1px solid rgba(255, 149, 0, 0.3);
   }
   
-  &.status-confirmed {
+  &.status-preparing {
+    background: rgba(20, 184, 255, 0.15);
     color: #14b8ff;
+    border: 1px solid rgba(20, 184, 255, 0.3);
   }
   
   &.status-delivering {
+    background: rgba(102, 126, 234, 0.15);
     color: #667eea;
+    border: 1px solid rgba(102, 126, 234, 0.3);
   }
   
   &.status-completed {
+    background: rgba(52, 199, 89, 0.15);
     color: #34c759;
+    border: 1px solid rgba(52, 199, 89, 0.3);
   }
   
   &.status-cancelled {
-    color: #8b8fa3;
+    background: rgba(139, 143, 163, 0.15);
+    color: v-bind('themeConfig.textSecondary');
+    border: 1px solid rgba(139, 143, 163, 0.3);
   }
+}
+
+.order-count {
+  font-size: 24rpx;
+  color: v-bind('themeConfig.textSecondary');
+  margin-bottom: 20rpx;
+  transition: color 0.3s ease;
 }
 
 .order-items {
@@ -282,18 +349,34 @@ onMounted(() => {
 .order-item {
   display: flex;
   align-items: center;
-  margin-bottom: 20rpx;
+  margin-bottom: 24rpx;
   
   &:last-child {
     margin-bottom: 0;
   }
 }
 
-.item-image {
-  width: 120rpx;
-  height: 120rpx;
+.item-image,
+.item-placeholder {
+  width: 100rpx;
+  height: 100rpx;
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 12rpx;
   margin-right: 20rpx;
+  flex-shrink: 0;
+}
+
+.item-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  .placeholder-text {
+    font-size: 20rpx;
+    color: rgba(255, 255, 255, 0.3);
+    text-align: center;
+    line-height: 1.4;
+  }
 }
 
 .item-info {
@@ -305,63 +388,86 @@ onMounted(() => {
 
 .item-name {
   font-size: 28rpx;
-  color: #fff;
+  color: v-bind('themeConfig.textPrimary');
+  font-weight: 500;
+  transition: color 0.3s ease;
 }
 
-.item-spec {
+.item-quantity {
   font-size: 24rpx;
-  color: #8b8fa3;
+  color: v-bind('themeConfig.textSecondary');
+  transition: color 0.3s ease;
 }
 
 .item-price {
-  font-size: 28rpx;
-  color: #14b8ff;
-  font-weight: 600;
+  font-size: 32rpx;
+  color: v-bind('themeConfig.errorColor');
+  font-weight: 700;
+  transition: color 0.3s ease;
 }
 
 .order-footer {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
   padding-top: 20rpx;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid v-bind('themeConfig.borderColor');
+}
+
+.footer-left {
+  display: flex;
+  align-items: center;
 }
 
 .total-label {
   font-size: 28rpx;
-  color: #8b8fa3;
+  color: v-bind('themeConfig.textSecondary');
   margin-right: 10rpx;
+  transition: color 0.3s ease;
 }
 
 .total-price {
   font-size: 36rpx;
   font-weight: 700;
-  color: #14b8ff;
+  color: v-bind('themeConfig.errorColor');
+  transition: color 0.3s ease;
 }
 
-.order-actions {
+.footer-actions {
   display: flex;
-  justify-content: flex-end;
-  gap: 20rpx;
-  margin-top: 20rpx;
+  align-items: center;
+}
+
+.action-btns {
+  display: flex;
+  gap: 16rpx;
 }
 
 .btn-cancel,
-.btn-primary {
-  padding: 16rpx 40rpx;
-  border-radius: 40rpx;
-  font-size: 28rpx;
+.btn-pay,
+.btn-detail {
+  padding: 12rpx 32rpx;
+  border-radius: 24rpx;
+  font-size: 26rpx;
+  transition: all 0.3s ease;
+  
+  &:active {
+    transform: scale(0.95);
+    opacity: 0.9;
+  }
 }
 
 .btn-cancel {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #8b8fa3;
+  background: v-bind('themeConfig.inputBg');
+  border: 1px solid v-bind('themeConfig.borderColor');
+  color: v-bind('themeConfig.textSecondary');
 }
 
-.btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.btn-pay,
+.btn-detail {
+  background: v-bind('themeConfig.primaryGradient');
   color: #fff;
+  box-shadow: v-bind('themeConfig.shadowLight');
 }
 
 .loading,
@@ -371,8 +477,9 @@ onMounted(() => {
 }
 
 .loading text {
-  color: #8b8fa3;
+  color: v-bind('themeConfig.textSecondary');
   font-size: 28rpx;
+  transition: color 0.3s ease;
 }
 
 .empty {
@@ -385,17 +492,25 @@ onMounted(() => {
   .text {
     display: block;
     font-size: 32rpx;
-    color: #8b8fa3;
+    color: v-bind('themeConfig.textSecondary');
     margin-bottom: 40rpx;
+    transition: color 0.3s ease;
   }
 }
 
 .btn-go-shop {
   display: inline-block;
   padding: 24rpx 60rpx;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: v-bind('themeConfig.primaryGradient');
   border-radius: 40rpx;
   color: #fff;
   font-size: 28rpx;
+  box-shadow: v-bind('themeConfig.shadowMedium');
+  transition: all 0.3s ease;
+  
+  &:active {
+    transform: scale(0.95);
+    opacity: 0.9;
+  }
 }
 </style>

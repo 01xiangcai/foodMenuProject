@@ -2,9 +2,11 @@ package com.yao.food_menu.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.yao.food_menu.dto.OrdersDto;
+import com.yao.food_menu.entity.Dish;
 import com.yao.food_menu.entity.OrderItem;
 import com.yao.food_menu.entity.Orders;
 import com.yao.food_menu.mapper.OrdersMapper;
+import com.yao.food_menu.service.DishService;
 import com.yao.food_menu.service.OrderItemService;
 import com.yao.food_menu.service.OrdersService;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,9 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
     @Autowired
     private OrderItemService orderItemService;
 
+    @Autowired
+    private DishService dishService;
+
     private static final AtomicLong orderCounter = new AtomicLong(1);
 
     @Override
@@ -43,9 +48,17 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
         ordersDto.setOrderNumber(orderNumber);
         ordersDto.setStatus(0); // Pending (待接单)
 
-        // Calculate total amount
+        // Calculate total amount and populate dish info
         BigDecimal totalAmount = BigDecimal.ZERO;
         for (OrderItem item : orderItems) {
+            // Query dish info and populate order item
+            Dish dish = dishService.getById(item.getDishId());
+            if (dish != null) {
+                item.setDishName(dish.getName());
+                item.setDishImage(dish.getImage());
+                item.setPrice(dish.getPrice());
+            }
+
             BigDecimal subtotal = item.getPrice().multiply(new BigDecimal(item.getQuantity()));
             item.setSubtotal(subtotal);
             totalAmount = totalAmount.add(subtotal);

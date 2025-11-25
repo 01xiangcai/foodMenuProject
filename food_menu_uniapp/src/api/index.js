@@ -34,6 +34,18 @@ export const getDishList = (params) => {
 }
 
 /**
+ * 更新订单状态
+ * @param {Number} id 订单ID
+ * @param {Number} status 订单状态:0-待接单,1-准备中,2-配送中,3-已完成,4-已取消
+ */
+export const updateOrderStatus = (id, status) => {
+    return request({
+        url: `/order/status?id=${id}&status=${status}`,
+        method: 'PUT'
+    })
+}
+
+/**
  * 获取菜品详情
  * @param {Number} id 菜品ID
  */
@@ -50,7 +62,7 @@ export const getDishDetail = (id) => {
  */
 export const createOrder = (data) => {
     return request({
-        url: '/order',
+        url: '/order/submit',
         method: 'POST',
         data
     })
@@ -75,6 +87,51 @@ export const getOrderList = (params) => {
 export const getOrderDetail = (id) => {
     return request({
         url: `/order/${id}`,
+        method: 'GET'
+    })
+}
+
+/**
+ * 添加收藏
+ * @param {Number} dishId 菜品ID
+ */
+export const addFavorite = (dishId) => {
+    return request({
+        url: '/favorite/add',
+        method: 'POST',
+        data: { dishId }
+    })
+}
+
+/**
+ * 取消收藏
+ * @param {Number} dishId 菜品ID
+ */
+export const removeFavorite = (dishId) => {
+    return request({
+        url: `/favorite/remove/${dishId}`,
+        method: 'DELETE'
+    })
+}
+
+/**
+ * 批量检查收藏状态
+ * @param {Array<Number>} dishIds 菜品ID集合
+ */
+export const checkFavoriteBatch = (dishIds = []) => {
+    return request({
+        url: '/favorite/check/batch',
+        method: 'POST',
+        data: { dishIds }
+    })
+}
+
+/**
+ * 获取收藏列表
+ */
+export const getFavoriteList = () => {
+    return request({
+        url: '/favorite/list',
         method: 'GET'
     })
 }

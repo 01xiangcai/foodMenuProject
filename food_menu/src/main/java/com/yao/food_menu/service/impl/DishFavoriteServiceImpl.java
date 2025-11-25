@@ -11,11 +11,13 @@ import com.yao.food_menu.mapper.DishFavoriteMapper;
 import com.yao.food_menu.service.CategoryService;
 import com.yao.food_menu.service.DishFavoriteService;
 import com.yao.food_menu.service.DishService;
+import com.yao.food_menu.service.OssService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.HashSet;
 import java.util.List;
@@ -29,11 +31,17 @@ import java.util.stream.Collectors;
 @Slf4j
 public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, DishFavorite> implements DishFavoriteService {
 
+    private static final String DEFAULT_DISH_IMAGE =
+            "https://dummyimage.com/800x600/0f172a/ffffff&text=family+dish";
+
     @Autowired
     private DishService dishService;
 
     @Autowired
     private CategoryService categoryService;
+
+    @Autowired
+    private OssService ossService;
 
     @Override
     @Transactional
@@ -151,6 +159,8 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
             if (category != null) {
                 dishDto.setCategoryName(category.getName());
             }
+
+            enrichDishImage(dishDto);
             
             return dishDto;
         }).filter(dto -> dto != null).collect(Collectors.toList());
@@ -195,6 +205,8 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
             if (category != null) {
                 dishDto.setCategoryName(category.getName());
             }
+
+            enrichDishImage(dishDto);
             
             return dishDto;
         }).filter(dto -> dto != null).collect(Collectors.toList());
@@ -205,6 +217,30 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
         resultPage.setRecords(dishDtos);
         
         return resultPage;
+    }
+
+    /**
+     * Convert stored OSS object key to presigned URL so frontend can正确显示图片.
+     */
+    private void enrichDishImage(DishDto dishDto) {
+        if (dishDto == null) {
+            return;
+        }
+        String image = dishDto.getImage();
+        if (!StringUtils.hasText(image)) {
+            dishDto.setImage(DEFAULT_DISH_IMAGE);
+            return;
+        }
+        if (image.startsWith("http://") || image.startsWith("https://")) {
+            return;
+        }
+        try {
+            String presignedUrl = ossService.generatePresignedUrl(image);
+            dishDto.setImage(presignedUrl);
+        } catch (Exception e) {
+            log.warn("生成收藏菜品图片URL失败: {}", image, e);
+            dishDto.setImage(DEFAULT_DISH_IMAGE);
+        }
     }
 }
 

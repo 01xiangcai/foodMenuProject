@@ -24,7 +24,16 @@
           :key="dish.id"
           @tap="goToDetail(dish.id)"
         >
-          <image class="dish-image" :src="dish.image" mode="aspectFill" />
+          <view class="dish-media">
+            <image class="dish-image" :src="dish.image" mode="aspectFill" />
+            <view 
+              class="favorite-btn" 
+              :class="{ active: dish.isFavorite }"
+              @tap.stop="toggleFavorite(dish)"
+            >
+              <text class="heart">{{ dish.isFavorite ? '❤' : '♡' }}</text>
+            </view>
+          </view>
           <view class="dish-info">
             <view class="dish-header">
               <text class="dish-name">{{ dish.name }}</text>
@@ -148,7 +157,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { getCategoryList, getDishList } from '@/api/index'
+import { getCategoryList, getDishList, addFavorite, removeFavorite, checkFavoriteBatch } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 
 // 使用主题
@@ -163,6 +172,7 @@ const loading = ref(false)
 const noMore = ref(false)
 const page = ref(1)
 const pageSize = ref(10)
+const favoriteIds = ref(new Set())
 
 // 购物车数据：{ dishId: quantity }
 const cart = ref({})
@@ -250,6 +260,11 @@ const loadDishes = async (reset = false) => {
     } else if (res.data?.records) {
       list = res.data.records
     }
+
+    list = list.map(item => ({
+      ...item,
+      isFavorite: favoriteIds.value.has(item.id)
+    }))
     
     if (reset) {
       dishes.value = list
@@ -260,6 +275,8 @@ const loadDishes = async (reset = false) => {
     if (list.length < pageSize.value) {
       noMore.value = true
     }
+
+    await syncFavoritesForCurrentList()
   } catch (error) {
     console.error('加载菜品失败:', error)
   } finally {
@@ -335,9 +352,86 @@ const clearCart = () => {
 // 去结算
 const goToCheckout = () => {
   if (totalCount.value === 0) return
+
+  // 将当前购物车商品作为 items 传递给确认订单页
+  const selectedItems = cartList.value
   uni.navigateTo({
-    url: '/pages/order/confirm'
+    url: '/pages/order/confirm?items=' + encodeURIComponent(JSON.stringify(selectedItems))
   })
+}
+
+const ensureLogin = () => {
+  const token = uni.getStorageSync('fm_token')
+  if (!token) {
+    uni.showModal({
+      title: '提示',
+      content: '登录后才能收藏菜品，是否立即前往登录？',
+      success: (res) => {
+        if (res.confirm) {
+          uni.navigateTo({
+            url: '/pages/login/login'
+          })
+        }
+      }
+    })
+    return false
+  }
+  return true
+}
+
+const updateFavoriteMark = () => {
+  dishes.value = dishes.value.map(dish => ({
+    ...dish,
+    isFavorite: favoriteIds.value.has(dish.id)
+  }))
+}
+
+const syncFavoritesForCurrentList = async () => {
+  const token = uni.getStorageSync('fm_token')
+  if (!token) {
+    favoriteIds.value = new Set()
+    updateFavoriteMark()
+    return
+  }
+  const ids = dishes.value.map(d => d.id)
+  if (!ids.length) return
+  try {
+    const res = await checkFavoriteBatch(ids)
+    const set = new Set(res.data || [])
+    favoriteIds.value = set
+    updateFavoriteMark()
+  } catch (error) {
+    console.error('批量获取收藏状态失败:', error)
+  }
+}
+
+const toggleFavorite = async (dish) => {
+  if (!ensureLogin()) return
+  const isFavorite = !!dish.isFavorite
+  try {
+    if (isFavorite) {
+      await removeFavorite(dish.id)
+      const nextSet = new Set(favoriteIds.value)
+      nextSet.delete(dish.id)
+      favoriteIds.value = nextSet
+      uni.showToast({
+        title: '已取消收藏',
+        icon: 'success'
+      })
+    } else {
+      await addFavorite(dish.id)
+      const nextSet = new Set(favoriteIds.value)
+      nextSet.add(dish.id)
+      favoriteIds.value = nextSet
+      uni.showToast({
+        title: '收藏成功',
+        icon: 'success'
+      })
+    }
+    updateFavoriteMark()
+  } catch (error) {
+    console.error('切换收藏状态失败:', error)
+  }
 }
 
 onMounted(() => {
@@ -429,12 +523,52 @@ onMounted(() => {
   transition: all 0.3s ease;
 }
 
+.dish-media {
+  position: relative;
+  margin-right: 20rpx;
+}
+
 .dish-image {
   width: 180rpx;
   height: 180rpx;
   border-radius: 12rpx;
-  margin-right: 20rpx;
   flex-shrink: 0;
+}
+
+.favorite-btn {
+  position: absolute;
+  top: 12rpx;
+  right: 12rpx;
+  width: 54rpx;
+  height: 54rpx;
+  border-radius: 50%;
+  background: rgba(5, 10, 31, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+}
+
+.favorite-btn:active {
+  transform: scale(0.92);
+}
+
+.favorite-btn .heart {
+  font-size: 28rpx;
+  color: v-bind('themeConfig.textSecondary');
+}
+
+.favorite-btn.active {
+  background: v-bind('themeConfig.primaryGradient');
+  border-color: transparent;
+  box-shadow: v-bind('themeConfig.shadowLight');
+}
+
+.favorite-btn.active .heart {
+  color: #fff;
 }
 
 .dish-info {

@@ -1,68 +1,56 @@
 <template>
   <view class="page">
-    <!-- 配送地址 -->
-    <view class="address-card glass-card" @tap="selectAddress">
-      <view class="address-info" v-if="address.name">
-        <view class="header">
-          <text class="name">{{ address.name }}</text>
-          <text class="phone">{{ address.phone }}</text>
+    <!-- 订单详情卡片 -->
+    <view class="card">
+      <view class="card-header">
+        <text class="card-title">订单详情</text>
+      </view>
+      
+      <view class="order-items">
+        <view class="order-item" v-for="item in items" :key="item.id">
+          <image 
+            class="item-image" 
+            :src="item.image" 
+            mode="aspectFill" 
+            @error="handleImageError(item)"
+          />
+          <view class="item-content">
+            <text class="item-name">{{ item.name }}</text>
+            <text class="item-price">¥{{ item.price }}</text>
+          </view>
+          <text class="item-quantity">x{{ item.quantity }}</text>
         </view>
-        <text class="detail">{{ address.detail }}</text>
       </view>
-      <view class="no-address" v-else>
-        <text class="icon">📍</text>
-        <text class="text">请选择收货地址</text>
-      </view>
-      <text class="arrow">→</text>
-    </view>
 
-    <!-- 商品列表 -->
-    <view class="items-card glass-card">
-      <view class="card-title">
-        <text>商品清单</text>
-      </view>
-      <view class="order-item" v-for="item in items" :key="item.id">
-        <image class="item-image" :src="item.image" mode="aspectFill" />
-        <view class="item-info">
-          <text class="item-name">{{ item.name }}</text>
-          <text class="item-spec">x{{ item.quantity }}</text>
-        </view>
-        <text class="item-price">¥{{ (item.price * item.quantity).toFixed(2) }}</text>
-      </view>
-    </view>
+      <view class="divider"></view>
 
-    <!-- 备注 -->
-    <view class="remark-card glass-card">
-      <text class="label">备注</text>
-      <textarea 
-        class="textarea" 
-        placeholder="如有特殊要求请备注" 
-        v-model="remark"
-        maxlength="200"
-      />
-    </view>
-
-    <!-- 费用明细 -->
-    <view class="fee-card glass-card">
-      <view class="fee-row">
-        <text class="label">商品金额</text>
+      <view class="summary-row">
+        <text class="label">小计</text>
         <text class="value">¥{{ goodsAmount }}</text>
       </view>
-      <view class="fee-row">
-        <text class="label">配送费</text>
-        <text class="value">¥{{ deliveryFee }}</text>
+    </view>
+
+    <!-- 备注卡片 -->
+    <view class="card">
+      <view class="card-header">
+        <text class="card-title">备注</text>
       </view>
-      <view class="fee-row total">
-        <text class="label">实付款</text>
-        <text class="value price">¥{{ totalAmount }}</text>
+      <view class="textarea-wrapper">
+        <textarea 
+          class="textarea" 
+          placeholder="口味偏好、餐具数量等" 
+          placeholder-style="color: rgba(255, 255, 255, 0.5);"
+          v-model="remark"
+          maxlength="200"
+        />
       </view>
     </view>
 
-    <!-- 底部提交 -->
+    <!-- 底部提交栏 -->
     <view class="bottom-bar">
-      <view class="total">
-        <text class="label">实付：</text>
-        <text class="price">¥{{ totalAmount }}</text>
+      <view class="total-info">
+        <text class="label">合计:</text>
+        <text class="price">¥{{ goodsAmount }}</text>
       </view>
       <view class="btn-submit" @tap="submitOrder">
         <text>提交订单</text>
@@ -75,16 +63,14 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { createOrder } from '@/api/index'
+import { useTheme } from '@/stores/theme'
 
-const address = ref({
-  name: '张三',
-  phone: '138****8888',
-  detail: '广东省深圳市南山区科技园'
-})
+const { themeConfig } = useTheme()
+
+
 
 const items = ref([])
 const remark = ref('')
-const deliveryFee = ref(5)
 
 // 商品金额
 const goodsAmount = computed(() => {
@@ -93,34 +79,25 @@ const goodsAmount = computed(() => {
   }, 0).toFixed(2)
 })
 
-// 总金额
-const totalAmount = computed(() => {
-  return (parseFloat(goodsAmount.value) + deliveryFee.value).toFixed(2)
-})
+// 设计图中合计与小计一致，这里 totalAmount 直接使用 goodsAmount 即可
+const totalAmount = computed(() => goodsAmount.value)
 
-// 选择地址
-const selectAddress = () => {
-  uni.showToast({
-    title: '地址选择功能开发中',
-    icon: 'none'
-  })
+
+
+// 处理图片加载错误
+const handleImageError = (item) => {
+  item.image = '/static/logo.png' // 使用默认图片
 }
 
 // 提交订单
 const submitOrder = async () => {
-  if (!address.value.name) {
-    uni.showToast({
-      title: '请选择收货地址',
-      icon: 'none'
-    })
-    return
-  }
+
 
   try {
     const orderData = {
-      addressId: 1,
+      // 后端当前暂未使用地址字段，这里先保留占位
       remark: remark.value,
-      items: items.value.map(item => ({
+      orderItems: items.value.map(item => ({
         dishId: item.id,
         quantity: item.quantity
       }))
@@ -136,7 +113,7 @@ const submitOrder = async () => {
       
       setTimeout(() => {
         uni.redirectTo({
-          url: `/pages/order/detail?id=${res.data.id}`
+          url: `/pages/order/detail?id=${res.data}`
         })
       }, 1500)
     }
@@ -172,105 +149,34 @@ onLoad((options) => {
 <style lang="scss" scoped>
 .page {
   min-height: 100vh;
-  background-color: v-bind('themeConfig.bgPrimary');
-  padding: 20rpx;
-  padding-bottom: 160rpx;
-  transition: background-color 0.3s ease;
+  background-color: #111526; /* 深蓝背景 */
+  padding: 24rpx;
+  padding-bottom: 180rpx;
+  box-sizing: border-box;
 }
 
-.address-card {
-  display: flex;
-  align-items: center;
-  padding: 30rpx;
-  margin-bottom: 20rpx;
-  background: v-bind('themeConfig.cardBg');
-  backdrop-filter: blur(10px);
+.card {
+  background-color: #1e2235; /* 卡片背景 */
   border-radius: 24rpx;
-  border: 1px solid v-bind('themeConfig.cardBorder');
-  box-shadow: v-bind('themeConfig.shadowLight');
-  transition: all 0.3s ease;
-  
-  &:active {
-    transform: scale(0.98);
-  }
-}
-
-.address-info {
-  flex: 1;
-}
-
-.header {
-  display: flex;
-  gap: 20rpx;
-  margin-bottom: 16rpx;
-  align-items: baseline;
-}
-
-.name {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: v-bind('themeConfig.textPrimary');
-}
-
-.phone {
-  font-size: 28rpx;
-  color: v-bind('themeConfig.textSecondary');
-}
-
-.detail {
-  font-size: 28rpx;
-  color: v-bind('themeConfig.textSecondary');
-  line-height: 1.6;
-}
-
-.no-address {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-  
-  .icon {
-    font-size: 40rpx;
-  }
-  
-  .text {
-    font-size: 28rpx;
-    color: v-bind('themeConfig.textSecondary');
-  }
-}
-
-.arrow {
-  font-size: 32rpx;
-  color: v-bind('themeConfig.textSecondary');
-  margin-left: 20rpx;
-}
-
-.items-card,
-.remark-card,
-.fee-card {
   padding: 30rpx;
-  margin-bottom: 20rpx;
-  background: v-bind('themeConfig.cardBg');
-  backdrop-filter: blur(10px);
-  border-radius: 24rpx;
-  border: 1px solid v-bind('themeConfig.cardBorder');
-  box-shadow: v-bind('themeConfig.shadowLight');
-  transition: all 0.3s ease;
+  margin-bottom: 24rpx;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.card-header {
+  margin-bottom: 30rpx;
 }
 
 .card-title {
   font-size: 32rpx;
-  font-weight: 700;
-  color: v-bind('themeConfig.textPrimary');
-  margin-bottom: 30rpx;
-  padding-bottom: 20rpx;
-  border-bottom: 1px solid v-bind('themeConfig.borderColor');
+  font-weight: 600;
+  color: #ffffff;
 }
 
 .order-item {
   display: flex;
   align-items: center;
-  margin-bottom: 20rpx;
+  margin-bottom: 30rpx;
   
   &:last-child {
     margin-bottom: 0;
@@ -278,150 +184,130 @@ onLoad((options) => {
 }
 
 .item-image {
-  width: 120rpx;
-  height: 120rpx;
-  border-radius: 12rpx;
-  margin-right: 20rpx;
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 16rpx;
+  margin-right: 24rpx;
+  background-color: #2a2f45;
 }
 
-.item-info {
+.item-content {
   flex: 1;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 8rpx;
 }
 
 .item-name {
   font-size: 28rpx;
-  color: v-bind('themeConfig.textPrimary');
+  color: #ffffff;
   font-weight: 500;
-}
-
-.item-spec {
-  font-size: 24rpx;
-  color: v-bind('themeConfig.textSecondary');
 }
 
 .item-price {
   font-size: 28rpx;
-  color: v-bind('themeConfig.errorColor');
+  color: #ffffff;
   font-weight: 600;
 }
 
-.label {
-  display: block;
+.item-quantity {
   font-size: 28rpx;
-  color: v-bind('themeConfig.textPrimary');
-  margin-bottom: 16rpx;
+  color: #ffffff;
+  margin-left: 20rpx;
+}
+
+.divider {
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.1);
+  margin: 30rpx 0;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.summary-row .label {
+  font-size: 30rpx;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.summary-row .value {
+  font-size: 36rpx;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.textarea-wrapper {
+  background-color: #2a2f45;
+  border-radius: 12rpx;
+  padding: 20rpx;
 }
 
 .textarea {
   width: 100%;
-  min-height: 150rpx;
-  background: v-bind('themeConfig.inputBg');
-  border: 1px solid v-bind('themeConfig.inputBorder');
-  border-radius: 12rpx;
-  padding: 20rpx;
+  height: 160rpx;
   font-size: 28rpx;
-  color: v-bind('themeConfig.textPrimary');
-  transition: all 0.3s ease;
-  
-  &:focus {
-    border-color: v-bind('themeConfig.primaryColor');
-  }
-}
-
-.fee-row {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 20rpx;
-  
-  &:last-child {
-    margin-bottom: 0;
-  }
-  
-  &.total {
-    padding-top: 20rpx;
-    border-top: 1px solid v-bind('themeConfig.borderColor');
-    margin-top: 20rpx;
-  }
-  
-  .label {
-    margin: 0;
-    font-size: 28rpx;
-    color: v-bind('themeConfig.textSecondary');
-  }
-  
-  .value {
-    font-size: 28rpx;
-    color: v-bind('themeConfig.textPrimary');
-    
-    &.price {
-      font-size: 36rpx;
-      font-weight: 700;
-      color: v-bind('themeConfig.errorColor');
-    }
-  }
+  color: #ffffff;
+  line-height: 1.5;
 }
 
 .bottom-bar {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 20rpx 30rpx;
-  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
-  background: v-bind('themeConfig.bgSecondary');
-  backdrop-filter: blur(20px);
-  border-top: 1px solid v-bind('themeConfig.borderColor');
+  bottom: 40rpx;
+  left: 24rpx;
+  right: 24rpx;
+  height: 110rpx;
+  background-color: #1e2235;
+  border-radius: 55rpx;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  box-shadow: 0 -4rpx 20rpx rgba(0,0,0,0.05);
+  justify-content: space-between;
+  padding: 0 10rpx 0 40rpx;
+  box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   z-index: 100;
 }
 
-.total {
+.total-info {
   display: flex;
-  flex-direction: column;
-  
-  .label {
-    font-size: 24rpx;
-    color: v-bind('themeConfig.textSecondary');
-    margin: 0;
-  }
-  
-  .price {
-    font-size: 36rpx;
-    font-weight: 700;
-    color: v-bind('themeConfig.errorColor');
-  }
+  align-items: center;
+  gap: 10rpx;
+}
+
+.total-info .label {
+  font-size: 30rpx;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.total-info .price {
+  font-size: 36rpx;
+  color: #00e5ff; /* 青色高亮 */
+  font-weight: 700;
 }
 
 .btn-submit {
-  padding: 24rpx 80rpx;
-  background: v-bind('themeConfig.primaryGradient');
-  border-radius: 40rpx;
-  box-shadow: v-bind('themeConfig.shadowMedium');
-  transition: all 0.3s ease;
-  
-  &:active {
-    transform: scale(0.95);
-    opacity: 0.9;
-  }
+  width: 240rpx;
+  height: 90rpx;
+  background: linear-gradient(90deg, #66ffff 0%, #ff99ff 100%);
+  border-radius: 45rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   
   text {
-    font-size: 28rpx;
-    color: #fff;
+    font-size: 30rpx;
+    color: #ffffff;
     font-weight: 600;
   }
-}
-
-// 玻璃拟态通用样式
-.glass-card {
-  background: v-bind('themeConfig.cardBg');
-  backdrop-filter: blur(10px);
-  border: 1px solid v-bind('themeConfig.cardBorder');
-  box-shadow: v-bind('themeConfig.shadowLight');
+  
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
 }
 </style>

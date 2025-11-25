@@ -7,24 +7,7 @@
       <text class="status-desc">{{ getStatusDesc(order.status) }}</text>
     </view>
 
-    <!-- 配送信息 -->
-    <view class="delivery-card glass-card">
-      <view class="card-title">
-        <text>配送信息</text>
-      </view>
-      <view class="delivery-info">
-        <text class="label">收货人：</text>
-        <text class="value">{{ order.consignee || '张三' }}</text>
-      </view>
-      <view class="delivery-info">
-        <text class="label">联系电话：</text>
-        <text class="value">{{ order.phone || '138****8888' }}</text>
-      </view>
-      <view class="delivery-info">
-        <text class="label">收货地址：</text>
-        <text class="value">{{ order.address || '广东省深圳市南山区科技园' }}</text>
-      </view>
-    </view>
+
 
     <!-- 订单商品 -->
     <view class="items-card glass-card">
@@ -65,12 +48,9 @@
     </view>
 
     <!-- 底部操作 -->
-    <view class="bottom-bar" v-if="order.status !== 3 && order.status !== 4">
-      <view class="btn-cancel" v-if="order.status === 0" @tap="cancelOrder">
+    <view class="bottom-bar" v-if="order.status === 0">
+      <view class="btn-cancel" @tap="cancelOrder">
         <text>取消订单</text>
-      </view>
-      <view class="btn-primary" v-if="order.status === 0" @tap="payOrder">
-        <text>去支付</text>
       </view>
     </view>
   </view>
@@ -78,8 +58,9 @@
 
 <script setup>
 import { ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
-import { getOrderDetail } from '@/api/index'
+import { onLoad, onShow } from '@dcloudio/uni-app'
+import { getOrderDetail, updateOrderStatus } from '@/api/index'
+import { useTheme } from '@/stores/theme'
 
 const order = ref({
   id: 0,
@@ -91,19 +72,19 @@ const order = ref({
 
 const getStatusIcon = (status) => {
   const iconMap = {
-    0: '⏰',
-    1: '✅',
-    2: '🚚',
-    3: '🎉',
-    4: '❌'
+    0: '⏳', // 待接单
+    1: '👨‍🍳', // 准备中
+    2: '🛵', // 配送中
+    3: '🎉', // 已完成
+    4: '❌'  // 已取消
   }
   return iconMap[status] || '📋'
 }
 
 const getStatusText = (status) => {
   const textMap = {
-    0: '待支付',
-    1: '待确认',
+    0: '待接单',
+    1: '准备中',
     2: '配送中',
     3: '已完成',
     4: '已取消'
@@ -113,8 +94,8 @@ const getStatusText = (status) => {
 
 const getStatusDesc = (status) => {
   const descMap = {
-    0: '请尽快完成支付',
-    1: '商家正在确认订单',
+    0: '等待商家接单中',
+    1: '商家正在准备餐品',
     2: '骑手正在配送中',
     3: '订单已完成，期待下次光临',
     4: '订单已取消'
@@ -122,11 +103,31 @@ const getStatusDesc = (status) => {
   return descMap[status] || ''
 }
 
+const { themeConfig, loadTheme } = useTheme()
+
 const loadOrderDetail = async (id) => {
   try {
     const res = await getOrderDetail(id)
     if (res.data) {
-      order.value = res.data
+      const data = res.data
+      order.value = {
+        id: data.id,
+        orderNumber: data.orderNumber,
+        status: data.status,
+        totalAmount: data.totalAmount,
+        consignee: data.consignee,
+        phone: data.phone,
+        address: data.address,
+        createTime: data.createTime,
+        payMethod: data.payMethod,
+        items: (data.orderItems || []).map(item => ({
+          id: item.id,
+          name: item.dishName,
+          quantity: item.quantity,
+          price: item.price,
+          image: item.dishImage
+        }))
+      }
     }
   } catch (error) {
     console.error('加载订单详情失败:', error)
@@ -162,41 +163,47 @@ const loadOrderDetail = async (id) => {
 }
 
 const cancelOrder = () => {
+  if (!order.value.id) return
   uni.showModal({
     title: '提示',
     content: '确定要取消订单吗？',
-    success: (res) => {
+    success: async (res) => {
       if (res.confirm) {
-        uni.showToast({
-          title: '订单已取消',
-          icon: 'success'
-        })
-        setTimeout(() => {
-          uni.navigateBack()
-        }, 1500)
+        try {
+          await updateOrderStatus(order.value.id, 4)
+          // 本地立即更新状态，确保当前页面即时回显
+          order.value.status = 4
+          uni.showToast({
+            title: '订单已取消',
+            icon: 'success'
+          })
+          setTimeout(() => {
+            uni.navigateBack()
+          }, 1500)
+        } catch (error) {
+          console.error('取消订单失败:', error)
+        }
       }
     }
   })
 }
 
-const payOrder = () => {
-  uni.showToast({
-    title: '跳转支付...',
-    icon: 'none'
-  })
-}
-
 onLoad((options) => {
+  loadTheme()
   if (options.id) {
     loadOrderDetail(options.id)
   }
+})
+
+onShow(() => {
+  loadTheme()
 })
 </script>
 
 <style lang="scss" scoped>
 .page {
   min-height: 100vh;
-  background-color: #050a1f;
+  background-color: v-bind('themeConfig.bgPrimary');
   padding: 20rpx;
   padding-bottom: 160rpx;
 }
@@ -217,14 +224,14 @@ onLoad((options) => {
   display: block;
   font-size: 36rpx;
   font-weight: 700;
-  color: #fff;
+  color: v-bind('themeConfig.textPrimary');
   margin-bottom: 10rpx;
 }
 
 .status-desc {
   display: block;
   font-size: 28rpx;
-  color: #8b8fa3;
+  color: v-bind('themeConfig.textSecondary');
 }
 
 .delivery-card,
@@ -237,10 +244,10 @@ onLoad((options) => {
 .card-title {
   font-size: 32rpx;
   font-weight: 700;
-  color: #fff;
+  color: v-bind('themeConfig.textPrimary');
   margin-bottom: 30rpx;
   padding-bottom: 20rpx;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid v-bind('themeConfig.borderColor');
 }
 
 .delivery-info {
@@ -253,14 +260,14 @@ onLoad((options) => {
   
   .label {
     font-size: 28rpx;
-    color: #8b8fa3;
+    color: v-bind('themeConfig.textSecondary');
     width: 160rpx;
   }
   
   .value {
     flex: 1;
     font-size: 28rpx;
-    color: #fff;
+    color: v-bind('themeConfig.textPrimary');
   }
 }
 
@@ -290,17 +297,17 @@ onLoad((options) => {
 
 .item-name {
   font-size: 28rpx;
-  color: #fff;
+  color: v-bind('themeConfig.textPrimary');
 }
 
 .item-spec {
   font-size: 24rpx;
-  color: #8b8fa3;
+  color: v-bind('themeConfig.textSecondary');
 }
 
 .item-price {
   font-size: 28rpx;
-  color: #14b8ff;
+  color: v-bind('themeConfig.primaryColor');
   font-weight: 600;
 }
 
@@ -315,22 +322,22 @@ onLoad((options) => {
   
   &.total {
     padding-top: 20rpx;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-top: 1px solid v-bind('themeConfig.borderColor');
   }
   
   .label {
     font-size: 28rpx;
-    color: #8b8fa3;
+    color: v-bind('themeConfig.textSecondary');
   }
   
   .value {
     font-size: 28rpx;
-    color: #fff;
+    color: v-bind('themeConfig.textPrimary');
     
     &.price {
       font-size: 36rpx;
       font-weight: 700;
-      color: #14b8ff;
+      color: v-bind('themeConfig.primaryColor');
     }
   }
 }
@@ -341,9 +348,9 @@ onLoad((options) => {
   left: 0;
   right: 0;
   padding: 20rpx;
-  background: rgba(10, 17, 32, 0.95);
+  background: v-bind('themeConfig.bgSecondary');
   backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid v-bind('themeConfig.borderColor');
   display: flex;
   justify-content: flex-end;
   gap: 20rpx;
@@ -358,13 +365,13 @@ onLoad((options) => {
 }
 
 .btn-cancel {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #8b8fa3;
+  background: v-bind('themeConfig.inputBg');
+  border: 1px solid v-bind('themeConfig.borderColor');
+  color: v-bind('themeConfig.textSecondary');
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: v-bind('themeConfig.primaryGradient');
   color: #fff;
 }
 </style>

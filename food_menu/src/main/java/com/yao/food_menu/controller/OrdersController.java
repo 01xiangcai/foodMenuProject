@@ -10,12 +10,14 @@ import com.yao.food_menu.entity.Orders;
 import com.yao.food_menu.entity.WxUser;
 import com.yao.food_menu.service.OrderItemService;
 import com.yao.food_menu.service.OrdersService;
+import com.yao.food_menu.service.OssService;
 import com.yao.food_menu.service.WxUserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,6 +32,9 @@ import java.util.stream.Collectors;
 @Slf4j
 public class OrdersController {
 
+    private static final String DEFAULT_DISH_IMAGE =
+            "https://dummyimage.com/800x600/0f172a/ffffff&text=family+dish";
+
     @Autowired
     private OrdersService ordersService;
 
@@ -39,12 +44,15 @@ public class OrdersController {
     @Autowired
     private WxUserService wxUserService;
 
+    @Autowired
+    private OssService ossService;
+
     /**
      * Submit order
      */
     @Operation(summary = "提交订单", description = "提交订单,自动生成订单号并计算总金额")
     @PostMapping("/submit")
-    public Result<String> submit(@RequestBody OrdersDto ordersDto, @RequestHeader("Authorization") String token) {
+    public Result<Long> submit(@RequestBody OrdersDto ordersDto, @RequestHeader("Authorization") String token) {
         log.info("Submit order: {}", ordersDto);
 
         try {
@@ -57,7 +65,9 @@ public class OrdersController {
             ordersDto.setUserId(userId);
 
             ordersService.submit(ordersDto);
-            return Result.success("Order submitted successfully");
+
+            // Return created order id for frontend navigation
+            return Result.success(ordersDto.getId());
         } catch (Exception e) {
             log.error("Submit order failed: {}", e.getMessage());
             return Result.error("Submit order failed: " + e.getMessage());
@@ -77,13 +87,15 @@ public class OrdersController {
             Page<Orders> pageInfo = new Page<>(page, pageSize);
             LambdaQueryWrapper<Orders> queryWrapper = new LambdaQueryWrapper<>();
 
-            // For admin panel: query all orders
-            // For mini program: only query current user's orders
-            // TODO: Add role check to distinguish admin from regular users
-            // if (token != null && token.startsWith("Bearer ")) {
-            // Long userId = JwtUtil.getUserId(token.substring(7));
-            // queryWrapper.eq(Orders::getUserId, userId);
-            // }
+            // For admin panel: query all orders (no token)
+            // For mini program: only query current user's orders when token is provided
+            if (token != null && !token.isEmpty()) {
+                if (token.startsWith("Bearer ")) {
+                    token = token.substring(7);
+                }
+                Long userId = JwtUtil.getUserId(token);
+                queryWrapper.eq(Orders::getUserId, userId);
+            }
 
             queryWrapper.orderByDesc(Orders::getCreateTime);
 
@@ -102,6 +114,7 @@ public class OrdersController {
                 itemQueryWrapper.eq(OrderItem::getOrderId, order.getId());
                 List<OrderItem> orderItems = orderItemService.list(itemQueryWrapper);
                 dto.setOrderItems(orderItems != null ? orderItems : new java.util.ArrayList<>());
+                enrichOrderItemImages(dto.getOrderItems());
 
                 // Load user information
                 WxUser wxUser = wxUserService.getById(order.getUserId());
@@ -157,6 +170,7 @@ public class OrdersController {
             queryWrapper.eq(OrderItem::getOrderId, id);
             List<OrderItem> orderItems = orderItemService.list(queryWrapper);
             ordersDto.setOrderItems(orderItems);
+            enrichOrderItemImages(ordersDto.getOrderItems());
 
             return Result.success(ordersDto);
         } catch (Exception e) {
@@ -179,6 +193,35 @@ public class OrdersController {
         } catch (Exception e) {
             log.error("Update order status failed: {}", e.getMessage());
             return Result.error("Update failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Ensure each order item carries a valid presigned image URL before returning to the client.
+     * This prevents frontend issues such as expired OSS URLs or missing domain prefixes.
+     */
+    private void enrichOrderItemImages(List<OrderItem> orderItems) {
+        if (orderItems == null || orderItems.isEmpty()) {
+            return;
+        }
+        for (OrderItem item : orderItems) {
+            if (item == null) {
+                continue;
+            }
+            String image = item.getDishImage();
+            if (!StringUtils.hasText(image)) {
+                item.setDishImage(DEFAULT_DISH_IMAGE);
+                continue;
+            }
+            if (!image.startsWith("http://") && !image.startsWith("https://")) {
+                try {
+                    String presignedUrl = ossService.generatePresignedUrl(image);
+                    item.setDishImage(presignedUrl);
+                } catch (Exception e) {
+                    log.warn("Failed to generate presigned URL for order item image: {}", image, e);
+                    item.setDishImage(DEFAULT_DISH_IMAGE);
+                }
+            }
         }
     }
 }

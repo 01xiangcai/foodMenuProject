@@ -82,10 +82,23 @@
         "backgroundColor": "#050a1f"
     },
     "tabBar": {
-        "color": "#8b8fa3",
+        "color": "#9ca3af",
         "selectedColor": "#14b8ff",
-        "backgroundColor": "#0a1120",
+        "backgroundColor": "#050a1f",
         "borderStyle": "white",
+        "midButton": {
+            "width": "110px",
+            "height": "110px",
+            "text": "点餐",
+            "iconPath": "static/tab-menu.png",
+            "selectedIconPath": "static/tab-menu-active.png"
+        },
+        "fontSize": "12px",
+        "spacing": "6px",
+        "height": "60px",
+        "lightMode": true,
+        "blurEffect": "extraLight",
+        "selectedBackgroundColor": "rgba(20,184,255,0.1)",
         "list": [
             {
                 "pagePath": "pages/index/index",
