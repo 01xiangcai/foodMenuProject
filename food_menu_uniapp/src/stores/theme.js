@@ -113,9 +113,9 @@ const themeConfig = computed(() => {
             bgSecondary: '#ffffff',
             bgTertiary: '#fff5e6',
 
-            // 卡片背景 - 纯白卡片配暖色阴影
-            cardBg: 'rgba(255, 255, 255, 0.85)',
-            cardBorder: 'rgba(255, 230, 200, 0.3)', // 暖色边框
+            // 卡片背景 - 纯白卡片，增加不透明度以提升对比
+            cardBg: '#ffffff',
+            cardBorder: 'rgba(0, 0, 0, 0.02)', // 极淡的黑色边框，更自然
 
             // 文字颜色 - 使用深暖灰/褐色
             textPrimary: '#2d3436', // 深灰
@@ -133,10 +133,10 @@ const themeConfig = computed(() => {
             warningColor: '#fdcb6e',
             errorColor: '#d63031',
 
-            // 阴影 - 暖色调阴影
-            shadowLight: '0 4px 12px rgba(255, 107, 107, 0.1)',
-            shadowMedium: '0 8px 24px rgba(255, 107, 107, 0.15)',
-            shadowHeavy: '0 12px 32px rgba(255, 107, 107, 0.2)',
+            // 阴影 - 使用更自然的暖灰色阴影，而非红色阴影
+            shadowLight: '0 4px 16px rgba(12, 12, 12, 0.03)',
+            shadowMedium: '0 8px 24px rgba(12, 12, 12, 0.06)',
+            shadowHeavy: '0 16px 48px rgba(12, 12, 12, 0.1)',
 
             // 边框
             borderColor: 'rgba(0, 0, 0, 0.05)',

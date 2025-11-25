@@ -1,73 +1,87 @@
 <template>
   <view class="page">
-    <!-- 菜品图片 -->
-    <view class="image-container">
-      <image class="dish-image" :src="dish.image" mode="aspectFill" />
-      <view class="back-btn" @tap="goBack">
-        <text>←</text>
+    <scroll-view class="detail-scroll" scroll-y>
+      <!-- 顶部导航栏占位 -->
+      <view class="nav-bar-placeholder">
+        <view class="back-btn" @tap="goBack">
+          <text class="icon">←</text>
+        </view>
+        <text class="page-title">菜品详情</text>
+        <view class="right-placeholder"></view>
       </view>
-    </view>
 
-    <!-- 菜品信息 -->
-    <view class="info-section glass-card">
-      <view class="header">
-        <text class="dish-name">{{ dish.name }}</text>
-        <text class="dish-price">¥{{ dish.price }}</text>
+      <!-- 1. 图片卡片 -->
+      <view class="card image-card">
+        <image class="dish-image" :src="dish.image" mode="aspectFill" />
       </view>
-      <text class="dish-desc">{{ dish.description }}</text>
-      
-      <!-- 数量选择 -->
-      <view class="quantity-selector">
-        <text class="label">数量</text>
-        <view class="selector">
-          <view class="btn" @tap="decreaseQuantity">
-            <text>-</text>
-          </view>
-          <text class="quantity">{{ quantity }}</text>
-          <view class="btn" @tap="increaseQuantity">
-            <text>+</text>
+
+      <!-- 2. 信息卡片 -->
+      <view class="card info-card">
+        <view class="info-header">
+          <text class="dish-name">{{ dish.name }}</text>
+          <view class="price-row">
+            <text class="price">¥{{ dish.price }}</text>
+            <text class="category-tag">· {{ dish.categoryName || '家庭菜谱' }}</text>
           </view>
         </view>
+        <text class="dish-desc">{{ dish.description }}</text>
       </view>
-    </view>
+
+      <!-- 3. 评论卡片 -->
+      <view class="card comment-card">
+        <view class="comment-header">
+          <text class="comment-title">家庭评论 0 条留言</text>
+        </view>
+        <view class="comment-empty">
+          <text>第一条味觉灵感等你来写~</text>
+        </view>
+      </view>
+      
+      <!-- 底部占位 -->
+      <view class="bottom-spacer"></view>
+    </scroll-view>
+
+    <!-- 购物车弹窗组件 -->
+    <CartPopup 
+      v-model:visible="cartPopupVisible" 
+      @close="cartPopupVisible = false"
+    />
 
     <!-- 底部操作栏 -->
     <view class="bottom-bar">
-      <view class="total">
-        <text class="label">小计</text>
-        <text class="price">¥{{ totalPrice }}</text>
+      <view class="cart-icon-wrapper" @tap="toggleCartPopup">
+        <image src="/static/tab-cart.png" mode="aspectFit" class="cart-icon" />
+        <view class="badge" v-if="cartStore.totalCount > 0">
+          <text>{{ cartStore.totalCount }}</text>
+        </view>
       </view>
-      <view class="actions">
-        <view class="btn-cart" @tap="addToCart">
-          <text>加入购物车</text>
-        </view>
-        <view class="btn-buy" @tap="buyNow">
-          <text>立即购买</text>
-        </view>
+
+      <view class="btn-add-cart" @tap="addToCart">
+        <text>加入购物车</text>
       </view>
     </view>
   </view>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getDishDetail } from '@/api/index'
 import { useTheme } from '@/stores/theme'
+import { useCartStore } from '@/stores/cart'
+import CartPopup from '@/components/CartPopup.vue'
 
 const { themeConfig, loadTheme } = useTheme()
+const cartStore = useCartStore()
+const cartPopupVisible = ref(false)
 
 const dish = ref({
   id: 0,
   name: '加载中...',
   description: '',
   price: 0,
-  image: 'https://dummyimage.com/800x600/6366f1/ffffff&text=Loading'
-})
-const quantity = ref(1)
-
-const totalPrice = computed(() => {
-  return (dish.value.price * quantity.value).toFixed(2)
+  image: 'https://dummyimage.com/800x600/6366f1/ffffff&text=Loading',
+  categoryName: '家庭菜谱'
 })
 
 const loadDishDetail = async (id) => {
@@ -84,32 +98,24 @@ const loadDishDetail = async (id) => {
       name: '宫保鸡丁',
       description: '经典川菜，选用优质鸡肉，配以花生米、干辣椒等食材，口感香辣酥脆，色泽红亮，是一道深受欢迎的传统名菜。',
       price: 38,
-      image: 'https://dummyimage.com/800x600/ff6b6b/ffffff&text=宫保鸡丁'
+      image: 'https://dummyimage.com/800x600/ff6b6b/ffffff&text=宫保鸡丁',
+      categoryName: '川菜经典'
     }
   }
 }
 
-const increaseQuantity = () => {
-  quantity.value++
-}
-
-const decreaseQuantity = () => {
-  if (quantity.value > 1) {
-    quantity.value--
-  }
-}
-
 const addToCart = () => {
+  cartStore.addToCart(dish.value)
   uni.showToast({
     title: '已加入购物车',
     icon: 'success'
   })
 }
 
-const buyNow = () => {
-  uni.navigateTo({
-    url: `/pages/order/confirm?dishId=${dish.value.id}&quantity=${quantity.value}`
-  })
+const toggleCartPopup = () => {
+  if (cartStore.totalCount > 0) {
+    cartPopupVisible.value = !cartPopupVisible.value
+  }
 }
 
 const goBack = () => {
@@ -129,206 +135,222 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .page {
-  min-height: 100vh;
+  height: 100vh;
   background-color: v-bind('themeConfig.bgPrimary');
-  padding-bottom: 160rpx;
+  display: flex;
+  flex-direction: column;
   transition: background-color 0.3s ease;
 }
 
-.image-container {
-  position: relative;
-  width: 100%;
-  height: 600rpx;
+.detail-scroll {
+  flex: 1;
+  padding: 0 24rpx;
 }
 
-.dish-image {
-  width: 100%;
-  height: 100%;
-}
-
-.back-btn {
-  position: absolute;
-  top: 40rpx;
-  left: 20rpx;
-  width: 80rpx;
-  height: 80rpx;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(10px);
-  border-radius: 50%;
+/* 顶部导航栏 */
+.nav-bar-placeholder {
+  height: 88rpx;
   display: flex;
   align-items: center;
-  justify-content: center;
-  transition: transform 0.2s ease;
-  
-  &:active {
-    transform: scale(0.9);
-  }
-  
-  text {
-    font-size: 40rpx;
-    color: #fff;
-  }
-}
-
-.info-section {
-  margin: 20rpx;
-  padding: 30rpx;
-  background: v-bind('themeConfig.cardBg');
-  backdrop-filter: blur(10px);
-  border-radius: 24rpx;
-  border: 1px solid v-bind('themeConfig.cardBorder');
-  box-shadow: v-bind('themeConfig.shadowLight');
-  transition: all 0.3s ease;
-}
-
-.header {
-  display: flex;
   justify-content: space-between;
-  align-items: center;
+  padding: 0 10rpx;
+  margin-top: env(safe-area-inset-top);
   margin-bottom: 20rpx;
 }
 
-.dish-name {
-  font-size: 40rpx;
-  font-weight: 700;
-  color: v-bind('themeConfig.textPrimary');
-  transition: color 0.3s ease;
+.back-btn {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  .icon {
+    font-size: 40rpx;
+    color: v-bind('themeConfig.textPrimary');
+  }
 }
 
-.dish-price {
-  font-size: 48rpx;
+.page-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: v-bind('themeConfig.textPrimary');
+}
+
+.right-placeholder {
+  width: 64rpx;
+}
+
+/* 通用卡片样式 */
+.card {
+  background: v-bind('themeConfig.cardBg');
+  border-radius: 24rpx;
+  border: 1px solid v-bind('themeConfig.cardBorder');
+  box-shadow: v-bind('themeConfig.shadowLight');
+  margin-bottom: 24rpx;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+/* 1. 图片卡片 */
+.image-card {
+  height: 460rpx;
+  padding: 12rpx; /* 内边距效果 */
+  
+  .dish-image {
+    width: 100%;
+    height: 100%;
+    border-radius: 16rpx;
+    background-color: v-bind('themeConfig.bgSecondary');
+  }
+}
+
+/* 2. 信息卡片 */
+.info-card {
+  padding: 32rpx;
+}
+
+.info-header {
+  margin-bottom: 24rpx;
+}
+
+.dish-name {
+  font-size: 44rpx;
   font-weight: 700;
-  color: v-bind('themeConfig.errorColor');
-  transition: color 0.3s ease;
+  color: v-bind('themeConfig.textPrimary');
+  margin-bottom: 16rpx;
+  display: block;
+  line-height: 1.2;
+}
+
+.price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12rpx;
+}
+
+.price {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: v-bind('themeConfig.textPrimary'); /* 使用主色而非红色，更显高级 */
+}
+
+.category-tag {
+  font-size: 28rpx;
+  color: v-bind('themeConfig.textSecondary');
 }
 
 .dish-desc {
-  display: block;
   font-size: 28rpx;
   color: v-bind('themeConfig.textSecondary');
   line-height: 1.6;
+  display: block;
+}
+
+/* 3. 评论卡片 */
+.comment-card {
+  padding: 32rpx;
+  min-height: 200rpx;
+}
+
+.comment-header {
   margin-bottom: 30rpx;
-  transition: color 0.3s ease;
 }
 
-.quantity-selector {
+.comment-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: v-bind('themeConfig.textPrimary');
+}
+
+.comment-empty {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  padding-top: 30rpx;
-  border-top: 1px solid v-bind('themeConfig.borderColor');
+  padding: 40rpx 0;
   
-  .label {
+  text {
     font-size: 28rpx;
-    color: v-bind('themeConfig.textPrimary');
-  }
-  
-  .selector {
-    display: flex;
-    align-items: center;
-    gap: 30rpx;
-    
-    .btn {
-      width: 60rpx;
-      height: 60rpx;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.3s ease;
-      
-      &:first-child {
-        background: transparent;
-        border: 1px solid v-bind('themeConfig.textSecondary');
-        color: v-bind('themeConfig.textSecondary');
-      }
-      
-      &:last-child {
-        background: v-bind('themeConfig.primaryGradient');
-        border: none;
-        color: #fff;
-        box-shadow: v-bind('themeConfig.shadowLight');
-      }
-      
-      &:active {
-        transform: scale(0.9);
-      }
-      
-      text {
-        font-size: 32rpx;
-      }
-    }
-    
-    .quantity {
-      font-size: 36rpx;
-      font-weight: 600;
-      color: v-bind('themeConfig.textPrimary');
-      min-width: 60rpx;
-      text-align: center;
-    }
+    color: v-bind('themeConfig.textSecondary');
   }
 }
 
+.bottom-spacer {
+  height: 180rpx;
+}
+
+/* 底部操作栏 */
 .bottom-bar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
+  background: v-bind('themeConfig.cardBg');
+  backdrop-filter: blur(20px);
   padding: 20rpx 30rpx;
   padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
-  background: v-bind('themeConfig.bgSecondary');
-  backdrop-filter: blur(20px);
   border-top: 1px solid v-bind('themeConfig.borderColor');
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 24rpx;
   box-shadow: 0 -4rpx 20rpx rgba(0,0,0,0.05);
   z-index: 100;
 }
 
-.total {
-  .label {
-    display: block;
-    font-size: 24rpx;
-    color: v-bind('themeConfig.textSecondary');
-    margin-bottom: 8rpx;
-  }
-  
-  .price {
-    font-size: 40rpx;
-    font-weight: 700;
-    color: v-bind('themeConfig.errorColor');
-  }
-}
-
-.actions {
+.cart-icon-wrapper {
+  position: relative;
+  width: 100rpx;
+  height: 100rpx;
   display: flex;
-  gap: 20rpx;
-}
-
-.btn-cart,
-.btn-buy {
-  padding: 20rpx 40rpx;
-  border-radius: 40rpx;
-  font-size: 28rpx;
-  font-weight: 600;
+  align-items: center;
+  justify-content: center;
+  background: v-bind('themeConfig.inputBg');
+  border-radius: 50%;
+  border: 1px solid v-bind('themeConfig.borderColor');
   transition: all 0.3s ease;
   
   &:active {
     transform: scale(0.95);
-    opacity: 0.9;
+    background: v-bind('themeConfig.bgSecondary');
+  }
+  
+  .cart-icon {
+    width: 50rpx;
+    height: 50rpx;
+  }
+  
+  .badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: #ef4444;
+    color: #fff;
+    font-size: 20rpx;
+    padding: 4rpx 10rpx;
+    border-radius: 20rpx;
+    border: 2rpx solid v-bind('themeConfig.cardBg');
+    min-width: 32rpx;
+    text-align: center;
   }
 }
 
-.btn-cart {
-  background: v-bind('themeConfig.inputBg');
-  border: 1px solid v-bind('themeConfig.borderColor');
-  color: v-bind('themeConfig.textPrimary');
-}
-
-.btn-buy {
+.btn-add-cart {
+  flex: 1;
   background: v-bind('themeConfig.primaryGradient');
   color: #fff;
+  padding: 24rpx 40rpx;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  text-align: center;
   box-shadow: v-bind('themeConfig.shadowMedium');
+  transition: all 0.3s ease;
+  
+  &:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+  }
 }
 </style>
+
+

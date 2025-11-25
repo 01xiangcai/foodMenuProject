@@ -49,16 +49,16 @@
               <view class="quantity-control" @tap.stop>
                 <view 
                   class="btn-minus" 
-                  v-if="getDishQuantity(dish.id) > 0"
-                  @tap.stop="decreaseQuantity(dish)"
+                  v-if="cartStore.getDishQuantity(dish.id) > 0"
+                  @tap.stop="cartStore.removeFromCart(dish)"
                 >
                   <text>-</text>
                 </view>
                 <text 
                   class="quantity-text" 
-                  v-if="getDishQuantity(dish.id) > 0"
-                >{{ getDishQuantity(dish.id) }}</text>
-                <view class="btn-plus" @tap.stop="increaseQuantity(dish)">
+                  v-if="cartStore.getDishQuantity(dish.id) > 0"
+                >{{ cartStore.getDishQuantity(dish.id) }}</text>
+                <view class="btn-plus" @tap.stop="cartStore.addToCart(dish)">
                   <text>+</text>
                 </view>
               </view>
@@ -86,64 +86,26 @@
       <view class="bottom-spacer"></view>
     </scroll-view>
     
-    <!-- 购物车弹窗遮罩 -->
-    <view 
-      class="cart-mask" 
-      v-if="cartPopupVisible" 
-      @tap="toggleCartPopup"
-      @touchmove.stop.prevent
-    ></view>
-
-    <!-- 购物车弹窗 -->
-    <view class="cart-popup glass-card" :class="{ show: cartPopupVisible }">
-      <view class="popup-header">
-        <text class="title">已选商品</text>
-        <view class="clear-btn" @tap="clearCart">
-          <text class="icon">🗑️</text>
-          <text>清空</text>
-        </view>
-      </view>
-      
-      <scroll-view class="popup-scroll" scroll-y>
-        <view class="popup-list">
-          <view class="popup-item" v-for="item in cartList" :key="item.id">
-            <image class="item-img" :src="item.image" mode="aspectFill" />
-            <view class="item-info">
-              <text class="item-name">{{ item.name }}</text>
-              <view class="item-price-box">
-                <text class="price">¥{{ item.price }}</text>
-              </view>
-            </view>
-            
-            <!-- 复用数量控制器 -->
-            <view class="quantity-control">
-              <view class="btn-minus" @tap.stop="decreaseQuantity(item)">
-                <text>-</text>
-              </view>
-              <text class="quantity-text">{{ item.quantity }}</text>
-              <view class="btn-plus" @tap.stop="increaseQuantity(item)">
-                <text>+</text>
-              </view>
-            </view>
-          </view>
-        </view>
-      </scroll-view>
-    </view>
+    <!-- 购物车弹窗组件 -->
+    <CartPopup 
+      v-model:visible="cartPopupVisible" 
+      @close="cartPopupVisible = false"
+    />
     
     <!-- 底部悬浮购物车 -->
-    <view class="cart-bar-container" :class="{ show: totalCount > 0 }">
+    <view class="cart-bar-container" :class="{ show: cartStore.totalCount > 0 }">
       <view class="cart-bar" @tap="toggleCartPopup">
         <view class="cart-icon-wrapper">
           <view class="cart-icon">
             <image src="/static/tab-cart.png" mode="aspectFit" class="icon-img" />
-            <view class="badge" v-if="totalCount > 0">
-              <text>{{ totalCount }}</text>
+            <view class="badge" v-if="cartStore.totalCount > 0">
+              <text>{{ cartStore.totalCount }}</text>
             </view>
           </view>
         </view>
         
         <view class="cart-info">
-          <text class="total-price">¥{{ totalPrice }}</text>
+          <text class="total-price">¥{{ cartStore.totalPrice }}</text>
           <text class="delivery-tip">免配送费</text>
         </view>
         
@@ -156,12 +118,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { getCategoryList, getDishList, addFavorite, removeFavorite, checkFavoriteBatch } from '@/api/index'
 import { useTheme } from '@/stores/theme'
+import { useCartStore } from '@/stores/cart'
+import CartPopup from '@/components/CartPopup.vue'
 
 // 使用主题
 const { themeConfig, loadTheme } = useTheme()
+const cartStore = useCartStore()
 
 const currentCategory = ref(0)
 const categories = ref([
@@ -173,45 +138,7 @@ const noMore = ref(false)
 const page = ref(1)
 const pageSize = ref(10)
 const favoriteIds = ref(new Set())
-
-// 购物车数据：{ dishId: quantity }
-const cart = ref({})
 const cartPopupVisible = ref(false)
-
-// 计算购物车总数量
-const totalCount = computed(() => {
-  return Object.values(cart.value).reduce((sum, count) => sum + count, 0)
-})
-
-// 计算购物车总金额
-const totalPrice = computed(() => {
-  let total = 0
-  // 遍历购物车中的商品ID
-  Object.keys(cart.value).forEach(id => {
-    const count = cart.value[id]
-    if (count > 0) {
-      // 在当前已加载的菜品中查找价格
-      const dish = dishes.value.find(d => d.id == id)
-      if (dish) {
-        total += dish.price * count
-      }
-    }
-  })
-  return total.toFixed(2)
-})
-
-// 购物车列表详情
-const cartList = computed(() => {
-  return Object.keys(cart.value).map(id => {
-    const dish = dishes.value.find(d => d.id == id)
-    return dish ? { ...dish, quantity: cart.value[id] } : null
-  }).filter(item => item && item.quantity > 0)
-})
-
-// 获取单个菜品的数量
-const getDishQuantity = (dishId) => {
-  return cart.value[dishId] || 0
-}
 
 // 加载分类
 const loadCategories = async () => {
@@ -266,6 +193,9 @@ const loadDishes = async (reset = false) => {
       isFavorite: favoriteIds.value.has(item.id)
     }))
     
+    // 更新 Store 中的缓存
+    cartStore.updateDishCache(list)
+    
     if (reset) {
       dishes.value = list
     } else {
@@ -305,56 +235,19 @@ const goToDetail = (dishId) => {
   })
 }
 
-// 增加数量
-const increaseQuantity = (dish) => {
-  const currentQty = cart.value[dish.id] || 0
-  cart.value[dish.id] = currentQty + 1
-  uni.vibrateShort()
-}
-
-// 减少数量
-const decreaseQuantity = (dish) => {
-  const currentQty = cart.value[dish.id] || 0
-  if (currentQty > 0) {
-    cart.value[dish.id] = currentQty - 1
-    if (cart.value[dish.id] === 0) {
-      delete cart.value[dish.id]
-      // 如果购物车为空，自动关闭弹窗
-      if (totalCount.value === 0) {
-        cartPopupVisible.value = false
-      }
-    }
-    uni.vibrateShort()
-  }
-}
-
 // 切换购物车弹窗
 const toggleCartPopup = () => {
-  if (totalCount.value > 0) {
+  if (cartStore.totalCount > 0) {
     cartPopupVisible.value = !cartPopupVisible.value
   }
 }
 
-// 清空购物车
-const clearCart = () => {
-  uni.showModal({
-    title: '提示',
-    content: '确定要清空购物车吗？',
-    success: (res) => {
-      if (res.confirm) {
-        cart.value = {}
-        cartPopupVisible.value = false
-      }
-    }
-  })
-}
-
 // 去结算
 const goToCheckout = () => {
-  if (totalCount.value === 0) return
+  if (cartStore.totalCount === 0) return
 
   // 将当前购物车商品作为 items 传递给确认订单页
-  const selectedItems = cartList.value
+  const selectedItems = cartStore.cartList
   uni.navigateTo({
     url: '/pages/order/confirm?items=' + encodeURIComponent(JSON.stringify(selectedItems))
   })
@@ -707,129 +600,15 @@ onMounted(() => {
   height: 140rpx; /* 为底部悬浮栏留出空间 */
 }
 
-/* 购物车弹窗样式 */
-.cart-mask {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  z-index: 90;
-  animation: fadeIn 0.3s ease;
-}
-
-.cart-popup {
-  position: fixed;
-  left: 30rpx;
-  right: 30rpx;
-  /* 在悬浮栏上方 */
-  bottom: calc(var(--window-bottom) + 140rpx);
-  background: v-bind('themeConfig.cardBg');
-  backdrop-filter: blur(20px);
-  border-radius: 32rpx;
-  border: 1px solid v-bind('themeConfig.cardBorder');
-  box-shadow: v-bind('themeConfig.shadowHeavy');
-  z-index: 95;
-  transform: translateY(100vh); /* 默认隐藏到屏幕外 */
-  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-  max-height: 60vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  visibility: hidden; /* 默认不可见，防止遮挡 */
-  
-  &.show {
-    transform: translateY(0);
-    visibility: visible; /* 显示时可见 */
-  }
-  
-  .popup-header {
-    padding: 30rpx;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid v-bind('themeConfig.borderColor');
-    
-    .title {
-      font-size: 32rpx;
-      font-weight: 700;
-      color: v-bind('themeConfig.textPrimary');
-    }
-    
-    .clear-btn {
-      display: flex;
-      align-items: center;
-      gap: 8rpx;
-      
-      .icon {
-        font-size: 28rpx;
-      }
-      
-      text {
-        font-size: 26rpx;
-        color: v-bind('themeConfig.textSecondary');
-      }
-    }
-  }
-  
-  .popup-scroll {
-    max-height: 500rpx;
-  }
-  
-  .popup-list {
-    padding: 20rpx;
-  }
-  
-  .popup-item {
-    display: flex;
-    align-items: center;
-    padding: 20rpx;
-    margin-bottom: 16rpx;
-    
-    .item-img {
-      width: 100rpx;
-      height: 100rpx;
-      border-radius: 12rpx;
-      margin-right: 20rpx;
-    }
-    
-    .item-info {
-      flex: 1;
-      
-      .item-name {
-        font-size: 28rpx;
-        font-weight: 600;
-        color: v-bind('themeConfig.textPrimary');
-        margin-bottom: 8rpx;
-        display: block;
-      }
-      
-      .price {
-        font-size: 32rpx;
-        font-weight: 700;
-        color: v-bind('themeConfig.errorColor');
-      }
-    }
-  }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-/* 底部悬浮购物车栏 */
+/* 底部悬浮购物车样式 */
 .cart-bar-container {
   position: fixed;
   left: 30rpx;
   right: 30rpx;
-  /* 抬高位置，避开TabBar */
-  bottom: calc(var(--window-bottom) + 20rpx); 
+  bottom: calc(var(--window-bottom) + 20rpx);
   z-index: 100;
-  transform: translateY(200%); /* 默认隐藏 */
-  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateY(200%);
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   
   &.show {
     transform: translateY(0);
@@ -840,101 +619,84 @@ onMounted(() => {
   display: flex;
   align-items: center;
   height: 100rpx;
-  padding: 0 30rpx;
-  border-radius: 50rpx;
-  /* 强制使用深色背景，确保内容清晰可见 */
-  background: #1a1a1a !important; 
+  background: v-bind('themeConfig.cardBg');
   backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  
-  .cart-icon-wrapper {
-    position: relative;
-    margin-right: 30rpx;
-    
-    .cart-icon {
-      width: 80rpx;
-      height: 80rpx;
-      margin-top: -40rpx; /* 图标稍微突出一点 */
-      background: #2c2c2c;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: 4rpx solid #1a1a1a;
-      box-shadow: 0 4rpx 10rpx rgba(0,0,0,0.3);
-      
-      .icon-img {
-        width: 44rpx;
-        height: 44rpx;
-        /* 如果图标是黑色的，可以使用滤镜反转为白色，或者直接使用白色图标 */
-        filter: invert(1); 
-      }
-      
-      .badge {
-        position: absolute;
-        top: -6rpx;
-        right: -6rpx;
-        background: #ff3b30;
-        color: #fff;
-        font-size: 20rpx;
-        min-width: 36rpx;
-        height: 36rpx;
-        border-radius: 18rpx;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0 8rpx;
-        border: 2rpx solid #fff;
-        box-shadow: 0 2rpx 5rpx rgba(0,0,0,0.2);
-      }
-    }
-  }
-  
-  .cart-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    
-    .total-price {
-      font-size: 36rpx;
-      font-weight: 700;
-      color: #ffffff; /* 强制白色，配合深色背景 */
-    }
-    
-    .delivery-tip {
-      font-size: 22rpx;
-      color: rgba(255, 255, 255, 0.6);
-    }
-  }
-  
-  .checkout-btn {
-    padding: 16rpx 40rpx;
-    background: v-bind('themeConfig.primaryGradient');
-    border-radius: 40rpx;
-    box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.2);
-    
-    text {
-      color: #fff;
-      font-size: 28rpx;
-      font-weight: 600;
-    }
-    
-    &:active {
-      opacity: 0.9;
-      transform: scale(0.95);
-    }
-  }
+  border-radius: 50rpx;
+  border: 1px solid v-bind('themeConfig.cardBorder');
+  box-shadow: v-bind('themeConfig.shadowHeavy');
+  padding-right: 10rpx;
 }
 
-// 玻璃拟态卡片样式
-.glass-card {
+.cart-icon-wrapper {
+  position: relative;
+  width: 100rpx;
+  height: 100rpx;
+  margin-top: -30rpx;
+  margin-left: 10rpx;
+}
+
+.cart-icon {
+  width: 100rpx;
+  height: 100rpx;
   background: v-bind('themeConfig.cardBg');
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid v-bind('themeConfig.cardBorder');
+  box-shadow: v-bind('themeConfig.shadowMedium');
+}
+
+.icon-img {
+  width: 50rpx;
+  height: 50rpx;
+}
+
+.badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: #ef4444;
+  color: #fff;
+  font-size: 20rpx;
+  padding: 4rpx 10rpx;
+  border-radius: 20rpx;
+  border: 2rpx solid #fff;
+  min-width: 32rpx;
+  text-align: center;
+}
+
+.cart-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding-left: 20rpx;
+}
+
+.total-price {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: v-bind('themeConfig.textPrimary');
+}
+
+.delivery-tip {
+  font-size: 20rpx;
+  color: v-bind('themeConfig.textSecondary');
+}
+
+.checkout-btn {
+  background: v-bind('themeConfig.primaryGradient');
+  color: #fff;
+  padding: 16rpx 40rpx;
+  border-radius: 40rpx;
+  font-size: 28rpx;
+  font-weight: 600;
   box-shadow: v-bind('themeConfig.shadowLight');
   transition: all 0.3s ease;
+  
+  &:active {
+    transform: scale(0.95);
+    opacity: 0.9;
+  }
 }
 </style>

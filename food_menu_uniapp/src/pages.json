@@ -21,7 +21,8 @@
         {
             "path": "pages/detail/detail",
             "style": {
-                "navigationBarTitleText": "菜品详情"
+                "navigationBarTitleText": "菜品详情",
+                "navigationStyle": "custom"
             }
         },
         {
@@ -65,13 +66,6 @@
             "path": "pages/favorites/favorites",
             "style": {
                 "navigationBarTitleText": "我的收藏"
-            }
-        },
-        {
-            "path": "pages/profile/edit",
-            "style": {
-                "navigationBarTitleText": "编辑资料",
-                "navigationStyle": "custom"
             }
         }
     ],

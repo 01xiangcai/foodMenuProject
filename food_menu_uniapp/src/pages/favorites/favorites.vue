@@ -216,11 +216,14 @@ onShow(() => {
 .fav-card {
   border-radius: 28rpx;
   overflow: hidden;
+  background: v-bind('themeConfig.cardBg');
   border: 1px solid v-bind('themeConfig.cardBorder');
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: v-bind('themeConfig.shadowLight');
+  transition: all 0.3s ease;
   
   &:active {
-    transform: scale(0.97);
+    transform: scale(0.98);
+    box-shadow: v-bind('themeConfig.shadowMedium');
   }
 }
 
