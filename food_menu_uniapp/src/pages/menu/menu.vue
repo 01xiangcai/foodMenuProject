@@ -435,33 +435,58 @@ onMounted(() => {
   width: 54rpx;
   height: 54rpx;
   border-radius: 50%;
-  background: rgba(5, 10, 31, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.65), rgba(30, 30, 50, 0.75));
+  border: 2px solid rgba(255, 255, 255, 0.85);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
-  transition: all 0.2s ease;
-  backdrop-filter: blur(8px);
+  box-shadow: 
+    0 3px 12px rgba(0, 0, 0, 0.3),
+    0 0 15px rgba(255, 255, 255, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
 }
 
 .favorite-btn:active {
   transform: scale(0.92);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.35),
+    0 0 10px rgba(255, 255, 255, 0.1);
 }
 
 .favorite-btn .heart {
   font-size: 28rpx;
-  color: v-bind('themeConfig.textSecondary');
+  color: #fff;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+  transition: transform 0.3s ease;
 }
 
 .favorite-btn.active {
-  background: v-bind('themeConfig.primaryGradient');
-  border-color: transparent;
-  box-shadow: v-bind('themeConfig.shadowLight');
+  background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+  border-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 
+    0 4px 16px rgba(238, 90, 111, 0.5),
+    0 0 25px rgba(238, 90, 111, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  animation: heartBeat 0.5s ease;
 }
 
 .favorite-btn.active .heart {
   color: #fff;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
+  animation: heartPulse 0.5s ease;
+}
+
+@keyframes heartBeat {
+  0%, 100% { transform: scale(1); }
+  30% { transform: scale(1.12); }
+  60% { transform: scale(1.05); }
+}
+
+@keyframes heartPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
 }
 
 .dish-info {

@@ -1,15 +1,6 @@
 <template>
   <view class="page">
     <scroll-view class="detail-scroll" scroll-y>
-      <!-- 顶部导航栏占位 -->
-      <view class="nav-bar-placeholder">
-        <view class="back-btn" @tap="goBack">
-          <text class="icon">←</text>
-        </view>
-        <text class="page-title">菜品详情</text>
-        <view class="right-placeholder"></view>
-      </view>
-
       <!-- 1. 图片卡片 -->
       <view class="card image-card">
         <image class="dish-image" :src="dish.image" mode="aspectFill" />
@@ -118,10 +109,6 @@ const toggleCartPopup = () => {
   }
 }
 
-const goBack = () => {
-  uni.navigateBack()
-}
-
 onLoad((options) => {
   if (options.id) {
     loadDishDetail(options.id)
@@ -145,40 +132,6 @@ onMounted(() => {
 .detail-scroll {
   flex: 1;
   padding: 0 24rpx;
-}
-
-/* 顶部导航栏 */
-.nav-bar-placeholder {
-  height: 88rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 10rpx;
-  margin-top: env(safe-area-inset-top);
-  margin-bottom: 20rpx;
-}
-
-.back-btn {
-  width: 64rpx;
-  height: 64rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  
-  .icon {
-    font-size: 40rpx;
-    color: v-bind('themeConfig.textPrimary');
-  }
-}
-
-.page-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: v-bind('themeConfig.textPrimary');
-}
-
-.right-placeholder {
-  width: 64rpx;
 }
 
 /* 通用卡片样式 */

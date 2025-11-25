@@ -21,8 +21,7 @@
         {
             "path": "pages/detail/detail",
             "style": {
-                "navigationBarTitleText": "菜品详情",
-                "navigationStyle": "custom"
+                "navigationBarTitleText": "菜品详情"
             }
         },
         {
