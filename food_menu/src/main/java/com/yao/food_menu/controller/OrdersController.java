@@ -231,8 +231,8 @@ public class OrdersController {
                 return Result.error("Order not found");
             }
 
-            // Verify order belongs to current user
-            if (!orders.getUserId().equals(userId)) {
+            // Verify order belongs to current user or user is admin
+            if (!orders.getUserId().equals(userId) && !wxUserService.isAdmin(userId)) {
                 return Result.error("Access denied");
             }
 

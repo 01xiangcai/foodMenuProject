@@ -101,8 +101,21 @@ const themeConfig = computed(() => {
             inputBg: 'rgba(255, 255, 255, 0.05)',
             inputBorder: 'rgba(255, 255, 255, 0.1)',
 
-            // 图标
-            iconColor: '#8b8fa3'
+            // 状态颜色 (柔和渐变)
+            statusGradients: {
+                waiting: 'linear-gradient(135deg, rgba(255, 149, 0, 0.15) 0%, rgba(255, 149, 0, 0.05) 100%)',
+                preparing: 'linear-gradient(135deg, rgba(20, 184, 255, 0.15) 0%, rgba(20, 184, 255, 0.05) 100%)',
+                delivering: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(168, 85, 247, 0.05) 100%)',
+                completed: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.05) 100%)',
+                cancelled: 'linear-gradient(135deg, rgba(139, 143, 163, 0.15) 0%, rgba(139, 143, 163, 0.05) 100%)'
+            },
+            statusTextColors: {
+                waiting: '#ff9500',
+                preparing: '#14b8ff',
+                delivering: '#a855f7',
+                completed: '#10b981',
+                cancelled: '#8b8fa3'
+            }
         }
     } else {
         // 家庭主题 - 暖色温馨（重新设计）
@@ -146,7 +159,23 @@ const themeConfig = computed(() => {
             inputBorder: 'rgba(0, 0, 0, 0.1)',
 
             // 图标
-            iconColor: '#636e72'
+            iconColor: '#636e72',
+
+            // 状态颜色 (柔和莫兰迪色系)
+            statusGradients: {
+                waiting: 'linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)', // 柔和杏色
+                preparing: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)', // 柔和天蓝
+                delivering: 'linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%)', // 柔和淡紫
+                completed: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)', // 柔和薄荷
+                cancelled: 'linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%)'  // 柔和灰
+            },
+            statusTextColors: {
+                waiting: '#f57c00',
+                preparing: '#1976d2',
+                delivering: '#7b1fa2',
+                completed: '#388e3c',
+                cancelled: '#757575'
+            }
         }
     }
 })

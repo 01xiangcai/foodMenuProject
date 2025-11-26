@@ -1,49 +1,56 @@
 <template>
   <view class="page">
     <!-- 订单状态 -->
-    <view class="status-card glass-card">
+    <view class="status-card" :class="getStatusClass(order.status)">
       <text class="status-icon">{{ getStatusIcon(order.status) }}</text>
-      <text class="status-text">{{ getStatusText(order.status) }}</text>
-      <text class="status-desc">{{ getStatusDesc(order.status) }}</text>
+      <view class="status-content">
+        <text class="status-text">{{ getStatusText(order.status) }}</text>
+        <text class="status-desc">{{ getStatusDesc(order.status) }}</text>
+      </view>
     </view>
 
-
-
     <!-- 订单商品 -->
-    <view class="items-card glass-card">
-      <view class="card-title">
-        <text>订单商品</text>
+    <view class="section-card">
+      <view class="card-header">
+        <view class="header-line"></view>
+        <text class="card-title">订单商品</text>
       </view>
-      <view class="order-item" v-for="item in order.items" :key="item.id">
-        <image class="item-image" :src="item.image" mode="aspectFill" />
-        <view class="item-info">
-          <text class="item-name">{{ item.name }}</text>
-          <text class="item-spec">x{{ item.quantity }}</text>
+      <view class="order-items">
+        <view class="order-item" v-for="item in order.items" :key="item.id">
+          <image class="item-image" :src="item.image" mode="aspectFill" />
+          <view class="item-info">
+            <text class="item-name">{{ item.name }}</text>
+            <text class="item-spec">x{{ item.quantity }}</text>
+          </view>
+          <text class="item-price">¥{{ item.price }}</text>
         </view>
-        <text class="item-price">¥{{ item.price }}</text>
       </view>
     </view>
 
     <!-- 订单信息 -->
-    <view class="order-info-card glass-card">
-      <view class="card-title">
-        <text>订单信息</text>
+    <view class="section-card">
+      <view class="card-header">
+        <view class="header-line"></view>
+        <text class="card-title">订单信息</text>
       </view>
-      <view class="info-row">
-        <text class="label">订单号：</text>
-        <text class="value">{{ order.orderNumber }}</text>
-      </view>
-      <view class="info-row">
-        <text class="label">下单时间：</text>
-        <text class="value">{{ order.createTime || '2024-11-24 16:00:00' }}</text>
-      </view>
-      <view class="info-row">
-        <text class="label">支付方式：</text>
-        <text class="value">{{ order.payMethod || '微信支付' }}</text>
-      </view>
-      <view class="info-row total">
-        <text class="label">订单金额：</text>
-        <text class="value price">¥{{ order.totalAmount }}</text>
+      <view class="info-list">
+        <view class="info-row">
+          <text class="label">订单号</text>
+          <text class="value">{{ order.orderNumber }}</text>
+        </view>
+        <view class="info-row">
+          <text class="label">下单时间</text>
+          <text class="value">{{ order.createTime || '2024-11-24 16:00:00' }}</text>
+        </view>
+        <view class="info-row">
+          <text class="label">支付方式</text>
+          <text class="value">{{ order.payMethod || '微信支付' }}</text>
+        </view>
+        <view class="divider"></view>
+        <view class="info-row total">
+          <text class="label">订单金额</text>
+          <text class="value price">¥{{ order.totalAmount }}</text>
+        </view>
       </view>
     </view>
 
@@ -101,6 +108,17 @@ const getStatusDesc = (status) => {
     4: '订单已取消'
   }
   return descMap[status] || ''
+}
+
+const getStatusClass = (status) => {
+  const classMap = {
+    0: 'status-waiting',
+    1: 'status-preparing',
+    2: 'status-delivering',
+    3: 'status-completed',
+    4: 'status-cancelled'
+  }
+  return classMap[status] || ''
 }
 
 const { themeConfig, loadTheme } = useTheme()
@@ -206,123 +224,164 @@ onShow(() => {
   background-color: v-bind('themeConfig.bgPrimary');
   padding: 20rpx;
   padding-bottom: 160rpx;
+  transition: background-color 0.3s ease;
 }
 
+/* 状态卡片优化 */
 .status-card {
-  text-align: center;
-  padding: 60rpx 40rpx;
-  margin-bottom: 20rpx;
+  display: flex;
+  align-items: center;
+  padding: 40rpx;
+  margin-bottom: 24rpx;
+  border-radius: 24rpx;
+  color: #fff;
+  box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  
+  &.status-waiting {
+    background: linear-gradient(135deg, #FFB347 0%, #FFCC33 100%); /* 柔和橙色 */
+  }
+  
+  &.status-preparing {
+    background: linear-gradient(135deg, #56CCF2 0%, #2F80ED 100%); /* 清新蓝色 */
+  }
+  
+  &.status-delivering {
+    background: linear-gradient(135deg, #B24592 0%, #F15F79 100%); /* 活力紫红 */
+  }
+  
+  &.status-completed {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); /* 清爽绿色 */
+  }
+  
+  &.status-cancelled {
+    background: linear-gradient(135deg, #bdc3c7 0%, #2c3e50 100%); /* 沉稳灰色 */
+    color: #fff;
+    
+    .status-text { color: #fff; }
+    .status-desc { color: #eee; }
+  }
 }
 
 .status-icon {
-  display: block;
-  font-size: 100rpx;
-  margin-bottom: 20rpx;
+  font-size: 80rpx;
+  margin-right: 30rpx;
+}
+
+.status-content {
+  flex: 1;
 }
 
 .status-text {
   display: block;
-  font-size: 36rpx;
+  font-size: 40rpx;
   font-weight: 700;
-  color: v-bind('themeConfig.textPrimary');
-  margin-bottom: 10rpx;
+  margin-bottom: 8rpx;
 }
 
 .status-desc {
   display: block;
-  font-size: 28rpx;
-  color: v-bind('themeConfig.textSecondary');
+  font-size: 26rpx;
+  opacity: 0.9;
 }
 
-.delivery-card,
-.items-card,
-.order-info-card {
+/* 通用卡片样式 */
+.section-card {
+  padding: 0;
+  margin-bottom: 24rpx;
+  background: v-bind('themeConfig.cardBg');
+  border-radius: 24rpx;
+  overflow: hidden;
+  box-shadow: v-bind('themeConfig.shadowLight');
+  border: 1px solid v-bind('themeConfig.cardBorder');
+  transition: all 0.3s ease;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
   padding: 30rpx;
-  margin-bottom: 20rpx;
+  border-bottom: 1px solid v-bind('themeConfig.borderColor');
+}
+
+.header-line {
+  width: 8rpx;
+  height: 32rpx;
+  background: v-bind('themeConfig.primaryColor');
+  border-radius: 4rpx;
+  margin-right: 16rpx;
 }
 
 .card-title {
   font-size: 32rpx;
   font-weight: 700;
   color: v-bind('themeConfig.textPrimary');
-  margin-bottom: 30rpx;
-  padding-bottom: 20rpx;
-  border-bottom: 1px solid v-bind('themeConfig.borderColor');
 }
 
-.delivery-info {
-  display: flex;
-  margin-bottom: 20rpx;
-  
-  &:last-child {
-    margin-bottom: 0;
-  }
-  
-  .label {
-    font-size: 28rpx;
-    color: v-bind('themeConfig.textSecondary');
-    width: 160rpx;
-  }
-  
-  .value {
-    flex: 1;
-    font-size: 28rpx;
-    color: v-bind('themeConfig.textPrimary');
-  }
+/* 商品列表优化 */
+.order-items {
+  padding: 0 30rpx;
 }
 
 .order-item {
   display: flex;
   align-items: center;
-  margin-bottom: 20rpx;
+  padding: 30rpx 0;
+  border-bottom: 1px solid v-bind('themeConfig.borderColor');
   
   &:last-child {
-    margin-bottom: 0;
+    border-bottom: none;
   }
 }
 
 .item-image {
   width: 120rpx;
   height: 120rpx;
-  border-radius: 12rpx;
-  margin-right: 20rpx;
+  border-radius: 16rpx;
+  margin-right: 24rpx;
+  background: #f5f5f5;
 }
 
 .item-info {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8rpx;
+  justify-content: space-between;
+  height: 120rpx;
+  padding: 4rpx 0;
 }
 
 .item-name {
-  font-size: 28rpx;
+  font-size: 30rpx;
   color: v-bind('themeConfig.textPrimary');
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 .item-spec {
-  font-size: 24rpx;
+  font-size: 26rpx;
   color: v-bind('themeConfig.textSecondary');
 }
 
 .item-price {
-  font-size: 28rpx;
-  color: v-bind('themeConfig.primaryColor');
-  font-weight: 600;
+  font-size: 32rpx;
+  color: v-bind('themeConfig.textPrimary');
+  font-weight: 700;
+}
+
+/* 信息列表优化 */
+.info-list {
+  padding: 30rpx;
 }
 
 .info-row {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 20rpx;
+  align-items: center;
+  margin-bottom: 24rpx;
   
   &:last-child {
     margin-bottom: 0;
-  }
-  
-  &.total {
-    padding-top: 20rpx;
-    border-top: 1px solid v-bind('themeConfig.borderColor');
   }
   
   .label {
@@ -333,45 +392,63 @@ onShow(() => {
   .value {
     font-size: 28rpx;
     color: v-bind('themeConfig.textPrimary');
-    
-    &.price {
-      font-size: 36rpx;
-      font-weight: 700;
-      color: v-bind('themeConfig.primaryColor');
-    }
+    font-weight: 500;
   }
 }
 
+.divider {
+  height: 1px;
+  background: v-bind('themeConfig.borderColor');
+  margin: 24rpx 0;
+}
+
+.info-row.total {
+  margin-top: 10rpx;
+  
+  .label {
+    font-size: 30rpx;
+    color: v-bind('themeConfig.textPrimary');
+    font-weight: 600;
+  }
+  
+  .value.price {
+    font-size: 40rpx;
+    color: v-bind('themeConfig.errorColor');
+    font-weight: 800;
+  }
+}
+
+/* 底部栏 */
 .bottom-bar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 20rpx;
+  padding: 20rpx 30rpx;
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
   background: v-bind('themeConfig.bgSecondary');
   backdrop-filter: blur(20px);
   border-top: 1px solid v-bind('themeConfig.borderColor');
   display: flex;
   justify-content: flex-end;
   gap: 20rpx;
-}
-
-.btn-cancel,
-.btn-primary {
-  padding: 24rpx 60rpx;
-  border-radius: 40rpx;
-  font-size: 28rpx;
-  font-weight: 600;
+  z-index: 100;
+  box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.05);
 }
 
 .btn-cancel {
+  padding: 20rpx 48rpx;
+  border-radius: 40rpx;
+  font-size: 28rpx;
+  font-weight: 600;
   background: v-bind('themeConfig.inputBg');
   border: 1px solid v-bind('themeConfig.borderColor');
   color: v-bind('themeConfig.textSecondary');
-}
-
-.btn-primary {
-  background: v-bind('themeConfig.primaryGradient');
-  color: #fff;
+  transition: all 0.3s;
+  
+  &:active {
+    opacity: 0.8;
+    transform: scale(0.98);
+  }
 }
 </style>
