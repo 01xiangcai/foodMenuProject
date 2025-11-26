@@ -26,8 +26,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class DishController {
 
-    private static final String DEFAULT_IMAGE =
-            "https://dummyimage.com/800x600/0f172a/ffffff&text=family+dish";
+    private static final String DEFAULT_IMAGE = "https://dummyimage.com/800x600/0f172a/ffffff&text=family+dish";
 
     @Autowired
     private DishService dishService;
@@ -121,6 +120,16 @@ public class DishController {
         List<Dish> list = dishService.list(queryWrapper);
         // Convert OSS object keys to presigned URLs for all dishes
         list.forEach(this::convertDishImageToPresignedUrl);
+        list.forEach(this::convertDishImageToPresignedUrl);
+        return Result.success(list);
+    }
+
+    @Operation(summary = "查询明星菜品", description = "查询销量最高的5道菜品")
+    @GetMapping("/top")
+    public Result<List<DishDto>> getTopDishes() {
+        List<DishDto> list = dishService.getTopSellingDishes(5);
+        // Convert OSS object keys to presigned URLs
+        list.forEach(this::convertImageToPresignedUrl);
         return Result.success(list);
     }
 

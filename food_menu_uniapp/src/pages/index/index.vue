@@ -71,12 +71,16 @@
         <text class="mini-tip">AI 推荐 · 适配家庭口味</text>
       </view>
       <view class="dish-list">
-        <view class="dish-card" v-for="item in featuredDishes" :key="item.title">
-          <view>
+        <view class="dish-card" v-for="item in featuredDishes" :key="item.id" @tap="navigateToDishDetail(item.id)">
+          <image class="dish-image" :src="item.image" mode="aspectFill" />
+          <view class="dish-info">
             <text class="dish-title">{{ item.title }}</text>
-            <text class="dish-tag">{{ item.tag }}</text>
+            <text class="dish-desc" v-if="item.description">{{ item.description }}</text>
+            <view class="dish-meta">
+              <text class="dish-tag">{{ item.tag }}</text>
+              <text class="dish-energy" v-if="item.energy">{{ item.energy }}</text>
+            </view>
           </view>
-          <text class="dish-energy">{{ item.energy }}</text>
         </view>
       </view>
     </view>
@@ -85,7 +89,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { getBannerList } from '@/api/index'
+import { getBannerList, getTopDishes } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 
 // 使用主题
@@ -99,11 +103,7 @@ const quickActions = ref([
   { label: '今日菜单', desc: '挑选 3 道拿手菜', link: '/pages/menu/menu' },
   { label: '口味心愿', desc: '记录家人偏好', link: '/pages/menu/menu' }
 ])
-const featuredDishes = ref([
-  { title: '妈妈的招牌番茄牛腩', tag: '暖胃', energy: '482 kcal' },
-  { title: '爸爸的柠檬烤鱼', tag: '低油', energy: '328 kcal' },
-  { title: '可可的芝士焗南瓜', tag: '甜蜜', energy: '266 kcal' }
-])
+const featuredDishes = ref([])
 
 let timer = null
 
@@ -111,6 +111,36 @@ let timer = null
 const updateClock = () => {
   const now = new Date()
   currentTime.value = now.toLocaleTimeString('zh-CN', { hour12: false })
+}
+
+// 加载明星菜
+const loadFeaturedDishes = async () => {
+  try {
+    const res = await getTopDishes()
+    console.log('明星菜原始数据:', res.data) // 调试日志
+    if (res.data) {
+      featuredDishes.value = res.data.map(item => {
+        console.log('菜品数据:', item) // 调试每个菜品
+        return {
+          id: item.id,
+          title: item.name,
+          description: item.description || '',
+          tag: item.tags ? item.tags.split(',')[0] : '热销', // 没有标签时显示"热销"
+          energy: item.calories ? `${item.calories} kcal` : '', // 有卡路里时加单位
+          image: item.image || 'https://dummyimage.com/200x200/e2e8f0/94a3b8&text=No+Image'
+        }
+      })
+      console.log('处理后的数据:', featuredDishes.value) // 调试处理后的数据
+    }
+  } catch (error) {
+    console.error('加载明星菜失败:', error)
+    // 失败时显示默认数据
+    featuredDishes.value = [
+      { title: '妈妈的招牌番茄牛腩', tag: '暖胃', energy: '482 kcal' },
+      { title: '爸爸的柠檬烤鱼', tag: '低油', energy: '328 kcal' },
+      { title: '可可的芝士焗南瓜', tag: '甜蜜', energy: '266 kcal' }
+    ]
+  }
 }
 
 // 加载轮播图
@@ -159,12 +189,20 @@ const navigateTo = (url) => {
   uni.navigateTo({ url })
 }
 
+// 导航到菜品详情
+const navigateToDishDetail = (dishId) => {
+  uni.navigateTo({ 
+    url: `/pages/detail/detail?id=${dishId}` 
+  })
+}
+
 // 生命周期
 onMounted(() => {
   loadTheme()
   updateClock()
   timer = setInterval(updateClock, 1000)
   loadBanners()
+  loadFeaturedDishes()
 })
 
 onUnmounted(() => {
@@ -346,42 +384,85 @@ onUnmounted(() => {
 }
 
 .dish-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  
   .dish-card {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 24rpx 0;
-    border-bottom: 1px solid v-bind('themeConfig.borderColor');
+    gap: 20rpx;
+    padding: 20rpx;
+    background: v-bind('themeConfig.bgSecondary');
+    border-radius: 16rpx;
+    border: 1px solid v-bind('themeConfig.borderColor');
     transition: all 0.3s ease;
     
-    &:last-child {
-      border-bottom: none;
+    &:active {
+      transform: scale(0.98);
+      opacity: 0.9;
     }
-    
-    .dish-title {
-      display: block;
-      font-size: 28rpx;
-      color: v-bind('themeConfig.textPrimary');
-      margin-bottom: 8rpx;
-      transition: color 0.3s ease;
-    }
-    
-    .dish-tag {
-      display: inline-block;
-      font-size: 22rpx;
-      color: v-bind('themeConfig.primaryColor');
-      background: v-bind('themeConfig.primaryColor + "1a"');
-      padding: 4rpx 12rpx;
-      border-radius: 8rpx;
-      margin-left: 12rpx;
-      transition: all 0.3s ease;
-    }
-    
-    .dish-energy {
-      font-size: 24rpx;
-      color: v-bind('themeConfig.textSecondary');
-      transition: color 0.3s ease;
-    }
+  }
+  
+  .dish-image {
+    width: 120rpx;
+    height: 120rpx;
+    border-radius: 12rpx;
+    flex-shrink: 0;
+    background: v-bind('themeConfig.bgTertiary');
+  }
+  
+  .dish-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-width: 0;
+  }
+  
+  .dish-title {
+    font-size: 30rpx;
+    font-weight: 600;
+    color: v-bind('themeConfig.textPrimary');
+    margin-bottom: 8rpx;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: color 0.3s ease;
+  }
+  
+  .dish-desc {
+    font-size: 24rpx;
+    color: v-bind('themeConfig.textSecondary');
+    margin-bottom: 8rpx;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.4;
+    transition: color 0.3s ease;
+  }
+  
+  .dish-meta {
+    display: flex;
+    align-items: center;
+    gap: 12rpx;
+    flex-wrap: wrap;
+  }
+  
+  .dish-tag {
+    font-size: 22rpx;
+    color: v-bind('themeConfig.primaryColor');
+    background: v-bind('themeConfig.primaryColor + "1a"');
+    padding: 4rpx 12rpx;
+    border-radius: 8rpx;
+    transition: all 0.3s ease;
+  }
+  
+  .dish-energy {
+    font-size: 22rpx;
+    color: v-bind('themeConfig.textSecondary');
+    transition: color 0.3s ease;
   }
 }
 

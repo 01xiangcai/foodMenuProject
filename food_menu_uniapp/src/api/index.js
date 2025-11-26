@@ -149,6 +149,16 @@ export const getFavoriteList = () => {
 }
 
 /**
+ * 获取明星菜品
+ */
+export const getTopDishes = () => {
+    return request({
+        url: '/dish/top',
+        method: 'GET'
+    })
+}
+
+/**
  * 用户登录
  * @param {Object} data 登录数据
  */

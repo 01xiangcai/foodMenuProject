@@ -23,7 +23,7 @@
 
           <!-- 订单商品列表 -->
           <view class="order-items">
-            <view class="order-item" v-for="item in order.items" :key="item.id">
+            <view class="order-item" v-for="item in order.items" :key="item.id" @tap.stop="navigateToDishDetail(item.dishId)">
               <!-- 如果有图片URL就显示图片，否则显示占位符 -->
               <image v-if="item.image" class="item-image" :src="item.image" mode="aspectFill" @error="handleImageError" />
               <view v-else class="item-placeholder">
@@ -154,6 +154,7 @@ const loadOrders = async (reset = false) => {
       ...order,
       items: (order.orderItems || []).map(item => ({
         id: item.id,
+        dishId: item.dishId,
         name: item.dishName,
         image: item.dishImage,
         price: item.price,
@@ -226,6 +227,14 @@ const payOrder = (orderId) => {
 const goToMenu = () => {
   uni.switchTab({
     url: '/pages/menu/menu'
+  })
+}
+
+// 跳转到菜品详情
+const navigateToDishDetail = (dishId) => {
+  if (!dishId) return
+  uni.navigateTo({ 
+    url: `/pages/detail/detail?id=${dishId}` 
   })
 }
 

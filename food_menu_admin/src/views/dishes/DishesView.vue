@@ -127,6 +127,18 @@
               placeholder="用逗号或空格分隔，如 微辣 少油"
             />
           </NFormItem>
+          <NFormItem label="卡路里">
+            <NInput
+              v-model:value="dishModal.form.calories"
+              placeholder="例如: 482 kcal"
+            />
+          </NFormItem>
+          <NFormItem label="菜品标签">
+            <NInput
+              v-model:value="dishModal.form.tags"
+              placeholder="用逗号分隔，如: 暖胃,低油,家常"
+            />
+          </NFormItem>
           <NFormItem label="家庭备注">
             <NInput
               v-model:value="dishModal.form.description"
@@ -215,6 +227,8 @@ type DishForm = {
   description: string;
   flavorText: string;
   image: string;
+  calories: string;
+  tags: string;
 };
 
 const message = useMessage();
@@ -315,6 +329,17 @@ const columns: DataTableColumns<DishRecord> = [
         { type: row.status === 1 ? 'success' : 'warning', bordered: false },
         { default: () => (row.status === 1 ? '在用' : '下架') }
       )
+  },
+  {
+    title: '卡路里',
+    key: 'calories',
+    render: (row: any) => row.calories || '—'
+  },
+  {
+    title: '标签',
+    key: 'tags',
+    ellipsis: { tooltip: true },
+    render: (row: any) => row.tags || '—'
   },
   {
     title: '家庭备注',
@@ -442,6 +467,8 @@ const resetDishForm = () => {
   dishModal.form.description = '';
   dishModal.form.flavorText = '';
   dishModal.form.image = '';
+  dishModal.form.calories = '';
+  dishModal.form.tags = '';
   dishModal.imagePreviewUrl = '';
 };
 
@@ -461,7 +488,7 @@ const openDishModal = async (id?: number) => {
   }
 };
 
-const fillDishForm = (dish: DishRecord) => {
+const fillDishForm = (dish: any) => {
   dishModal.form.id = dish.id;
   dishModal.form.name = dish.name;
   dishModal.form.categoryId = dish.categoryId;
@@ -469,6 +496,8 @@ const fillDishForm = (dish: DishRecord) => {
   dishModal.form.status = dish.status === 1 ? 'on' : 'off';
   dishModal.form.description = dish.description || '';
   dishModal.form.flavorText = parseFlavorText(dish.flavors);
+  dishModal.form.calories = dish.calories || '';
+  dishModal.form.tags = dish.tags || '';
   // Backend returns presigned URL when image is OSS object key
   // For existing dishes, image might be presigned URL or default image URL
   // We need to extract object key if it's a presigned URL, or keep as is
@@ -523,7 +552,7 @@ const saveDish = async () => {
   }
   dishModal.loading = true;
   try {
-    const payload = {
+    const payload: any = {
       id: dishModal.form.id,
       name: dishModal.form.name.trim(),
       categoryId: dishModal.form.categoryId,
@@ -531,7 +560,9 @@ const saveDish = async () => {
       status: dishModal.form.status === 'on' ? 1 : 0,
       description: dishModal.form.description,
       flavors: buildFlavorPayload(dishModal.form.flavorText),
-      image: dishModal.form.image
+      image: dishModal.form.image,
+      calories: dishModal.form.calories.trim() || null,
+      tags: dishModal.form.tags.trim() || null
     };
     if (payload.id) {
       await updateDish(payload);
@@ -573,7 +604,9 @@ const toggleDishStatus = async (dish: DishRecord) => {
     status: nextStatus,
     description: detail.description,
     flavors,
-    image: detail.image
+    image: detail.image,
+    calories: (detail as any).calories || null,
+    tags: (detail as any).tags || null
   });
   message.success(nextStatus === 1 ? '已上架' : '已下架');
   await loadDishes();

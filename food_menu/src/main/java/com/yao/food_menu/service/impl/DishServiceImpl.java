@@ -82,10 +82,16 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
         // 添加新口味
         List<DishFlavor> flavors = dishDto.getFlavors();
         flavors = flavors.stream().map((item) -> {
+            item.setId(null); // 清除id，让数据库自动生成新的id
             item.setDishId(dishDto.getId());
             return item;
         }).collect(Collectors.toList());
 
         dishFlavorService.saveBatch(flavors);
+    }
+
+    @Override
+    public List<DishDto> getTopSellingDishes(int limit) {
+        return baseMapper.selectTopSelling(limit);
     }
 }

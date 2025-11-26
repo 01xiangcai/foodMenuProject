@@ -3,6 +3,7 @@ package com.yao.food_menu.service;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.yao.food_menu.dto.DishDto;
 import com.yao.food_menu.entity.Dish;
+import java.util.List;
 
 /**
  * 菜品服务接口
@@ -17,4 +18,7 @@ public interface DishService extends IService<Dish> {
 
     // 更新菜品及口味
     public void updateWithFlavor(DishDto dishDto);
+
+    // 获取销量前N的菜品
+    List<DishDto> getTopSellingDishes(int limit);
 }

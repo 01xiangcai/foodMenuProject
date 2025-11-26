@@ -45,6 +45,12 @@ public class Dish implements Serializable {
     // 排序
     private Integer sort;
 
+    // 卡路里
+    private String calories;
+
+    // 标签
+    private String tags;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 
