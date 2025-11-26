@@ -32,8 +32,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class OrdersController {
 
-    private static final String DEFAULT_DISH_IMAGE =
-            "https://dummyimage.com/800x600/0f172a/ffffff&text=family+dish";
+    private static final String DEFAULT_DISH_IMAGE = "https://dummyimage.com/800x600/0f172a/ffffff&text=family+dish";
 
     @Autowired
     private OrdersService ordersService;
@@ -87,16 +86,7 @@ public class OrdersController {
             Page<Orders> pageInfo = new Page<>(page, pageSize);
             LambdaQueryWrapper<Orders> queryWrapper = new LambdaQueryWrapper<>();
 
-            // For admin panel: query all orders (no token)
-            // For mini program: only query current user's orders when token is provided
-            if (token != null && !token.isEmpty()) {
-                if (token.startsWith("Bearer ")) {
-                    token = token.substring(7);
-                }
-                Long userId = JwtUtil.getUserId(token);
-                queryWrapper.eq(Orders::getUserId, userId);
-            }
-
+            // Admin panel should see all orders - no userId filtering
             queryWrapper.orderByDesc(Orders::getCreateTime);
 
             ordersService.page(pageInfo, queryWrapper);
@@ -121,7 +111,18 @@ public class OrdersController {
                 if (wxUser != null) {
                     dto.setUserNickname(wxUser.getNickname());
                     dto.setUserPhone(wxUser.getPhone());
-                    dto.setUserAvatar(wxUser.getAvatar());
+                    // Generate presigned URL for avatar
+                    if (StringUtils.hasText(wxUser.getAvatar())) {
+                        try {
+                            String presignedUrl = ossService.generatePresignedUrl(wxUser.getAvatar());
+                            dto.setUserAvatar(presignedUrl);
+                        } catch (Exception e) {
+                            log.warn("Failed to generate presigned URL for avatar: {}", wxUser.getAvatar(), e);
+                            dto.setUserAvatar(wxUser.getAvatar());
+                        }
+                    } else {
+                        dto.setUserAvatar(wxUser.getAvatar());
+                    }
                 }
 
                 return dto;
@@ -132,6 +133,79 @@ public class OrdersController {
             return Result.success(dtoPage);
         } catch (Exception e) {
             log.error("Query orders failed: {}", e.getMessage());
+            return Result.error("Query failed");
+        }
+    }
+
+    /**
+     * Query current user's orders (for mini program)
+     */
+    @Operation(summary = "查询我的订单", description = "小程序用户查询自己的订单列表")
+    @GetMapping("/my")
+    public Result<Page<OrdersDto>> myOrders(int page, int pageSize,
+            @RequestHeader("Authorization") String token) {
+        log.info("Query my orders: page={}, pageSize={}", page, pageSize);
+
+        try {
+            // Remove "Bearer " prefix if exists
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7);
+            }
+
+            Long userId = JwtUtil.getUserId(token);
+            log.info("Query orders for wx_user: {}", userId);
+
+            Page<Orders> pageInfo = new Page<>(page, pageSize);
+            LambdaQueryWrapper<Orders> queryWrapper = new LambdaQueryWrapper<>();
+
+            // Filter by current user's ID (wx_user)
+            queryWrapper.eq(Orders::getUserId, userId);
+            queryWrapper.orderByDesc(Orders::getCreateTime);
+
+            ordersService.page(pageInfo, queryWrapper);
+
+            // Convert to DTO and load order items + user info
+            Page<OrdersDto> dtoPage = new Page<>();
+            BeanUtils.copyProperties(pageInfo, dtoPage);
+
+            List<OrdersDto> dtoList = pageInfo.getRecords().stream().map(order -> {
+                OrdersDto dto = new OrdersDto();
+                BeanUtils.copyProperties(order, dto);
+
+                // Load order items
+                LambdaQueryWrapper<OrderItem> itemQueryWrapper = new LambdaQueryWrapper<>();
+                itemQueryWrapper.eq(OrderItem::getOrderId, order.getId());
+                List<OrderItem> orderItems = orderItemService.list(itemQueryWrapper);
+                dto.setOrderItems(orderItems != null ? orderItems : new java.util.ArrayList<>());
+                enrichOrderItemImages(dto.getOrderItems());
+
+                // Load user information
+                WxUser wxUser = wxUserService.getById(order.getUserId());
+                if (wxUser != null) {
+                    dto.setUserNickname(wxUser.getNickname());
+                    dto.setUserPhone(wxUser.getPhone());
+                    // Generate presigned URL for avatar
+                    if (StringUtils.hasText(wxUser.getAvatar())) {
+                        try {
+                            String presignedUrl = ossService.generatePresignedUrl(wxUser.getAvatar());
+                            dto.setUserAvatar(presignedUrl);
+                        } catch (Exception e) {
+                            log.warn("Failed to generate presigned URL for avatar: {}", wxUser.getAvatar(), e);
+                            dto.setUserAvatar(wxUser.getAvatar());
+                        }
+                    } else {
+                        dto.setUserAvatar(wxUser.getAvatar());
+                    }
+                }
+
+                return dto;
+            }).collect(Collectors.toList());
+
+            dtoPage.setRecords(dtoList);
+
+            return Result.success(dtoPage);
+        } catch (Exception e) {
+            log.error("Query my orders failed: {}", e.getMessage());
             return Result.error("Query failed");
         }
     }
@@ -197,8 +271,10 @@ public class OrdersController {
     }
 
     /**
-     * Ensure each order item carries a valid presigned image URL before returning to the client.
-     * This prevents frontend issues such as expired OSS URLs or missing domain prefixes.
+     * Ensure each order item carries a valid presigned image URL before returning
+     * to the client.
+     * This prevents frontend issues such as expired OSS URLs or missing domain
+     * prefixes.
      */
     private void enrichOrderItemImages(List<OrderItem> orderItems) {
         if (orderItems == null || orderItems.isEmpty()) {

@@ -31,10 +31,6 @@
 
     <section class="glass-card hover-rise dishes-card">
       <div class="table-header">
-        <div>
-          <h2>家庭菜品</h2>
-          <p>与后端实时同步，支持增删改查</p>
-        </div>
         <div class="table-actions">
           <NInput
             v-model:value="keyword"

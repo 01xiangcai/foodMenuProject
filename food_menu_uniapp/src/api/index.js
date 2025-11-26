@@ -74,7 +74,7 @@ export const createOrder = (data) => {
  */
 export const getOrderList = (params) => {
     return request({
-        url: '/order/page',
+        url: '/order/my',  // 使用小程序专用接口
         method: 'GET',
         data: params
     })
