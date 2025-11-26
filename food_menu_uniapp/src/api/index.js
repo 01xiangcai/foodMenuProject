@@ -140,7 +140,7 @@ export const getFavoriteList = () => {
  * 用户登录
  * @param {Object} data 登录数据
  */
-export const login = (data) => {
+export const wxLogin = (data) => {
     return request({
         url: '/wx/user/login',
         method: 'POST',
@@ -163,7 +163,7 @@ export const sendCode = (phone) => {
 /**
  * 获取用户信息
  */
-export const getUserInfo = () => {
+export const getWxUserInfo = () => {
     return request({
         url: '/wx/user/info',
         method: 'GET'
@@ -174,7 +174,7 @@ export const getUserInfo = () => {
  * 更新用户信息
  * @param {Object} data 用户信息
  */
-export const updateUserInfo = (data) => {
+export const updateWxUserInfo = (data) => {
     return request({
         url: '/wx/user',
         method: 'PUT',

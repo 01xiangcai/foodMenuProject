@@ -26,12 +26,16 @@ public class DishComment implements Serializable {
     // 父评论ID
     private Long parentId;
 
-    // 用户ID
-    private Long userId;
+    // 微信用户ID
+    private Long wxUserId;
 
     // 作者名称
     private String authorName;
 
+    // 作者头像URL
+    private String avatarUrl;
+    // 被回复人昵称
+    private String replyToName;
     // 评论内容
     private String content;
 

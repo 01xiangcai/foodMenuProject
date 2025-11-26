@@ -4,9 +4,10 @@ import com.yao.food_menu.common.Result;
 import com.yao.food_menu.common.util.JwtUtil;
 import com.yao.food_menu.dto.DishCommentDto;
 import com.yao.food_menu.entity.DishComment;
-import com.yao.food_menu.entity.User;
+import com.yao.food_menu.entity.WxUser;
 import com.yao.food_menu.service.DishCommentService;
-import com.yao.food_menu.service.UserService;
+import com.yao.food_menu.service.WxUserService;
+import com.yao.food_menu.service.OssService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
@@ -26,36 +27,80 @@ public class DishCommentController {
     private DishCommentService dishCommentService;
 
     @Autowired
-    private UserService userService;
+    private WxUserService wxUserService;
+
+    @Autowired
+    private OssService ossService;
 
     @Operation(summary = "查询菜品评论", description = "查询指定菜品的评论及回复")
     @GetMapping("/{dishId}")
     public Result<List<DishCommentDto>> list(@PathVariable Long dishId) {
         List<DishCommentDto> comments = dishCommentService.listByDishId(dishId);
+
+        // 转换头像URL
+        comments.forEach(comment -> {
+            convertAvatarUrl(comment);
+            // 转换回复的头像URL
+            if (comment.getReplies() != null) {
+                comment.getReplies().forEach(this::convertAvatarUrl);
+            }
+        });
+
         return Result.success(comments);
+    }
+
+    /**
+     * 将头像objectKey转换为预签名URL
+     */
+    private void convertAvatarUrl(DishCommentDto comment) {
+        if (StringUtils.hasText(comment.getAvatarUrl())) {
+            try {
+                String presignedUrl = ossService.generatePresignedUrl(comment.getAvatarUrl());
+                comment.setAvatarUrl(presignedUrl);
+            } catch (Exception e) {
+                log.warn("转换头像URL失败: {}, 错误: {}", comment.getAvatarUrl(), e.getMessage());
+                // 保留原始值或设置为null
+            }
+        }
     }
 
     @Operation(summary = "新增评论", description = "新增菜品评论或回复")
     @PostMapping
-    public Result<String> create(@RequestBody DishComment comment, @RequestHeader("Authorization") String token) {
+    public Result<String> create(@RequestBody DishComment comment,
+            @RequestHeader(value = "Authorization", required = false) String token) {
         try {
-            if (token.startsWith("Bearer ")) {
+            if (token != null && token.startsWith("Bearer ")) {
                 token = token.substring(7);
             }
-            Long userId = JwtUtil.getUserId(token);
-            comment.setUserId(userId);
 
-            if (!StringUtils.hasText(comment.getAuthorName())) {
-                User user = userService.getById(userId);
-                comment.setAuthorName(user != null && StringUtils.hasText(user.getName()) ? user.getName() : "家庭成员");
+            if (token == null || token.isEmpty()) {
+                return Result.error("请先登录");
+            }
+
+            Long wxUserId = JwtUtil.getUserId(token);
+            comment.setWxUserId(wxUserId);
+
+            // 优先从WxUser获取用户信息
+            WxUser wxUser = wxUserService.getById(wxUserId);
+            if (wxUser != null) {
+                if (!StringUtils.hasText(comment.getAuthorName())) {
+                    comment.setAuthorName(StringUtils.hasText(wxUser.getNickname()) ? wxUser.getNickname() : "家庭成员");
+                }
+                if (!StringUtils.hasText(comment.getAvatarUrl()) && StringUtils.hasText(wxUser.getAvatar())) {
+                    comment.setAvatarUrl(wxUser.getAvatar());
+                }
+            } else {
+                // 如果WxUser不存在，使用默认值
+                if (!StringUtils.hasText(comment.getAuthorName())) {
+                    comment.setAuthorName("家庭成员");
+                }
             }
 
             dishCommentService.save(comment);
-            return Result.success("Comment added");
+            return Result.success("评论发表成功");
         } catch (Exception e) {
             log.error("Create comment failed", e);
-            return Result.error("Failed to add comment");
+            return Result.error("评论发表失败: " + e.getMessage());
         }
     }
 }
-

@@ -239,6 +239,12 @@ const goToDetail = (dishId) => {
 const toggleCartPopup = () => {
   if (cartStore.totalCount > 0) {
     cartPopupVisible.value = !cartPopupVisible.value
+  } else {
+    uni.showToast({
+      title: '购物车是空的，快去选购吧~',
+      icon: 'none',
+      duration: 2000
+    })
   }
 }
 

@@ -19,7 +19,7 @@ public class DishCommentServiceImpl extends ServiceImpl<DishCommentMapper, DishC
     public List<DishCommentDto> listByDishId(Long dishId) {
         LambdaQueryWrapper<DishComment> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(DishComment::getDishId, dishId)
-                .orderByAsc(DishComment::getCreateTime);
+                .orderByDesc(DishComment::getCreateTime); // 改为倒序，最新的在前
         List<DishComment> comments = this.list(queryWrapper);
 
         Map<Long, List<DishCommentDto>> childrenMap = comments.stream()
@@ -42,11 +42,12 @@ public class DishCommentServiceImpl extends ServiceImpl<DishCommentMapper, DishC
         dto.setId(comment.getId());
         dto.setDishId(comment.getDishId());
         dto.setParentId(comment.getParentId());
-        dto.setUserId(comment.getUserId());
+        dto.setWxUserId(comment.getWxUserId());
         dto.setAuthorName(comment.getAuthorName());
+        dto.setAvatarUrl(comment.getAvatarUrl()); // 添加头像URL映射
+        dto.setReplyToName(comment.getReplyToName());
         dto.setContent(comment.getContent());
         dto.setCreateTime(comment.getCreateTime());
         return dto;
     }
 }
-

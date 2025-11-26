@@ -21,11 +21,17 @@
       <!-- 3. 评论卡片 -->
       <view class="card comment-card">
         <view class="comment-header">
-          <text class="comment-title">家庭评论 0 条留言</text>
+          <text class="comment-title">家庭评论 {{ totalCommentCount }} 条留言</text>
+          <view class="add-comment-btn" @tap="showCommentInput">
+            <text>✍️ 发表评论</text>
+          </view>
         </view>
-        <view class="comment-empty">
-          <text>第一条味觉灵感等你来写~</text>
-        </view>
+        
+        <!-- 评论列表 -->
+        <CommentList 
+          :comments="comments" 
+          @reply="handleReply"
+        />
       </view>
       
       <!-- 底部占位 -->
@@ -36,6 +42,14 @@
     <CartPopup 
       v-model:visible="cartPopupVisible" 
       @close="cartPopupVisible = false"
+    />
+
+    <!-- 评论输入组件 -->
+    <CommentInput
+      v-model:visible="commentInputVisible"
+      :reply-to="replyToComment"
+      @submit="handleSubmitComment"
+      @close="commentInputVisible = false; replyToComment = null"
     />
 
     <!-- 底部操作栏 -->
@@ -55,12 +69,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getDishDetail } from '@/api/index'
+import { getCommentList, addComment } from '@/api/comment'
 import { useTheme } from '@/stores/theme'
 import { useCartStore } from '@/stores/cart'
 import CartPopup from '@/components/CartPopup.vue'
+import CommentList from '@/components/CommentList.vue'
+import CommentInput from '@/components/CommentInput.vue'
 
 const { themeConfig, loadTheme } = useTheme()
 const cartStore = useCartStore()
@@ -73,6 +90,22 @@ const dish = ref({
   price: 0,
   image: 'https://dummyimage.com/800x600/6366f1/ffffff&text=Loading',
   categoryName: '家庭菜谱'
+})
+
+// 评论相关
+const comments = ref([])
+const commentInputVisible = ref(false)
+const replyToComment = ref(null)
+
+// 计算评论总数（包括回复）
+const totalCommentCount = computed(() => {
+  let count = comments.value.length
+  comments.value.forEach(comment => {
+    if (comment.replies) {
+      count += comment.replies.length
+    }
+  })
+  return count
 })
 
 const loadDishDetail = async (id) => {
@@ -95,6 +128,90 @@ const loadDishDetail = async (id) => {
   }
 }
 
+// 加载评论列表
+const loadComments = async () => {
+  if (!dish.value.id) return
+  
+  try {
+    const res = await getCommentList(dish.value.id)
+    if (res.data) {
+      comments.value = res.data
+    }
+  } catch (error) {
+    console.error('加载评论失败:', error)
+  }
+}
+
+// 显示评论输入框
+const showCommentInput = () => {
+  const token = uni.getStorageSync('fm_token')
+  if (!token) {
+    uni.showToast({
+      title: '请先登录',
+      icon: 'none'
+    })
+    return
+  }
+  
+  replyToComment.value = null
+  commentInputVisible.value = true
+}
+
+// 处理回复 - 支持回复主评论和子评论
+const handleReply = (targetComment, parentComment = null) => {
+  const token = uni.getStorageSync('fm_token')
+  if (!token) {
+    uni.showToast({
+      title: '请先登录',
+      icon: 'none'
+    })
+    return
+  }
+  
+  // 如果是回复子评论，parentComment会有值
+  // 如果是回复主评论，parentComment为null
+  replyToComment.value = {
+    ...targetComment,
+    // 保存被回复人的名字用于显示
+    replyToName: targetComment.authorName,
+    // 如果是回复子评论，parentId应该是主评论的ID
+    actualParentId: parentComment ? parentComment.id : targetComment.id
+  }
+  commentInputVisible.value = true
+}
+
+// 提交评论
+const handleSubmitComment = async (data) => {
+  try {
+    const commentData = {
+      dishId: dish.value.id,
+      content: data.content,
+      parentId: data.parentId,
+      replyToName: data.replyToName
+    }
+    
+    await addComment(commentData)
+    
+    uni.showToast({
+      title: '评论发表成功',
+      icon: 'success'
+    })
+    
+    // 关闭输入框
+    commentInputVisible.value = false
+    replyToComment.value = null
+    
+    // 重新加载评论
+    await loadComments()
+  } catch (error) {
+    console.error('发表评论失败:', error)
+    uni.showToast({
+      title: '发表失败，请重试',
+      icon: 'none'
+    })
+  }
+}
+
 const addToCart = () => {
   cartStore.addToCart(dish.value)
   uni.showToast({
@@ -106,12 +223,22 @@ const addToCart = () => {
 const toggleCartPopup = () => {
   if (cartStore.totalCount > 0) {
     cartPopupVisible.value = !cartPopupVisible.value
+  } else {
+    uni.showToast({
+      title: '购物车是空的，快去选购吧~',
+      icon: 'none',
+      duration: 2000
+    })
   }
 }
 
 onLoad((options) => {
   if (options.id) {
     loadDishDetail(options.id)
+    // 延迟加载评论，确保dish.value.id已设置
+    setTimeout(() => {
+      loadComments()
+    }, 100)
   }
 })
 
@@ -208,6 +335,9 @@ onMounted(() => {
 
 .comment-header {
   margin-bottom: 30rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .comment-title {
@@ -216,15 +346,22 @@ onMounted(() => {
   color: v-bind('themeConfig.textPrimary');
 }
 
-.comment-empty {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 40rpx 0;
+.add-comment-btn {
+  padding: 12rpx 24rpx;
+  background: v-bind('themeConfig.primaryGradient');
+  border-radius: 32rpx;
+  box-shadow: v-bind('themeConfig.shadowLight');
+  transition: all 0.3s ease;
   
   text {
-    font-size: 28rpx;
-    color: v-bind('themeConfig.textSecondary');
+    font-size: 24rpx;
+    color: #fff;
+    font-weight: 600;
+  }
+  
+  &:active {
+    transform: scale(0.95);
+    opacity: 0.9;
   }
 }
 

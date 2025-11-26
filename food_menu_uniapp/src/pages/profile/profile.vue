@@ -113,7 +113,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getUserInfo } from '@/api/index'
+import { getWxUserInfo } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 
 const userInfo = ref({
@@ -164,7 +164,7 @@ const loadUserInfo = async () => {
   }
   
   try {
-    const res = await getUserInfo()
+    const res = await getWxUserInfo()
     if (res.data) {
       // 后端已经返回完整的预签名URL,直接使用即可
       if (!res.data.avatar) {
@@ -238,7 +238,7 @@ const handleSave = async () => {
       mask: true
     })
     
-    const { updateUserInfo, uploadFile } = await import('@/api/index')
+    const { updateWxUserInfo, uploadFile } = await import('@/api/index')
     const updateData = {
       nickname: formData.value.nickname
     }
@@ -262,7 +262,7 @@ const handleSave = async () => {
     }
     
     // 更新用户信息
-    await updateUserInfo(updateData)
+    await updateWxUserInfo(updateData)
     
     uni.hideLoading()
     uni.showToast({

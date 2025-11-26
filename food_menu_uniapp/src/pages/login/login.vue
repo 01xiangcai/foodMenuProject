@@ -47,7 +47,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { login } from '@/api/index'
+import { wxLogin } from '@/api/index'
 
 const username = ref('')
 const password = ref('')
@@ -74,7 +74,7 @@ const handleLogin = async () => {
   }
 
   try {
-    const res = await login({
+    const res = await wxLogin({
       username: username.value,
       password: password.value
     })
