@@ -60,4 +60,9 @@ public interface WxUserService extends IService<WxUser> {
      * 重置用户密码
      */
     String resetPassword(Long id);
+
+    /**
+     * 判断是否为管理员(小程序端)
+     */
+    boolean isAdmin(Long userId);
 }

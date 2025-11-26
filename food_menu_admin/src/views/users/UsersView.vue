@@ -91,6 +91,13 @@
           <NInput v-model:value="userModal.form.phone" placeholder="13800138000" />
         </NFormItem>
         
+        <NFormItem v-if="userModal.form.userType === 'wxuser'" label="小程序角色">
+          <NRadioGroup v-model:value="userModal.form.role">
+            <NRadio :value="0">普通用户</NRadio>
+            <NRadio :value="1">小程序管理员</NRadio>
+          </NRadioGroup>
+        </NFormItem>
+        
         <NFormItem label="状态">
           <NSwitch v-model:value="userModal.form.status" :checked-value="1" :unchecked-value="0">
             <template #checked>启用</template>
@@ -186,6 +193,7 @@ type UnifiedUserRecord = {
   gender?: number;
   status: number;
   createTime: string;
+  role?: number;
 };
 
 const message = useMessage();
@@ -231,7 +239,8 @@ const userModal = reactive({
     nickname: '',
     phone: '',
     gender: 0,
-    status: 1
+    status: 1,
+    role: 0
   }
 });
 
@@ -292,6 +301,15 @@ const columns: DataTableColumns<UnifiedUserRecord> = [
     title: '手机号',
     key: 'phone',
     render: (row) => row.phone || '—'
+  },
+  {
+    title: '角色',
+    key: 'role',
+    width: 100,
+    render: (row) =>
+      row.userType === 'wxuser'
+        ? (row.role === 1 ? '小程序管理员' : '普通用户')
+        : '—'
   },
   {
     title: '状态',
@@ -392,6 +410,7 @@ const resetUserForm = () => {
   userModal.form.phone = '';
   userModal.form.gender = 0;
   userModal.form.status = 1;
+  userModal.form.role = 0;
 };
 
 const openUserModal = () => {
@@ -409,6 +428,7 @@ const openEditModal = (user: UnifiedUserRecord) => {
   userModal.form.phone = user.phone || '';
   userModal.form.gender = user.gender || 0;
   userModal.form.status = user.status;
+  userModal.form.role = user.role ?? 0;
   userModal.show = true;
 };
 
@@ -458,7 +478,8 @@ const saveUser = async () => {
         nickname: userModal.form.nickname || undefined,
         phone: userModal.form.phone || undefined,
         gender: userModal.form.gender,
-        status: userModal.form.status
+        status: userModal.form.status,
+        role: userModal.form.role
       };
       
       if (userModal.form.id) {
@@ -589,7 +610,8 @@ const loadUsers = async () => {
         avatar: user.avatar,
         gender: user.gender,
         status: user.status,
-        createTime: user.createTime
+        createTime: user.createTime,
+        role: user.role
       }));
 
       users.value = [...adminUsers, ...wxUsers].sort(
@@ -637,7 +659,8 @@ const loadUsers = async () => {
         avatar: user.avatar,
         gender: user.gender,
         status: user.status,
-        createTime: user.createTime
+        createTime: user.createTime,
+        role: user.role
       }));
       pagination.itemCount = result.data?.total || 0;
     }

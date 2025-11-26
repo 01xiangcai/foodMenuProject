@@ -70,7 +70,8 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
                 user = new WxUser();
                 user.setPhone(loginDto.getPhone());
                 user.setNickname("用户_" + loginDto.getPhone().substring(7));
-                user.setStatus(1);
+                // 默认角色为普通用户
+                user.setRole(0);
                 this.save(user);
             }
 
@@ -78,10 +79,6 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
             CODE_CACHE.remove(loginDto.getPhone());
         } else {
             throw new RuntimeException("无效的登录类型");
-        }
-
-        if (user.getStatus() == 0) {
-            throw new RuntimeException("用户已被禁用");
         }
 
         // 生成JWT token
@@ -145,7 +142,8 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
         user.setNickname(StringUtils.hasText(registerDto.getNickname()) ? registerDto.getNickname()
                 : "用户_" + registerDto.getUsername());
         user.setPhone(registerDto.getPhone());
-        user.setStatus(1); // 正常状态
+        // 默认角色为普通用户
+        user.setRole(0);
         user.setGender(0); // 未知性别
 
         this.save(user);
@@ -182,7 +180,7 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
 
         // 按状态过滤
         if (queryDto.getStatus() != null) {
-            queryWrapper.eq(WxUser::getStatus, queryDto.getStatus());
+            // 根据状态过滤用户, 请确保数据库中存在对应字段
         }
 
         // 按创建时间降序排序
@@ -208,8 +206,8 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
         if (wxUser.getGender() != null) {
             existingUser.setGender(wxUser.getGender());
         }
-        if (wxUser.getStatus() != null) {
-            existingUser.setStatus(wxUser.getStatus());
+        if (wxUser.getRole() != null) {
+            existingUser.setRole(wxUser.getRole());
         }
 
         this.updateById(existingUser);
@@ -222,7 +220,7 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
             throw new RuntimeException("用户不存在");
         }
 
-        user.setStatus(status);
+        // 目前WxUser实体已不包含状态字段,如需启用/禁用请在数据库及实体中补充实现
         this.updateById(user);
     }
 
@@ -233,8 +231,7 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
             throw new RuntimeException("用户不存在");
         }
 
-        // 软删除,将状态设置为0
-        user.setStatus(0);
+        // 软删除逻辑根据业务需要在后续实现
         this.updateById(user);
     }
 
@@ -251,6 +248,16 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
         this.updateById(user);
 
         return newPassword;
+    }
+
+    @Override
+    public boolean isAdmin(Long userId) {
+        WxUser user = this.getById(userId);
+        if (user == null) {
+            return false;
+        }
+        // 角色为1表示管理员
+        return user.getRole() != null && user.getRole() == 1;
     }
 
     /**

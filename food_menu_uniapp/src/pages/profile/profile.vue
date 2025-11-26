@@ -23,6 +23,11 @@
         <text class="label">我的订单</text>
         <text class="arrow">→</text>
       </view>
+      <view class="menu-item" v-if="isAdmin" @tap="goToOrderManage">
+        <text class="icon">🧾</text>
+        <text class="label">订单管理</text>
+        <text class="arrow">→</text>
+      </view>
       <view class="menu-item" @tap="goToFavorites">
         <text class="icon">❤️</text>
         <text class="label">我的收藏</text>
@@ -33,6 +38,7 @@
         <text class="label">收货地址</text>
         <text class="arrow">→</text>
       </view>
+      
     </view>
 
     <!-- 其他设置 -->
@@ -119,7 +125,8 @@ import { useTheme } from '@/stores/theme'
 const userInfo = ref({
   nickname: '',
   phone: '',
-  avatar: 'https://dummyimage.com/200x200/6366f1/ffffff&text=User'
+  avatar: 'https://dummyimage.com/200x200/6366f1/ffffff&text=User',
+  role: 0
 })
 
 // 使用主题store
@@ -137,6 +144,11 @@ const formData = ref({
 // 判断是否已登录
 const isLoggedIn = computed(() => {
   return !!userInfo.value.nickname
+})
+
+// 判断是否为管理员
+const isAdmin = computed(() => {
+  return userInfo.value.role === 1
 })
 
 // 检查登录状态
@@ -171,8 +183,10 @@ const loadUserInfo = async () => {
         // 如果没有头像,使用默认头像
         res.data.avatar = 'https://dummyimage.com/200x200/6366f1/ffffff&text=User'
       }
-      
+
       userInfo.value = res.data
+      // 将角色缓存到本地,便于其他页面使用
+      uni.setStorageSync('fm_role', res.data.role || 0)
     }
   } catch (error) {
     console.error('获取用户信息失败:', error)
@@ -305,6 +319,23 @@ const goToAddress = () => {
   uni.showToast({
     title: '地址管理功能开发中',
     icon: 'none'
+  })
+}
+
+// 跳转订单管理(管理员)
+const goToOrderManage = () => {
+  if (!checkLogin()) {
+    return
+  }
+  if (!isAdmin.value) {
+    uni.showToast({
+      title: '仅管理员可访问订单管理',
+      icon: 'none'
+    })
+    return
+  }
+  uni.navigateTo({
+    url: '/pages/order/admin-list'
   })
 }
 

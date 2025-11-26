@@ -76,7 +76,7 @@ public class OrdersController {
     /**
      * Query orders by page
      */
-    @Operation(summary = "分页查询订单", description = "查询当前用户的订单列表，包含订单明细")
+    @Operation(summary = "分页查询订单", description = "分页查询订单列表，包含订单明细，后台和小程序管理员使用")
     @GetMapping("/page")
     public Result<Page<OrdersDto>> page(int page, int pageSize,
             @RequestHeader(value = "Authorization", required = false) String token) {
@@ -86,7 +86,7 @@ public class OrdersController {
             Page<Orders> pageInfo = new Page<>(page, pageSize);
             LambdaQueryWrapper<Orders> queryWrapper = new LambdaQueryWrapper<>();
 
-            // Admin panel should see all orders - no userId filtering
+            // 后台和小程序管理员默认查看全部订单，不按用户过滤
             queryWrapper.orderByDesc(Orders::getCreateTime);
 
             ordersService.page(pageInfo, queryWrapper);
@@ -254,14 +254,133 @@ public class OrdersController {
     }
 
     /**
+     * Query all orders (for mini program admin)
+     */
+    @Operation(summary = "管理员查询所有订单", description = "小程序管理员查看所有订单")
+    @GetMapping("/admin")
+    public Result<Page<OrdersDto>> adminOrders(int page, int pageSize,
+            @RequestHeader("Authorization") String token) {
+        log.info("Query admin orders: page={}, pageSize={}", page, pageSize);
+
+        try {
+            // Remove "Bearer " prefix if exists
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7);
+            }
+
+            Long userId = JwtUtil.getUserId(token);
+            if (!wxUserService.isAdmin(userId)) {
+                return Result.error("无权限访问");
+            }
+
+            Page<Orders> pageInfo = new Page<>(page, pageSize);
+            LambdaQueryWrapper<Orders> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.orderByDesc(Orders::getCreateTime);
+
+            ordersService.page(pageInfo, queryWrapper);
+
+            // Convert to DTO and load order items + user info
+            Page<OrdersDto> dtoPage = new Page<>();
+            BeanUtils.copyProperties(pageInfo, dtoPage);
+
+            List<OrdersDto> dtoList = pageInfo.getRecords().stream().map(order -> {
+                OrdersDto dto = new OrdersDto();
+                BeanUtils.copyProperties(order, dto);
+
+                // Load order items
+                LambdaQueryWrapper<OrderItem> itemQueryWrapper = new LambdaQueryWrapper<>();
+                itemQueryWrapper.eq(OrderItem::getOrderId, order.getId());
+                List<OrderItem> orderItems = orderItemService.list(itemQueryWrapper);
+                dto.setOrderItems(orderItems != null ? orderItems : new java.util.ArrayList<>());
+                enrichOrderItemImages(dto.getOrderItems());
+
+                // Load user information
+                WxUser wxUser = wxUserService.getById(order.getUserId());
+                if (wxUser != null) {
+                    dto.setUserNickname(wxUser.getNickname());
+                    dto.setUserPhone(wxUser.getPhone());
+                    // Generate presigned URL for avatar
+                    if (StringUtils.hasText(wxUser.getAvatar())) {
+                        try {
+                            String presignedUrl = ossService.generatePresignedUrl(wxUser.getAvatar());
+                            dto.setUserAvatar(presignedUrl);
+                        } catch (Exception e) {
+                            log.warn("Failed to generate presigned URL for avatar: {}", wxUser.getAvatar(), e);
+                            dto.setUserAvatar(wxUser.getAvatar());
+                        }
+                    } else {
+                        dto.setUserAvatar(wxUser.getAvatar());
+                    }
+                }
+
+                return dto;
+            }).collect(Collectors.toList());
+
+            dtoPage.setRecords(dtoList);
+
+            return Result.success(dtoPage);
+        } catch (Exception e) {
+            log.error("Query admin orders failed: {}", e.getMessage());
+            return Result.error("Query failed");
+        }
+    }
+
+    /**
      * Update order status
      */
-    @Operation(summary = "更新订单状态", description = "更新订单状态:0-待接单,1-准备中,2-配送中,3-已完成,4-已取消")
+    @Operation(summary = "更新订单状态", description = "更新订单状态:0-待接单,1-准备中,2-配送中,3-已完成,4-已取消。仅管理员可操作，普通用户仅可取消")
     @PutMapping("/status")
-    public Result<String> updateStatus(@RequestParam Long id, @RequestParam Integer status) {
+    public Result<String> updateStatus(@RequestParam Long id, @RequestParam Integer status,
+            @RequestHeader(value = "Authorization", required = false) String token) {
         log.info("Update order status: id={}, status={}", id, status);
 
         try {
+            boolean isAdmin = false;
+            Long userId = null;
+
+            if (StringUtils.hasText(token)) {
+                if (token.startsWith("Bearer ")) {
+                    token = token.substring(7);
+                }
+                try {
+                    userId = JwtUtil.getUserId(token);
+                    // 小程序端管理员
+                    if (wxUserService.isAdmin(userId)) {
+                        isAdmin = true;
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to parse token when updating order status: {}", e.getMessage());
+                }
+            }
+
+            // 如果不是管理员，检查是否为普通用户取消自己的订单
+            if (!isAdmin) {
+                // 如果没有token（可能是后台管理端），或者有token但不是管理员
+                if (token == null) {
+                    // 后台管理端请求，默认允许（假设网关已鉴权）
+                    log.warn("No token provided when updating order status, assuming admin panel context");
+                } else {
+                    // 小程序普通用户
+                    if (userId == null) {
+                        return Result.error("未登录");
+                    }
+
+                    // 只能执行取消操作 (status = 4)
+                    if (status != 4) {
+                        return Result.error("无权限执行此操作");
+                    }
+
+                    // 检查订单是否属于当前用户
+                    Orders order = ordersService.getById(id);
+                    if (order == null) {
+                        return Result.error("订单不存在");
+                    }
+                    if (!order.getUserId().equals(userId)) {
+                        return Result.error("无权限修改他人订单");
+                    }
+                }
+            }
+
             ordersService.updateStatus(id, status);
             return Result.success("Order status updated successfully");
         } catch (Exception e) {

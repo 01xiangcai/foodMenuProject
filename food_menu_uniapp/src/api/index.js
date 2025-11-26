@@ -69,6 +69,18 @@ export const createOrder = (data) => {
 }
 
 /**
+ * 管理员获取全部订单列表
+ * @param {Object} params 查询参数
+ */
+export const getAllOrders = (params) => {
+    return request({
+        url: '/order/admin',
+        method: 'GET',
+        data: params
+    })
+}
+
+/**
  * 获取订单列表
  * @param {Object} params 查询参数
  */

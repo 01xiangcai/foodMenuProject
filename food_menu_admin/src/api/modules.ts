@@ -97,6 +97,7 @@ export type WxUserPayload = {
   avatar?: string;
   gender?: number;
   status?: number;
+  role?: number;
 };
 
 export const login = (data: LoginPayload) => http.post('/user/login', data);
