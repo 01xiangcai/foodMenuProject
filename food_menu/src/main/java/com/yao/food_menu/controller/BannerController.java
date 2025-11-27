@@ -27,6 +27,9 @@ public class BannerController {
     @Autowired
     private OssService ossService;
 
+    @Autowired
+    private com.yao.food_menu.common.config.FileStorageProperties fileStorageProperties;
+
     private static final String DEFAULT_IMAGE = "https://dummyimage.com/800x400/0f172a/ffffff&text=banner";
 
     @Operation(summary = "添加轮播图", description = "添加轮播图")
@@ -34,6 +37,7 @@ public class BannerController {
     public Result<String> save(@RequestBody Banner banner) {
         log.info("banner:{}", banner);
         ensureImage(banner);
+        handleImageFields(banner);
         bannerService.save(banner);
         return Result.success("Banner added successfully");
     }
@@ -63,6 +67,7 @@ public class BannerController {
     public Result<String> update(@RequestBody Banner banner) {
         log.info("Update banner: {}", banner);
         ensureImage(banner);
+        handleImageFields(banner);
         bannerService.updateById(banner);
         return Result.success("Banner updated successfully");
     }
@@ -96,10 +101,43 @@ public class BannerController {
     }
 
     /**
+     * 处理图片字段，确保本地存储的图片路径同时保存到localImage字段
+     */
+    private void handleImageFields(Banner banner) {
+        String image = banner.getImage();
+        if (!StringUtils.hasText(image)) {
+            return;
+        }
+
+        // 如果使用本地存储，且image字段是相对路径（不是完整URL），则同时保存到localImage
+        if (fileStorageProperties.isLocal() && !image.startsWith("http://") && !image.startsWith("https://")) {
+            banner.setLocalImage(image);
+            log.debug("设置本地图片路径: {}", image);
+        }
+    }
+
+    @Autowired
+    private com.yao.food_menu.common.config.LocalStorageProperties localStorageProperties;
+
+    /**
      * Convert OSS object key to presigned URL for Banner entity
      */
     private void convertBannerImageToPresignedUrl(Banner banner) {
-        if (banner == null || !StringUtils.hasText(banner.getImage())) {
+        if (banner == null) {
+            return;
+        }
+
+        // 1. 优先使用本地图片
+        if (StringUtils.hasText(banner.getLocalImage())) {
+            String urlPrefix = localStorageProperties.getUrlPrefix();
+            if (!urlPrefix.endsWith("/")) {
+                urlPrefix += "/";
+            }
+            banner.setImage(urlPrefix + banner.getLocalImage());
+            return;
+        }
+
+        if (!StringUtils.hasText(banner.getImage())) {
             return;
         }
         String image = banner.getImage();

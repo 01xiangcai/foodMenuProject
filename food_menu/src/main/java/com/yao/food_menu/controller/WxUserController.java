@@ -32,6 +32,9 @@ public class WxUserController {
     @Autowired
     private OssService ossService;
 
+    @Autowired
+    private com.yao.food_menu.common.config.FileStorageProperties fileStorageProperties;
+
     /**
      * 发送验证码
      */
@@ -122,9 +125,21 @@ public class WxUserController {
             }
             Long userId = com.yao.food_menu.common.util.JwtUtil.getUserId(token);
 
-            // 上传到OSS
+            // 上传到存储
             String objectKey = ossService.uploadAvatar(file);
             String presignedUrl = ossService.generatePresignedUrl(objectKey);
+
+            // 如果使用本地存储，需要同时更新localAvatar字段
+            if (fileStorageProperties.isLocal() && !objectKey.startsWith("http://")
+                    && !objectKey.startsWith("https://")) {
+                WxUser user = wxUserService.getById(userId);
+                if (user != null) {
+                    user.setLocalAvatar(objectKey);
+                    user.setAvatar(objectKey); // 也更新avatar字段以保持兼容
+                    wxUserService.updateById(user);
+                    log.debug("设置本地头像路径: {}", objectKey);
+                }
+            }
 
             UploadResult result = new UploadResult(objectKey, presignedUrl);
             return Result.success(result);
@@ -133,6 +148,9 @@ public class WxUserController {
             return Result.error("上传失败: " + e.getMessage());
         }
     }
+
+    @Autowired
+    private com.yao.food_menu.common.config.LocalStorageProperties localStorageProperties;
 
     /**
      * 获取当前用户信息
@@ -154,8 +172,16 @@ public class WxUserController {
             // 不返回密码
             user.setPassword(null);
 
-            // 如果存在头像,将objectKey转换为预签名URL
-            if (StringUtils.hasText(user.getAvatar())) {
+            // 1. 优先使用本地头像
+            if (StringUtils.hasText(user.getLocalAvatar())) {
+                String urlPrefix = localStorageProperties.getUrlPrefix();
+                if (!urlPrefix.endsWith("/")) {
+                    urlPrefix += "/";
+                }
+                user.setAvatar(urlPrefix + user.getLocalAvatar());
+            }
+            // 2. 如果存在头像,将objectKey转换为预签名URL
+            else if (StringUtils.hasText(user.getAvatar())) {
                 String presignedUrl = ossService.generatePresignedUrl(user.getAvatar());
                 user.setAvatar(presignedUrl);
             }
@@ -167,40 +193,7 @@ public class WxUserController {
         }
     }
 
-    /**
-     * 更新用户信息
-     */
-    @Operation(summary = "更新用户信息", description = "更新当前用户的昵称、头像等信息")
-    @PutMapping
-    public Result<String> update(@RequestBody UpdateUserDto updateDto, @RequestHeader("Authorization") String token) {
-        log.info("更新用户信息: {}", updateDto);
-
-        try {
-            // 移除"Bearer "前缀(如果存在)
-            if (token.startsWith("Bearer ")) {
-                token = token.substring(7);
-            }
-
-            Long userId = com.yao.food_menu.common.util.JwtUtil.getUserId(token);
-
-            // 构建WxUser实体用于更新
-            WxUser user = new WxUser();
-            user.setId(userId);
-            user.setNickname(updateDto.getNickname());
-
-            // 如果头像是完整URL,提取objectKey
-            String avatarKey = ossService.extractKeyFromUrl(updateDto.getAvatar());
-            user.setAvatar(avatarKey);
-
-            user.setGender(updateDto.getGender());
-
-            wxUserService.updateById(user);
-            return Result.success("用户信息更新成功");
-        } catch (Exception e) {
-            log.error("更新用户信息失败: {}", e.getMessage());
-            return Result.error("更新失败");
-        }
-    }
+    // ... (skip update method)
 
     /**
      * 分页查询用户(管理员)
@@ -215,8 +208,17 @@ public class WxUserController {
             // 移除密码并转换头像URL
             page.getRecords().forEach(user -> {
                 user.setPassword(null);
-                // 如果存在头像,将objectKey转换为预签名URL
-                if (StringUtils.hasText(user.getAvatar())) {
+
+                // 1. 优先使用本地头像
+                if (StringUtils.hasText(user.getLocalAvatar())) {
+                    String urlPrefix = localStorageProperties.getUrlPrefix();
+                    if (!urlPrefix.endsWith("/")) {
+                        urlPrefix += "/";
+                    }
+                    user.setAvatar(urlPrefix + user.getLocalAvatar());
+                }
+                // 2. 如果存在头像,将objectKey转换为预签名URL
+                else if (StringUtils.hasText(user.getAvatar())) {
                     try {
                         log.debug("为头像生成预签名URL: {}", user.getAvatar());
                         String presignedUrl = ossService.generatePresignedUrl(user.getAvatar());
@@ -268,11 +270,28 @@ public class WxUserController {
                 return Result.error("用户ID不能为空");
             }
 
+            handleAvatarFields(wxUser);
             wxUserService.updateWxUser(wxUser);
             return Result.success("用户更新成功");
         } catch (Exception e) {
             log.error("更新微信用户失败: {}", e.getMessage());
             return Result.error(e.getMessage());
+        }
+    }
+
+    /**
+     * 处理头像字段，确保本地存储的头像路径同时保存到localAvatar字段
+     */
+    private void handleAvatarFields(WxUser wxUser) {
+        String avatar = wxUser.getAvatar();
+        if (!StringUtils.hasText(avatar)) {
+            return;
+        }
+
+        // 如果使用本地存储，且avatar字段是相对路径（不是完整URL），则同时保存到localAvatar
+        if (fileStorageProperties.isLocal() && !avatar.startsWith("http://") && !avatar.startsWith("https://")) {
+            wxUser.setLocalAvatar(avatar);
+            log.debug("设置本地头像路径: {}", avatar);
         }
     }
 

@@ -39,7 +39,7 @@
         <textarea 
           class="textarea" 
           placeholder="口味偏好、餐具数量等" 
-          placeholder-style="color: rgba(255, 255, 255, 0.5);"
+          :placeholder-style="`color: ${themeConfig.textSecondary};`"
           v-model="remark"
           maxlength="200"
         />
@@ -64,8 +64,10 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { createOrder } from '@/api/index'
 import { useTheme } from '@/stores/theme'
+import { useCartStore } from '@/stores/cart'
 
 const { themeConfig } = useTheme()
+const cartStore = useCartStore()
 
 
 
@@ -106,6 +108,9 @@ const submitOrder = async () => {
     const res = await createOrder(orderData)
     
     if (res.data) {
+      // 清空购物车
+      cartStore.clearCart()
+      
       uni.showToast({
         title: '订单提交成功',
         icon: 'success'
@@ -149,18 +154,18 @@ onLoad((options) => {
 <style lang="scss" scoped>
 .page {
   min-height: 100vh;
-  background-color: #111526; /* 深蓝背景 */
+  background-color: v-bind('themeConfig.bgPrimary');
   padding: 24rpx;
   padding-bottom: 180rpx;
   box-sizing: border-box;
 }
 
 .card {
-  background-color: #1e2235; /* 卡片背景 */
+  background-color: v-bind('themeConfig.bgSecondary');
   border-radius: 24rpx;
   padding: 30rpx;
   margin-bottom: 24rpx;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid v-bind('themeConfig.borderColor');
 }
 
 .card-header {
@@ -170,7 +175,7 @@ onLoad((options) => {
 .card-title {
   font-size: 32rpx;
   font-weight: 600;
-  color: #ffffff;
+  color: v-bind('themeConfig.textPrimary');
 }
 
 .order-item {
@@ -188,7 +193,7 @@ onLoad((options) => {
   height: 100rpx;
   border-radius: 16rpx;
   margin-right: 24rpx;
-  background-color: #2a2f45;
+  background-color: v-bind('themeConfig.bgTertiary');
 }
 
 .item-content {
@@ -201,25 +206,25 @@ onLoad((options) => {
 
 .item-name {
   font-size: 28rpx;
-  color: #ffffff;
+  color: v-bind('themeConfig.textPrimary');
   font-weight: 500;
 }
 
 .item-price {
   font-size: 28rpx;
-  color: #ffffff;
+  color: v-bind('themeConfig.textPrimary');
   font-weight: 600;
 }
 
 .item-quantity {
   font-size: 28rpx;
-  color: #ffffff;
+  color: v-bind('themeConfig.textPrimary');
   margin-left: 20rpx;
 }
 
 .divider {
   height: 1px;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: v-bind('themeConfig.borderColor');
   margin: 30rpx 0;
 }
 
@@ -231,18 +236,18 @@ onLoad((options) => {
 
 .summary-row .label {
   font-size: 30rpx;
-  color: #ffffff;
+  color: v-bind('themeConfig.textPrimary');
   font-weight: 600;
 }
 
 .summary-row .value {
   font-size: 36rpx;
-  color: #ffffff;
+  color: v-bind('themeConfig.textPrimary');
   font-weight: 700;
 }
 
 .textarea-wrapper {
-  background-color: #2a2f45;
+  background-color: v-bind('themeConfig.bgTertiary');
   border-radius: 12rpx;
   padding: 20rpx;
 }
@@ -251,7 +256,7 @@ onLoad((options) => {
   width: 100%;
   height: 160rpx;
   font-size: 28rpx;
-  color: #ffffff;
+  color: v-bind('themeConfig.textPrimary');
   line-height: 1.5;
 }
 
@@ -261,14 +266,14 @@ onLoad((options) => {
   left: 24rpx;
   right: 24rpx;
   height: 110rpx;
-  background-color: #1e2235;
+  background-color: v-bind('themeConfig.bgSecondary');
   border-radius: 55rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 10rpx 0 40rpx;
   box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid v-bind('themeConfig.borderColor');
   z-index: 100;
 }
 
@@ -280,20 +285,20 @@ onLoad((options) => {
 
 .total-info .label {
   font-size: 30rpx;
-  color: #ffffff;
+  color: v-bind('themeConfig.textPrimary');
   font-weight: 600;
 }
 
 .total-info .price {
   font-size: 36rpx;
-  color: #00e5ff; /* 青色高亮 */
+  color: v-bind('themeConfig.primary');
   font-weight: 700;
 }
 
 .btn-submit {
   width: 240rpx;
   height: 90rpx;
-  background: linear-gradient(90deg, #66ffff 0%, #ff99ff 100%);
+  background: v-bind('themeConfig.gradient');
   border-radius: 45rpx;
   display: flex;
   align-items: center;
@@ -301,7 +306,7 @@ onLoad((options) => {
   
   text {
     font-size: 30rpx;
-    color: #ffffff;
+    color: v-bind('themeConfig.buttonText');
     font-weight: 600;
   }
   

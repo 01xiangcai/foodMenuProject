@@ -27,6 +27,46 @@ import java.util.UUID;
 @Slf4j
 public class OssStorageStrategy implements FileStorageStrategy {
 
+    private final AliyunOssProperties ossProperties;
+
+    @Override
+    public String upload(MultipartFile file, FolderType folderType) {
+        // 验证文件
+        FileValidationUtil.validateImageFile(file);
+
+        String originalFilename = file.getOriginalFilename();
+        String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+        String fileName = UUID.randomUUID().toString() + extension;
+
+        // 确定文件夹
+        String folder = folderType == FolderType.AVATAR ? ossProperties.getAvatarFolder() : ossProperties.getFolder();
+
+        // 确保文件夹以/结尾
+        if (!folder.endsWith("/")) {
+            folder += "/";
+        }
+
+        String objectKey = folder + fileName;
+
+        OSS ossClient = null;
+        try {
+            String clientEndpoint = normalizeEndpoint(ossProperties.getEndpoint());
+            ossClient = new OSSClientBuilder()
+                    .build(clientEndpoint, ossProperties.getAccessKeyId(), ossProperties.getAccessKeySecret());
+
+            ossClient.putObject(ossProperties.getBucketName(), objectKey, file.getInputStream());
+
+            return objectKey;
+        } catch (IOException e) {
+            log.error("Failed to upload file to OSS", e);
+            throw new RuntimeException("文件上传失败", e);
+        } finally {
+            if (ossClient != null) {
+                ossClient.shutdown();
+            }
+        }
+    }
+
     @Override
     public String generateUrl(String objectKey) {
         OSS ossClient = null;

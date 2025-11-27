@@ -37,11 +37,15 @@ public class DishController {
     @Autowired
     private OssService ossService;
 
+    @Autowired
+    private com.yao.food_menu.common.config.FileStorageProperties fileStorageProperties;
+
     @Operation(summary = "添加菜品", description = "添加菜品及其口味信息")
     @PostMapping
     public Result<String> save(@RequestBody DishDto dishDto) {
         log.info(dishDto.toString());
         ensureImage(dishDto);
+        handleImageFields(dishDto);
         dishService.saveWithFlavor(dishDto);
         return Result.success("Dish added successfully");
     }
@@ -98,6 +102,7 @@ public class DishController {
     public Result<String> update(@RequestBody DishDto dishDto) {
         log.info(dishDto.toString());
         ensureImage(dishDto);
+        handleImageFields(dishDto);
         dishService.updateWithFlavor(dishDto);
         return Result.success("Dish updated successfully");
     }
@@ -140,11 +145,44 @@ public class DishController {
     }
 
     /**
+     * 处理图片字段，确保本地存储的图片路径同时保存到localImage字段
+     */
+    private void handleImageFields(DishDto dishDto) {
+        String image = dishDto.getImage();
+        if (!StringUtils.hasText(image)) {
+            return;
+        }
+
+        // 如果使用本地存储，且image字段是相对路径（不是完整URL），则同时保存到localImage
+        if (fileStorageProperties.isLocal() && !image.startsWith("http://") && !image.startsWith("https://")) {
+            dishDto.setLocalImage(image);
+            log.debug("设置本地图片路径: {}", image);
+        }
+    }
+
+    @Autowired
+    private com.yao.food_menu.common.config.LocalStorageProperties localStorageProperties;
+
+    /**
      * Convert OSS object key to presigned URL if the image is an OSS object key
      * (not a full URL starting with http:// or https://)
      */
     private void convertImageToPresignedUrl(DishDto dishDto) {
-        if (dishDto == null || !StringUtils.hasText(dishDto.getImage())) {
+        if (dishDto == null) {
+            return;
+        }
+
+        // 1. 优先使用本地图片
+        if (StringUtils.hasText(dishDto.getLocalImage())) {
+            String urlPrefix = localStorageProperties.getUrlPrefix();
+            if (!urlPrefix.endsWith("/")) {
+                urlPrefix += "/";
+            }
+            dishDto.setImage(urlPrefix + dishDto.getLocalImage());
+            return;
+        }
+
+        if (!StringUtils.hasText(dishDto.getImage())) {
             return;
         }
         String image = dishDto.getImage();
@@ -165,7 +203,21 @@ public class DishController {
      * Convert OSS object key to presigned URL for Dish entity
      */
     private void convertDishImageToPresignedUrl(Dish dish) {
-        if (dish == null || !StringUtils.hasText(dish.getImage())) {
+        if (dish == null) {
+            return;
+        }
+
+        // 1. 优先使用本地图片
+        if (StringUtils.hasText(dish.getLocalImage())) {
+            String urlPrefix = localStorageProperties.getUrlPrefix();
+            if (!urlPrefix.endsWith("/")) {
+                urlPrefix += "/";
+            }
+            dish.setImage(urlPrefix + dish.getLocalImage());
+            return;
+        }
+
+        if (!StringUtils.hasText(dish.getImage())) {
             return;
         }
         String image = dish.getImage();

@@ -23,6 +23,9 @@ public class Banner implements Serializable {
     // 轮播图图片URL(OSS对象键)
     private String image;
 
+    // 本地图片路径
+    private String localImage;
+
     // 轮播图标题
     private String title;
 

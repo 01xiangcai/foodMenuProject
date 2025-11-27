@@ -9,17 +9,13 @@ public interface ImageMigrationService {
 
     /**
      * 迁移所有菜品图片从OSS到本地
-     * 
-     * @return 迁移状态
      */
-    MigrationStatus migrateDishImages();
+    void migrateDishImages();
 
     /**
      * 迁移所有用户头像从OSS到本地
-     * 
-     * @return 迁移状态
      */
-    MigrationStatus migrateAvatars();
+    void migrateAvatars();
 
     /**
      * 获取菜品图片迁移状态

@@ -67,7 +67,7 @@
 
         <NButton type="primary" @click="handleSearch">搜索</NButton>
         <NButton @click="handleReset">重置</NButton>
-        <NButton secondary @click="loadOrders">
+        <NButton secondary @click="() => loadOrders(true)">
           <template #icon>
             <span>🔄</span>
           </template>
@@ -81,102 +81,122 @@
       <NSpin size="large" />
     </div>
 
-    <div v-else-if="filteredOrders.length > 0" class="orders-grid">
-      <div
-        v-for="order in filteredOrders"
-        :key="order.id"
-        class="order-card glass-card hover-rise"
-        :class="`status-${order.status}`"
-      >
-        <!-- 订单头部 -->
-        <div class="order-header">
-          <div class="order-number">
-            <span class="label">订单号</span>
-            <span class="value">{{ order.orderNumber }}</span>
-          </div>
-          <NTag :type="getStatusType(order.status)" :bordered="false">
-            {{ getStatusText(order.status) }}
-          </NTag>
-        </div>
 
-        <!-- 菜品预览 -->
-        <div class="order-dishes">
-          <div
-            v-for="(item, index) in order.orderItems.slice(0, 3)"
-            :key="item.id"
-            class="dish-item"
-          >
-            <img
-              :src="item.dishImage || '/default-dish.png'"
-              :alt="item.dishName"
-              class="dish-image"
-              @error="handleImageError"
-            />
-            <div class="dish-info">
-              <div class="dish-name">{{ item.dishName }}</div>
-              <div class="dish-detail">¥{{ item.price }} × {{ item.quantity }}</div>
+
+    <div v-else-if="filteredOrders.length > 0">
+      <div class="orders-grid">
+        <div
+          v-for="order in filteredOrders"
+          :key="order.id"
+          class="order-card glass-card hover-rise"
+          :class="`status-${order.status}`"
+        >
+          <!-- 订单头部 -->
+          <div class="order-header">
+            <div class="order-number">
+              <span class="label">订单号</span>
+              <span class="value">{{ order.orderNumber }}</span>
             </div>
-            <div class="dish-subtotal">¥{{ item.subtotal }}</div>
+            <NTag :type="getStatusType(order.status)" :bordered="false">
+              {{ getStatusText(order.status) }}
+            </NTag>
           </div>
 
-          <div v-if="order.orderItems.length > 3" class="more-dishes">
-            +{{ order.orderItems.length - 3 }} 道菜品
-          </div>
-        </div>
-
-        <!-- 订单底部 -->
-        <div class="order-footer">
-          <div class="order-info">
-            <div class="order-user" v-if="order.userNickname || order.userPhone">
-              <img 
-                v-if="order.userAvatar" 
-                :src="order.userAvatar" 
-                class="user-avatar"
+          <!-- 菜品预览 -->
+          <div class="order-dishes">
+            <div
+              v-for="(item, index) in order.orderItems.slice(0, 3)"
+              :key="item.id"
+              class="dish-item"
+            >
+              <img
+                :src="item.dishImage || '/default-dish.png'"
+                :alt="item.dishName"
+                class="dish-image"
                 @error="handleImageError"
               />
-              <div class="user-info">
-                <div class="user-nickname">{{ order.userNickname || '未知用户' }}</div>
-                <div class="user-phone">{{ order.userPhone || '—' }}</div>
+              <div class="dish-info">
+                <div class="dish-name">{{ item.dishName }}</div>
+                <div class="dish-detail">¥{{ item.price }} × {{ item.quantity }}</div>
+              </div>
+              <div class="dish-subtotal">¥{{ item.subtotal }}</div>
+            </div>
+
+            <div v-if="order.orderItems.length > 3" class="more-dishes">
+              +{{ order.orderItems.length - 3 }} 道菜品
+            </div>
+          </div>
+
+          <!-- 订单底部 -->
+          <div class="order-footer">
+            <div class="order-info">
+              <div class="order-user" v-if="order.userNickname || order.userPhone">
+                <img 
+                  v-if="order.userAvatar" 
+                  :src="order.userAvatar" 
+                  class="user-avatar"
+                  @error="handleImageError"
+                />
+                <div class="user-info">
+                  <div class="user-nickname">{{ order.userNickname || '未知用户' }}</div>
+                  <div class="user-phone">{{ order.userPhone || '—' }}</div>
+                </div>
+              </div>
+              <div class="order-time">{{ formatTime(order.createTime) }}</div>
+              <div class="order-amount">
+                总计：<span class="amount-value">¥{{ order.totalAmount }}</span>
               </div>
             </div>
-            <div class="order-time">{{ formatTime(order.createTime) }}</div>
-            <div class="order-amount">
-              总计：<span class="amount-value">¥{{ order.totalAmount }}</span>
+
+            <div class="order-actions">
+              <NButton size="small" tertiary @click="openDetail(order.id)"> 详情 </NButton>
+
+              <NButton v-if="order.status === 0" size="small" type="primary" class="action-btn" @click="updateStatus(order.id, 1)">
+                接单
+              </NButton>
+
+              <NButton v-if="order.status === 1" size="small" type="warning" class="action-btn-warning" @click="updateStatus(order.id, 2)">
+                配送
+              </NButton>
+
+              <NButton v-if="order.status === 2" size="small" type="success" class="action-btn-success" @click="updateStatus(order.id, 3)">
+                完成
+              </NButton>
+
+              <NButton
+                v-if="order.status < 3"
+                size="small"
+                type="error"
+                tertiary
+                @click="cancelOrder(order.id)"
+              >
+                取消
+              </NButton>
             </div>
           </div>
 
-          <div class="order-actions">
-            <NButton size="small" tertiary @click="openDetail(order.id)"> 详情 </NButton>
-
-            <NButton v-if="order.status === 0" size="small" type="primary" class="action-btn" @click="updateStatus(order.id, 1)">
-              接单
-            </NButton>
-
-            <NButton v-if="order.status === 1" size="small" type="warning" class="action-btn-warning" @click="updateStatus(order.id, 2)">
-              配送
-            </NButton>
-
-            <NButton v-if="order.status === 2" size="small" type="success" class="action-btn-success" @click="updateStatus(order.id, 3)">
-              完成
-            </NButton>
-
-            <NButton
-              v-if="order.status < 3"
-              size="small"
-              type="error"
-              tertiary
-              @click="cancelOrder(order.id)"
-            >
-              取消
-            </NButton>
+          <!-- 备注 -->
+          <div v-if="order.remark" class="order-remark">
+            <span class="remark-icon">💬</span>
+            <span class="remark-text">{{ order.remark }}</span>
           </div>
         </div>
+      </div>
 
-        <!-- 备注 -->
-        <div v-if="order.remark" class="order-remark">
-          <span class="remark-icon">💬</span>
-          <span class="remark-text">{{ order.remark }}</span>
-        </div>
+      <!-- 加载更多按钮 -->
+      <div v-if="hasMore" class="load-more-container">
+        <NButton 
+          :loading="loadingMore" 
+          @click="loadMore"
+          secondary
+          size="large"
+          block
+        >
+          {{ loadingMore ? '加载中...' : '加载更多' }}
+        </NButton>
+      </div>
+      <div v-else-if="orders.length > 0" class="no-more-hint">
+        已加载全部订单
       </div>
     </div>
 
@@ -335,6 +355,10 @@ const dialog = useDialog();
 
 const orders = ref<OrderRecord[]>([]);
 const ordersLoading = ref(false);
+const loadingMore = ref(false);
+const currentPage = ref(1);
+const pageSize = 6;
+const hasMore = ref(true);
 
 const filters = reactive<OrderFilters>({
   keyword: '',
@@ -456,16 +480,39 @@ const handleReset = () => {
   filters.status = null;
 };
 
-const loadOrders = async () => {
-  ordersLoading.value = true;
+const loadOrders = async (reset = true) => {
+  if (reset) {
+    ordersLoading.value = true;
+    currentPage.value = 1;
+    orders.value = [];
+  } else {
+    loadingMore.value = true;
+  }
+  
   try {
-    const result = await fetchOrders({ page: 1, pageSize: 100 });
-    orders.value = result.data?.records || [];
+    const result = await fetchOrders({ page: currentPage.value, pageSize });
+    const newOrders = result.data?.records || [];
+    
+    if (reset) {
+      orders.value = newOrders;
+    } else {
+      orders.value = [...orders.value, ...newOrders];
+    }
+    
+    // 检查是否还有更多数据
+    hasMore.value = newOrders.length === pageSize;
   } catch (error) {
     message.error((error as Error).message || '加载订单失败');
   } finally {
     ordersLoading.value = false;
+    loadingMore.value = false;
   }
+};
+
+const loadMore = async () => {
+  if (loadingMore.value || !hasMore.value) return;
+  currentPage.value++;
+  await loadOrders(false);
 };
 
 const updateStatus = async (id: number, status: number) => {
@@ -1000,6 +1047,20 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+.load-more-container {
+  margin-top: 24px;
+  display: flex;
+  justify-content: center;
+}
+
+.no-more-hint {
+  text-align: center;
+  margin-top: 24px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  opacity: 0.7;
 }
 
 @media (max-width: 768px) {

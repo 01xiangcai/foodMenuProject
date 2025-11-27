@@ -6,6 +6,7 @@ import DishesView from '@/views/dishes/DishesView.vue';
 import OrdersView from '@/views/orders/OrdersView.vue';
 import BannersView from '@/views/banners/BannersView.vue';
 import UsersView from '@/views/users/UsersView.vue';
+import MigrationView from '@/views/migration/MigrationView.vue';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -50,6 +51,12 @@ const routes: RouteRecordRaw[] = [
         name: 'users',
         component: UsersView,
         meta: { title: '用户管理' }
+      },
+      {
+        path: 'migration',
+        name: 'migration',
+        component: MigrationView,
+        meta: { title: '图片迁移' }
       }
     ]
   }
