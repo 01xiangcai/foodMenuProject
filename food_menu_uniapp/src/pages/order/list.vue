@@ -95,6 +95,7 @@ const loading = ref(false)
 const page = ref(1)
 const pageSize = ref(10)
 const noMore = ref(false)
+const cancellingId = ref(null)
 
 // 获取订单状态文本
 const getStatusText = (status) => {
@@ -195,20 +196,34 @@ const goToDetail = (orderId) => {
 
 // 取消订单
 const cancelOrder = (orderId) => {
+  if (cancellingId.value) return // 防止重复点击
+
   uni.showModal({
     title: '提示',
     content: '确定要取消订单吗？',
     success: async (res) => {
       if (res.confirm) {
+        cancellingId.value = orderId
         try {
           await updateOrderStatus(orderId, 4)
           uni.showToast({
             title: '订单已取消',
             icon: 'success'
           })
-          loadOrders(true)
+          
+          // 本地更新状态，无需重新加载列表
+          const order = orders.value.find(o => o.id === orderId)
+          if (order) {
+            order.status = 4
+          }
         } catch (error) {
           console.error('取消订单失败:', error)
+          uni.showToast({
+            title: '取消失败',
+            icon: 'none'
+          })
+        } finally {
+          cancellingId.value = null
         }
       }
     }
