@@ -390,6 +390,68 @@ public class OrdersController {
     }
 
     /**
+     * Delete order
+     */
+    @Operation(summary = "删除订单", description = "删除订单及其明细，仅允许删除已完成或已取消的订单")
+    @DeleteMapping("/{id}")
+    public Result<String> delete(@PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String token) {
+        log.info("Delete order: id={}", id);
+
+        try {
+            boolean isAdmin = false;
+            Long userId = null;
+
+            if (StringUtils.hasText(token)) {
+                if (token.startsWith("Bearer ")) {
+                    token = token.substring(7);
+                }
+                try {
+                    userId = JwtUtil.getUserId(token);
+                    if (wxUserService.isAdmin(userId)) {
+                        isAdmin = true;
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to parse token: {}", e.getMessage());
+                }
+            }
+
+            Orders order = ordersService.getById(id);
+            if (order == null) {
+                return Result.error("订单不存在");
+            }
+
+            // 鉴权：如果是后台请求(token为null)默认为管理员，否则检查是否为管理员或订单所有者
+            if (!isAdmin) {
+                if (token != null && userId != null) {
+                    if (!order.getUserId().equals(userId)) {
+                        return Result.error("无权限删除他人订单");
+                    }
+                }
+                // 如果是后台管理端请求(token==null)，默认允许
+            }
+
+            // 检查状态：只能删除已完成(3)或已取消(4)的订单
+            if (order.getStatus() != 3 && order.getStatus() != 4) {
+                return Result.error("只能删除已完成或已取消的订单");
+            }
+
+            // 删除订单明细
+            LambdaQueryWrapper<OrderItem> itemQueryWrapper = new LambdaQueryWrapper<>();
+            itemQueryWrapper.eq(OrderItem::getOrderId, id);
+            orderItemService.remove(itemQueryWrapper);
+
+            // 删除订单
+            ordersService.removeById(id);
+
+            return Result.success("订单删除成功");
+        } catch (Exception e) {
+            log.error("Delete order failed: {}", e.getMessage());
+            return Result.error("删除失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * Ensure each order item carries a valid presigned image URL before returning
      * to the client.
      * This prevents frontend issues such as expired OSS URLs or missing domain

@@ -57,6 +57,9 @@
               
               <!-- 其他状态只显示详情按钮 -->
               <view class="action-btns" v-else>
+                <view class="btn-delete" v-if="order.status === 3 || order.status === 4" @tap.stop="handleDelete(order.id)">
+                  <text>删除</text>
+                </view>
                 <view class="btn-detail" @tap.stop="goToDetail(order.id)">
                   <text>详情</text>
                 </view>
@@ -86,7 +89,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getOrderList, updateOrderStatus } from '@/api/index'
+import { getOrderList, updateOrderStatus, deleteOrder } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 
 const { themeConfig, loadTheme } = useTheme()
@@ -224,6 +227,33 @@ const cancelOrder = (orderId) => {
           })
         } finally {
           cancellingId.value = null
+        }
+      }
+    }
+  })
+}
+
+// 删除订单
+const handleDelete = (orderId) => {
+  uni.showModal({
+    title: '提示',
+    content: '确定要删除该订单吗？删除后不可恢复。',
+    success: async (res) => {
+      if (res.confirm) {
+        try {
+          await deleteOrder(orderId)
+          uni.showToast({
+            title: '删除成功',
+            icon: 'success'
+          })
+          // 本地移除
+          orders.value = orders.value.filter(o => o.id !== orderId)
+        } catch (error) {
+          console.error('删除失败:', error)
+          uni.showToast({
+            title: '删除失败',
+            icon: 'none'
+          })
         }
       }
     }
@@ -468,6 +498,7 @@ onShow(() => {
 }
 
 .btn-cancel,
+.btn-delete,
 .btn-pay,
 .btn-detail {
   padding: 12rpx 32rpx;
@@ -485,6 +516,12 @@ onShow(() => {
   background: v-bind('themeConfig.inputBg');
   border: 1px solid v-bind('themeConfig.borderColor');
   color: v-bind('themeConfig.textSecondary');
+}
+
+.btn-delete {
+  background: rgba(255, 59, 48, 0.1);
+  border: 1px solid rgba(255, 59, 48, 0.3);
+  color: #ff3b30;
 }
 
 .btn-pay,

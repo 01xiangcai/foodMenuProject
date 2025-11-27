@@ -27,6 +27,17 @@
       </view>
     </view>
 
+    <!-- 备注 -->
+    <view class="section-card" v-if="order.remark">
+      <view class="card-header">
+        <view class="header-line"></view>
+        <text class="card-title">备注</text>
+      </view>
+      <view class="remark-content">
+        <text class="remark-text">{{ order.remark }}</text>
+      </view>
+    </view>
+
     <!-- 订单信息 -->
     <view class="section-card">
       <view class="card-header">
@@ -74,6 +85,7 @@ const order = ref({
   orderNumber: '',
   status: 0,
   totalAmount: 0,
+  remark: '',
   items: []
 })
 
@@ -138,6 +150,7 @@ const loadOrderDetail = async (id) => {
         address: data.address,
         createTime: data.createTime,
         payMethod: data.payMethod,
+        remark: data.remark || '',
         items: (data.orderItems || []).map(item => ({
           id: item.id,
           name: item.dishName,
@@ -416,6 +429,18 @@ onShow(() => {
     color: v-bind('themeConfig.errorColor');
     font-weight: 800;
   }
+}
+
+/* 备注内容 */
+.remark-content {
+  padding: 30rpx;
+}
+
+.remark-text {
+  font-size: 28rpx;
+  color: v-bind('themeConfig.textPrimary');
+  line-height: 1.6;
+  word-break: break-all;
 }
 
 /* 底部栏 */

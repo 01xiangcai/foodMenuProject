@@ -54,6 +54,10 @@
           v-model:value="filters.dateRange"
           type="daterange"
           clearable
+          start-placeholder="开始日期"
+          end-placeholder="结束日期"
+          :actions="['clear', 'confirm']"
+          update-value-on-close
           style="width: 280px"
         />
 
@@ -65,7 +69,7 @@
           style="width: 140px"
         />
 
-        <NButton type="primary" @click="handleSearch">搜索</NButton>
+        <NButton @click="handleSearch">搜索</NButton>
         <NButton @click="handleReset">重置</NButton>
         <NButton secondary @click="() => loadOrders(true)">
           <template #icon>
@@ -171,6 +175,16 @@
                 @click="cancelOrder(order.id)"
               >
                 取消
+              </NButton>
+
+              <NButton
+                v-if="order.status === 3 || order.status === 4"
+                size="small"
+                type="error"
+                tertiary
+                @click="handleDelete(order.id)"
+              >
+                删除
               </NButton>
             </div>
           </div>
@@ -314,7 +328,7 @@ import {
   useDialog,
   useMessage
 } from 'naive-ui';
-import { fetchOrders, updateOrderStatus } from '@/api/modules';
+import { fetchOrders, updateOrderStatus, deleteOrder } from '@/api/modules';
 
 type OrderItemRecord = {
   id: number;
@@ -525,6 +539,31 @@ const updateStatus = async (id: number, status: number) => {
   }
 };
 
+const handleDelete = (id: number) => {
+  dialog.warning({
+    title: '确认删除',
+    content: '确定要删除这个订单吗？此操作不可恢复。',
+    positiveText: '删除',
+    negativeText: '取消',
+    positiveButtonProps: { 
+      type: 'error',
+      ghost: true,
+      color: '#d03050',
+      textColor: '#d03050'
+    },
+    onPositiveClick: async () => {
+      try {
+        await deleteOrder(id);
+        message.success('订单已删除');
+        // 本地移除，避免重新加载
+        orders.value = orders.value.filter(o => o.id !== id);
+      } catch (error) {
+        message.error((error as Error).message || '删除失败');
+      }
+    }
+  });
+};
+
 const cancelOrder = (id: number) => {
   dialog.warning({
     title: '确认取消',
@@ -536,6 +575,8 @@ const cancelOrder = (id: number) => {
     }
   });
 };
+
+
 
 const openDetail = async (id: number) => {
   const order = orders.value.find((o) => o.id === id);

@@ -144,3 +144,41 @@ html.dark .glass-card {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--primary-color);
 }
+
+/* ����ѡ������ť��ʽ�޸� */
+.n-date-panel-actions .n-button:not(.n-button--primary) {
+  color: var(--primary-color) !important;
+}
+
+.n-date-panel-actions .n-button:not(.n-button--primary):hover {
+  color: var(--primary-color-hover) !important;
+}
+
+.n-date-panel-actions .n-button.n-button--primary,
+.n-date-panel-actions .n-button.n-button--primary:hover,
+.n-date-panel-actions .n-button.n-button--primary:active,
+.n-date-panel-actions .n-button.n-button--primary:focus {
+  background-color: var(--primary-color) !important;
+  border-color: var(--primary-color) !important;
+}
+
+.n-date-panel-actions .n-button.n-button--primary .n-button__content,
+.n-date-panel-actions .n-button.n-button--primary:hover .n-button__content,
+.n-date-panel-actions .n-button.n-button--primary:active .n-button__content,
+.n-date-panel-actions .n-button.n-button--primary:focus .n-button__content {
+  color: #ffffff !important;
+}
+
+
+/* 日期选择器按钮样式修复 */
+.n-date-panel-actions .n-button:not(.n-button--primary) {
+  color: var(--primary-color) !important;
+}
+
+.n-date-panel-actions .n-button:not(.n-button--primary):hover {
+  color: var(--primary-color-hover) !important;
+}
+
+.n-date-panel-actions .n-button--primary {
+  color: #ffffff !important;
+}

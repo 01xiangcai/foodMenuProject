@@ -93,6 +93,17 @@ export const getOrderList = (params) => {
 }
 
 /**
+ * 删除订单
+ * @param {Number} id 订单ID
+ */
+export const deleteOrder = (id) => {
+    return request({
+        url: `/order/${id}`,
+        method: 'DELETE'
+    })
+}
+
+/**
  * 获取订单详情
  * @param {Number} id 订单ID
  */
