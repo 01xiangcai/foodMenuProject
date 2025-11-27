@@ -44,6 +44,17 @@ springdoc:
     path: /swagger-ui.html
   packages-to-scan: com.yao.food_menu.controller
 
+# File Storage Configuration
+file:
+  storage:
+    type: local  # oss 或 local
+    local:
+      base-path: E:/uploads/food-menu
+      url-prefix: http://localhost:8080/uploads
+      folder: food-menu
+      avatar-folder: avatars
+
+# Aliyun OSS Configuration
 aliyun:
   oss:
     endpoint: https://food-menu-yao.oss-cn-shenzhen.aliyuncs.com

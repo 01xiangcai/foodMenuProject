@@ -283,6 +283,14 @@ const handleImageError = (e) => {
   console.warn('Image load failed:', e)
 }
 
+// 跳转到菜品详情
+const navigateToDishDetail = (dishId) => {
+  if (!dishId) return
+  uni.navigateTo({ 
+    url: `/pages/detail/detail?id=${dishId}` 
+  })
+}
+
 onMounted(() => {
   loadTheme()
   loadOrders(true)

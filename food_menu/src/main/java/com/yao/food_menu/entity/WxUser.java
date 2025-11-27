@@ -42,6 +42,9 @@ public class WxUser implements Serializable {
     // 头像URL
     private String avatar;
 
+    // 本地头像路径
+    private String localAvatar;
+
     // 性别: 0-未知, 1-男, 2-女
     private Integer gender;
 
