@@ -21,7 +21,7 @@
       <scroll-view class="popup-scroll" scroll-y>
         <view class="popup-list">
           <view class="popup-item" v-for="item in cartStore.cartList" :key="item.id">
-            <image class="item-img" :src="item.image" mode="aspectFill" />
+            <image class="item-img" :src="getDishImage(item)" mode="aspectFill" />
             <view class="item-info">
               <text class="item-name">{{ item.name }}</text>
               <view class="item-price-box">
@@ -48,6 +48,7 @@
 
 <script setup>
 import { useCartStore } from '@/stores/cart'
+import { getDishImage } from '@/utils/image'
 import { useTheme } from '@/stores/theme'
 
 const props = defineProps({

@@ -22,7 +22,7 @@
           @tap="goToDetail(dish.id)"
         >
           <view class="card-cover">
-            <image class="dish-image" :src="dish.image" mode="aspectFill" />
+            <image class="dish-image" :src="getDishImage(dish)" mode="aspectFill" />
             <view class="cover-tag">{{ dish.categoryName || '精选菜品' }}</view>
           </view>
           <view class="card-body">
@@ -73,9 +73,9 @@ import { ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useTheme } from '@/stores/theme'
 import { getFavoritePage, removeFavorite } from '@/api/index'
+import { getDishImage } from '@/utils/image'
 
 const { themeConfig, loadTheme } = useTheme()
-const DEFAULT_IMAGE = 'https://dummyimage.com/600x400/0f172a/ffffff&text=family+dish'
 const heartIcon = '❤'
 
 const favorites = ref([])
@@ -92,7 +92,8 @@ const mapFavorite = (item) => ({
   description: item.description || item.dishDescription || '',
   categoryName: item.categoryName,
   price: item.price || item.dishPrice || 0,
-  image: item.image || item.dishImage || DEFAULT_IMAGE
+  localImage: item.localImage || item.dishLocalImage,
+  image: item.image || item.dishImage
 })
 
 // 加载收藏列表（分页）

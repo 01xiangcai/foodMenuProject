@@ -17,7 +17,7 @@
       </view>
       <view class="order-items">
         <view class="order-item" v-for="item in order.items" :key="item.id" @tap="navigateToDishDetail(item.dishId)">
-          <image class="item-image" :src="item.image" mode="aspectFill" />
+          <image class="item-image" :src="getDishImage(item)" mode="aspectFill" />
           <view class="item-info">
             <text class="item-name">{{ item.name }}</text>
             <text class="item-spec">x{{ item.quantity }}</text>
@@ -117,6 +117,7 @@ import { ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { getOrderDetail, updateOrderStatus, updateOrderRemark } from '@/api/index'
 import { useTheme } from '@/stores/theme'
+import { getDishImage } from '@/utils/image'
 
 const order = ref({
   id: 0,

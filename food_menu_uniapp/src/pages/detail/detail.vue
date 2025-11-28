@@ -3,7 +3,7 @@
     <scroll-view class="detail-scroll" scroll-y>
       <!-- 1. 图片卡片 -->
       <view class="card image-card">
-        <image class="dish-image" :src="dish.image" mode="aspectFill" />
+        <image class="dish-image" :src="getDishImage(dish)" mode="aspectFill" />
       </view>
 
       <!-- 2. 信息卡片 -->
@@ -87,6 +87,7 @@ import { useCartStore } from '@/stores/cart'
 import CartPopup from '@/components/CartPopup.vue'
 import CommentList from '@/components/CommentList.vue'
 import CommentInput from '@/components/CommentInput.vue'
+import { getDishImage } from '@/utils/image'
 
 const { themeConfig, loadTheme } = useTheme()
 const cartStore = useCartStore()

@@ -10,7 +10,7 @@
         <view class="order-item" v-for="item in items" :key="item.id">
           <image 
             class="item-image" 
-            :src="item.image" 
+            :src="getDishImage(item)" 
             mode="aspectFill" 
             @error="handleImageError(item)"
           />
@@ -65,6 +65,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { createOrder } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 import { useCartStore } from '@/stores/cart'
+import { getDishImage } from '@/utils/image'
 
 const { themeConfig } = useTheme()
 const cartStore = useCartStore()

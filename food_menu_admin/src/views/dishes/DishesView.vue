@@ -106,9 +106,9 @@
           <NFormItem label="菜品图片" required>
             <div class="image-upload">
               <NImage
-                v-if="dishModal.imagePreviewUrl || dishModal.form.image"
+                v-if="dishModal.imagePreviewUrl || dishModal.form.localImage || dishModal.form.image"
                 class="image-preview"
-                :src="dishModal.imagePreviewUrl || dishModal.form.image"
+                :src="dishModal.imagePreviewUrl || dishModal.form.localImage || dishModal.form.image || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YzZjRmNiIvPgogIDx0ZXh0IHg9IjUwJSIgeT0iNDUlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iODAiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPvCfjaU8L3RleHQ+CiAgPHRleHQgeD0iNTAlIiB5PSI2NSUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzljYTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5pqC5peg5Zu+54mHPC90ZXh0Pgo8L3N2Zz4='"
                 width="140"
                 height="140"
                 object-fit="cover"
@@ -178,7 +178,7 @@
     <NModal v-model:show="detailModal.show" preset="card" style="max-width: 400px; max-height: 100vh" :title="detailModal.data?.name">
       <div v-if="detailModal.data" class="dish-detail">
         <div class="detail-image-wrapper">
-          <img :src="detailModal.data.image" class="detail-image" />
+          <img :src="detailModal.data?.localImage || detailModal.data?.image || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YzZjRmNiIvPgogIDx0ZXh0IHg9IjUwJSIgeT0iNDUlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iODAiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPvCfjaU8L3RleHQ+CiAgPHRleHQgeD0iNTAlIiB5PSI2NSUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzljYTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5pqC5peg5Zu+54mHPC90ZXh0Pgo8L3N2Zz4='" class="detail-image" />
           <div class="detail-price">¥{{ Number(detailModal.data.price).toFixed(2) }}</div>
         </div>
         
@@ -360,7 +360,8 @@ const dishModal = reactive({
     status: 'on' as 'on' | 'off',
     description: '',
     flavorText: '',
-    image: '', // Store object key (relative path) for database
+    image: '', // Store object key (relative path) for database (OSS)
+    localImage: '', // Store local image path
     calories: '',
     tags: '',
     tagsArray: [] as string[] // 标签数组，用于多选
@@ -378,13 +379,14 @@ const columns: DataTableColumns<DishRecord> = [
     title: '图片',
     key: 'image',
     width: 80,
-    render: (row) =>
-      h(
+    render: (row) => {
+      const imageUrl = row.localImage || row.image || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YzZjRmNiIvPgogIDx0ZXh0IHg9IjUwJSIgeT0iNDUlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iODAiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPvCfjaU8L3RleHQ+CiAgPHRleHQgeD0iNTAlIiB5PSI2NSUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzljYTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5pqC5peg5Zu+54mHPC90ZXh0Pgo8L3N2Zz4=';
+      return h(
         NImage,
         {
           width: 48,
           height: 48,
-          src: row.image,
+          src: imageUrl,
           objectFit: 'cover',
           style: {
             borderRadius: '8px',
@@ -393,7 +395,8 @@ const columns: DataTableColumns<DishRecord> = [
           },
           fallbackSrc: 'https://dummyimage.com/100x100/e2e8f0/94a3b8&text=No+Image'
         }
-      )
+      );
+    }
   },
   { title: '菜品', key: 'name', ellipsis: { tooltip: true } },
   {
@@ -558,6 +561,7 @@ const resetDishForm = () => {
   dishModal.form.description = '';
   dishModal.form.flavorText = '';
   dishModal.form.image = '';
+  dishModal.form.localImage = '';
   dishModal.form.calories = '';
   dishModal.form.tags = '';
   dishModal.form.tagsArray = [];
@@ -606,26 +610,32 @@ const fillDishForm = (dish: any) => {
   dishModal.form.tags = dish.tags || '';
   // 将标签字符串转换为数组
   dishModal.form.tagsArray = dish.tags ? dish.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [];
+  
+  // 优先使用 localImage，其次使用 image
+  const localImage = dish.localImage || '';
+  const image = dish.image || '';
+  const displayImage = localImage || image;
+  
   // Backend returns presigned URL when image is OSS object key
   // For existing dishes, image might be presigned URL or default image URL
   // We need to extract object key if it's a presigned URL, or keep as is
-  const image = dish.image || '';
-  // If image is a presigned URL (contains ?Expires=), extract object key
-  // Otherwise, it might be object key or default image URL
-  if (image.includes('?Expires=')) {
+  if (displayImage.includes('?Expires=')) {
     // Extract object key from presigned URL (everything before ?)
-    const urlObj = new URL(image);
+    const urlObj = new URL(displayImage);
     const objectKey = urlObj.pathname.substring(1); // Remove leading /
     dishModal.form.image = objectKey;
-    dishModal.imagePreviewUrl = image; // Use presigned URL for preview
-  } else if (image.startsWith('http://') || image.startsWith('https://')) {
+    dishModal.form.localImage = localImage;
+    dishModal.imagePreviewUrl = displayImage; // Use presigned URL for preview
+  } else if (displayImage.startsWith('http://') || displayImage.startsWith('https://')) {
     // Default image URL, save as is
     dishModal.form.image = image;
-    dishModal.imagePreviewUrl = image;
+    dishModal.form.localImage = localImage;
+    dishModal.imagePreviewUrl = displayImage;
   } else {
     // Object key, save as is (backend will convert to presigned URL when returning)
     dishModal.form.image = image;
-    dishModal.imagePreviewUrl = ''; // Will be generated by backend when needed
+    dishModal.form.localImage = localImage;
+    dishModal.imagePreviewUrl = displayImage || ''; // Will be generated by backend when needed
   }
 };
 

@@ -40,7 +40,7 @@
               :key="item.id"
               @tap.stop="navigateToDishDetail(item.dishId)"
             >
-              <image v-if="item.image" class="item-image" :src="item.image" mode="aspectFill" lazy-load @error="handleImageError" />
+              <image v-if="item.image || item.localImage" class="item-image" :src="getDishImage(item)" mode="aspectFill" lazy-load @error="handleImageError" />
               <view v-else class="item-placeholder">
                 <text class="placeholder-text">family dish</text>
               </view>
@@ -121,6 +121,7 @@ import { ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getAllOrders, updateOrderStatus } from '@/api/index'
 import { useTheme } from '@/stores/theme'
+import { getDishImage } from '@/utils/image'
 
 const { themeConfig, loadTheme } = useTheme()
 const orders = ref([])

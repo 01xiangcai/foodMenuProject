@@ -26,7 +26,7 @@
         >
           <!-- 图片区域 -->
           <view class="dish-image-wrapper">
-            <image class="dish-image" :src="dish.image" mode="aspectFill" />
+            <image class="dish-image" :src="getDishImage(dish)" mode="aspectFill" />
             <view class="image-overlay"></view>
             <view 
               class="favorite-btn" 
@@ -145,6 +145,7 @@ import { getCategoryList, getDishList, addFavorite, removeFavorite, checkFavorit
 import { useTheme } from '@/stores/theme'
 import { useCartStore } from '@/stores/cart'
 import CartPopup from '@/components/CartPopup.vue'
+import { getDishImage } from '@/utils/image'
 
 // 使用主题
 const { themeConfig, loadTheme } = useTheme()
