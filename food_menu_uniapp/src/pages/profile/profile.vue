@@ -113,6 +113,51 @@
         </view>
       </view>
     </view>
+    
+    <!-- 关于我们弹窗 -->
+    <view class="edit-mask" v-if="showAboutModal" @tap="closeAboutModal" @touchmove.stop.prevent></view>
+    <view class="edit-modal" :class="{ show: showAboutModal }">
+      <view class="modal-content glass-card">
+        <view class="modal-header">
+          <text class="title">关于我们</text>
+          <view class="close-btn" @tap="closeAboutModal">
+            <text>✕</text>
+          </view>
+        </view>
+
+        <view class="about-content">
+          <view class="about-logo">
+            <text class="logo-icon">🍽️</text>
+          </view>
+          
+          <view class="about-info">
+            <text class="app-name">美食菜单系统</text>
+            <text class="app-version">版本 1.0.0</text>
+          </view>
+          
+          <view class="about-description">
+            <text class="desc-title">项目简介</text>
+            <text class="desc-text">
+              美食菜单系统是一款便捷的餐饮服务小程序,为用户提供在线点餐、订单管理、菜品收藏等功能,让您享受轻松愉快的用餐体验。
+            </text>
+            
+            <text class="desc-title">主要功能</text>
+            <text class="desc-text">• 菜品浏览 - 精美的菜品展示,分类清晰</text>
+            <text class="desc-text">• 智能搜索 - 快速找到您想要的美食</text>
+            <text class="desc-text">• 在线下单 - 简单便捷的点餐流程</text>
+            <text class="desc-text">• 订单跟踪 - 实时查看订单状态</text>
+            <text class="desc-text">• 收藏管理 - 收藏喜欢的菜品,下次快速下单</text>
+            <text class="desc-text">• 主题切换 - 多种主题风格,个性化体验</text>
+            <text class="desc-text">• 个人中心 - 管理个人信息和订单记录</text>
+          </view>
+          
+          <view class="about-footer">
+            <text class="copyright">© 2025 美食菜单系统</text>
+            <text class="copyright">All Rights Reserved</text>
+          </view>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -140,6 +185,9 @@ const formData = ref({
   avatarKey: '',
   tempAvatarPath: ''
 })
+
+// 关于我们弹窗状态
+const showAboutModal = ref(false)
 
 // 判断是否已登录
 const isLoggedIn = computed(() => {
@@ -348,10 +396,11 @@ const switchTheme = () => {
 }
 
 const goToAbout = () => {
-  uni.showToast({
-    title: '关于我们功能开发中',
-    icon: 'none'
-  })
+  showAboutModal.value = true
+}
+
+const closeAboutModal = () => {
+  showAboutModal.value = false
 }
 
 const goToSettings = () => {
@@ -714,6 +763,93 @@ onMounted(() => {
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+/* 关于我们弹窗样式 */
+.about-content {
+  padding: 40rpx;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.about-logo {
+  margin-bottom: 30rpx;
+  
+  .logo-icon {
+    font-size: 120rpx;
+    display: block;
+    text-align: center;
+  }
+}
+
+.about-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 40rpx;
+  
+  .app-name {
+    font-size: 40rpx;
+    font-weight: 700;
+    color: v-bind('themeConfig.textPrimary');
+    margin-bottom: 10rpx;
+    transition: color 0.3s ease;
+  }
+  
+  .app-version {
+    font-size: 24rpx;
+    color: v-bind('themeConfig.textSecondary');
+    padding: 8rpx 20rpx;
+    background: v-bind('themeConfig.primaryColor + "1a"');
+    border-radius: 20rpx;
+    transition: all 0.3s ease;
+  }
+}
+
+.about-description {
+  width: 100%;
+  
+  .desc-title {
+    display: block;
+    font-size: 28rpx;
+    font-weight: 600;
+    color: v-bind('themeConfig.textPrimary');
+    margin-top: 30rpx;
+    margin-bottom: 16rpx;
+    transition: color 0.3s ease;
+    
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+  
+  .desc-text {
+    display: block;
+    font-size: 26rpx;
+    line-height: 1.8;
+    color: v-bind('themeConfig.textSecondary');
+    white-space: pre-line;
+    transition: color 0.3s ease;
+  }
+}
+
+.about-footer {
+  margin-top: 40rpx;
+  padding-top: 30rpx;
+  border-top: 1px solid v-bind('themeConfig.borderColor');
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  
+  .copyright {
+    font-size: 22rpx;
+    color: v-bind('themeConfig.textSecondary');
+    transition: color 0.3s ease;
+  }
 }
 </style>
 
