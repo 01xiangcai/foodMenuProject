@@ -18,4 +18,7 @@ public class UpdateUserDto {
 
     @Schema(description = "性别: 0-未知, 1-男, 2-女", example = "1")
     private Integer gender;
+
+    @Schema(description = "手机号", example = "13800138000")
+    private String phone;
 }

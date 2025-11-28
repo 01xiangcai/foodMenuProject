@@ -193,6 +193,49 @@ public class WxUserController {
         }
     }
 
+    /**
+     * 更新当前用户信息
+     */
+    @Operation(summary = "更新用户信息", description = "用户更新自己的信息(昵称、头像等)")
+    @PutMapping
+    public Result<String> updateUserInfo(@RequestBody UpdateUserDto updateUserDto,
+            @RequestHeader("Authorization") String token) {
+        log.info("更新用户信息: {}", updateUserDto);
+
+        try {
+            // 移除"Bearer "前缀(如果存在)
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7);
+            }
+
+            Long userId = com.yao.food_menu.common.util.JwtUtil.getUserId(token);
+
+            // 获取当前用户
+            WxUser user = wxUserService.getById(userId);
+            if (user == null) {
+                return Result.error("用户不存在");
+            }
+
+            // 更新允许修改的字段
+            if (StringUtils.hasText(updateUserDto.getNickname())) {
+                user.setNickname(updateUserDto.getNickname());
+            }
+            if (StringUtils.hasText(updateUserDto.getAvatar())) {
+                user.setAvatar(updateUserDto.getAvatar());
+                handleAvatarFields(user);
+            }
+            if (StringUtils.hasText(updateUserDto.getPhone())) {
+                user.setPhone(updateUserDto.getPhone());
+            }
+
+            wxUserService.updateById(user);
+            return Result.success("更新成功");
+        } catch (Exception e) {
+            log.error("更新用户信息失败: {}", e.getMessage());
+            return Result.error("更新失败: " + e.getMessage());
+        }
+    }
+
     // ... (skip update method)
 
     /**
