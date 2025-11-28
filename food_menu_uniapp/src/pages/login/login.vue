@@ -23,13 +23,18 @@
 
           <view class="form-item">
             <text class="label">密码</text>
-            <input 
-              class="input" 
-              v-model="password"
-              type="password"
-              placeholder="请输入密码"
-              placeholder-class="placeholder"
-            />
+            <view class="password-input-wrapper">
+              <input 
+                class="input password-input" 
+                v-model="password"
+                :type="showPassword ? 'text' : 'password'"
+                placeholder="请输入密码"
+                placeholder-class="placeholder"
+              />
+              <view class="eye-icon" @tap="togglePasswordVisibility">
+                <text>{{ showPassword ? '👁️' : '🙈' }}</text>
+              </view>
+            </view>
           </view>
 
           <view class="login-btn" @tap="handleLogin">
@@ -51,6 +56,11 @@ import { wxLogin } from '@/api/index'
 
 const username = ref('')
 const password = ref('')
+const showPassword = ref(false)
+
+const togglePasswordVisibility = () => {
+  showPassword.value = !showPassword.value
+}
 
 const goBack = () => {
   uni.navigateBack()
@@ -195,6 +205,31 @@ const handleLogin = async () => {
   padding: 0 24rpx;
   font-size: 28rpx;
   color: #fff;
+}
+
+.password-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.password-input {
+  padding-right: 80rpx;
+}
+
+.eye-icon {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 90rpx;
+  width: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  
+  text {
+    font-size: 36rpx;
+  }
 }
 
 .placeholder {

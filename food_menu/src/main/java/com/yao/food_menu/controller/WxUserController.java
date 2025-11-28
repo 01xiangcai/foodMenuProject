@@ -125,21 +125,42 @@ public class WxUserController {
             }
             Long userId = com.yao.food_menu.common.util.JwtUtil.getUserId(token);
 
+            // 获取用户信息并检查限制
+            WxUser user = wxUserService.getById(userId);
+            if (user == null) {
+                return Result.error("用户不存在");
+            }
+
+            java.time.LocalDate today = java.time.LocalDate.now();
+            // 如果是同一天，检查次数
+            if (today.equals(user.getAvatarLastUpdateDate())) {
+                if (user.getAvatarUpdateCount() != null && user.getAvatarUpdateCount() >= 3) {
+                    return Result.error("今日头像上传次数已达上限(3次)");
+                }
+            }
+
             // 上传到存储
             String objectKey = ossService.uploadAvatar(file);
             String presignedUrl = ossService.generatePresignedUrl(objectKey);
 
+            // 更新上传次数和时间
+            if (!today.equals(user.getAvatarLastUpdateDate())) {
+                user.setAvatarLastUpdateDate(today);
+                user.setAvatarUpdateCount(1);
+            } else {
+                user.setAvatarUpdateCount((user.getAvatarUpdateCount() == null ? 0 : user.getAvatarUpdateCount()) + 1);
+            }
+
             // 如果使用本地存储，需要同时更新localAvatar字段
             if (fileStorageProperties.isLocal() && !objectKey.startsWith("http://")
                     && !objectKey.startsWith("https://")) {
-                WxUser user = wxUserService.getById(userId);
-                if (user != null) {
-                    user.setLocalAvatar(objectKey);
-                    user.setAvatar(objectKey); // 也更新avatar字段以保持兼容
-                    wxUserService.updateById(user);
-                    log.debug("设置本地头像路径: {}", objectKey);
-                }
+                user.setLocalAvatar(objectKey);
+                user.setAvatar(objectKey); // 也更新avatar字段以保持兼容
+                log.debug("设置本地头像路径: {}", objectKey);
             }
+
+            // 保存用户信息变更
+            wxUserService.updateById(user);
 
             UploadResult result = new UploadResult(objectKey, presignedUrl);
             return Result.success(result);

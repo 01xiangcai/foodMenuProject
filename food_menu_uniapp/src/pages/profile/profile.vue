@@ -33,9 +33,9 @@
         <text class="label">我的收藏</text>
         <text class="arrow">→</text>
       </view>
-      <view class="menu-item" @tap="goToAddress">
-        <text class="icon">📍</text>
-        <text class="label">收货地址</text>
+      <view class="menu-item" @tap="goToMessages">
+        <text class="icon">�</text>
+        <text class="label">我的消息</text>
         <text class="arrow">→</text>
       </view>
       
@@ -294,6 +294,19 @@ const handleSave = async () => {
     return
   }
 
+  // 检查是否修改了信息
+  const isNicknameChanged = formData.value.nickname !== userInfo.value.nickname
+  const isAvatarChanged = !!formData.value.tempAvatarPath
+
+  if (!isNicknameChanged && !isAvatarChanged) {
+    uni.showToast({
+      title: '未修改任何信息',
+      icon: 'none'
+    })
+    showEditModal.value = false
+    return
+  }
+
   try {
     uni.showLoading({
       title: '保存中...',
@@ -315,10 +328,22 @@ const handleSave = async () => {
       } catch (uploadError) {
         console.error('上传头像失败:', uploadError)
         uni.hideLoading()
-        uni.showToast({
-          title: '头像上传失败',
-          icon: 'none'
-        })
+        
+        const errorMessage = uploadError.message || '头像上传失败'
+        // 如果是上传次数限制错误，使用模态框提示
+        if (errorMessage.includes('上限') || errorMessage.includes('次数')) {
+          uni.showModal({
+            title: '提示',
+            content: errorMessage,
+            showCancel: false,
+            confirmText: '知道了'
+          })
+        } else {
+          uni.showToast({
+            title: errorMessage,
+            icon: 'none'
+          })
+        }
         return
       }
     }
@@ -362,10 +387,10 @@ const goToFavorites = () => {
   })
 }
 
-const goToAddress = () => {
+const goToMessages = () => {
   if (!checkLogin()) return
   uni.showToast({
-    title: '地址管理功能开发中',
+    title: '消息中心功能开发中',
     icon: 'none'
   })
 }
@@ -588,7 +613,7 @@ onMounted(() => {
   bottom: 0;
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(4px);
-  z-index: 999;
+  z-index: 500;
   animation: fadeIn 0.3s ease;
 }
 
@@ -598,7 +623,7 @@ onMounted(() => {
   right: 30rpx;
   top: 50%;
   transform: translateY(-50%) scale(0.9);
-  z-index: 1000;
+  z-index: 501;
   opacity: 0;
   visibility: hidden;
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);

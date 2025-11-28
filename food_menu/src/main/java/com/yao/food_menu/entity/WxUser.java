@@ -56,4 +56,10 @@ public class WxUser implements Serializable {
 
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
+
+    // 头像更新次数(每日限制)
+    private Integer avatarUpdateCount;
+
+    // 头像最后更新日期
+    private java.time.LocalDate avatarLastUpdateDate;
 }
