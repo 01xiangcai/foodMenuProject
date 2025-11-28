@@ -25,8 +25,8 @@
 
     <section class="grid-2">
       <div class="glass-card hover-rise nebula-grid">
-        <h3>运营脉冲</h3>
-        <PulseTimeline />
+        <h3>明星菜品</h3>
+        <StarDishes />
       </div>
       <div class="glass-card hover-rise">
         <h3>Flavor DNA</h3>
@@ -43,7 +43,7 @@ import { useMessage } from 'naive-ui';
 import StatCard from '@/components/StatCard.vue';
 import OrderStream from '@/components/OrderStream.vue';
 import EChart from '@/components/base/EChart.vue';
-import PulseTimeline from '@/components/PulseTimeline.vue';
+import StarDishes from '@/components/StarDishes.vue';
 import FlavorNetwork from '@/components/FlavorNetwork.vue';
 import { fetchDashboardStats } from '@/api/modules';
 

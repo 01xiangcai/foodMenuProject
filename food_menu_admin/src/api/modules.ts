@@ -111,6 +111,7 @@ export const removeCategory = (id: number) => http.delete('/category', { params:
 
 export const fetchDishes = (params: DishQuery) => http.get('/dish/page', { params });
 export const fetchDishDetail = (id: number) => http.get(`/dish/${id}`);
+export const fetchTopDishes = () => http.get('/dish/top');
 export const createDish = (data: DishPayload) => http.post('/dish', data);
 export const updateDish = (data: DishPayload) => http.put('/dish', data);
 export const removeDish = (id: number) => http.delete('/dish', { params: { id } });

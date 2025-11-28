@@ -371,7 +371,7 @@ const orders = ref<OrderRecord[]>([]);
 const ordersLoading = ref(false);
 const loadingMore = ref(false);
 const currentPage = ref(1);
-const pageSize = 6;
+const pageSize = 10;
 const hasMore = ref(true);
 
 const filters = reactive<OrderFilters>({

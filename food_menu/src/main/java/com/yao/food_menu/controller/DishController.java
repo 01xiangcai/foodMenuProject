@@ -156,6 +156,9 @@ public class DishController {
             convertImageToPresignedUrl(dishDto);
         });
 
+        // 重新排序，确保按点单次数降序排列
+        list.sort((a, b) -> b.getOrderCount() - a.getOrderCount());
+
         return Result.success(list);
     }
 
