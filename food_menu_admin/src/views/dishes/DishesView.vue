@@ -3,12 +3,24 @@
     <section class="glass-card hover-rise categories-card">
       <div class="section-header">
         <div>
-          <h2>家庭分类</h2>
-          <p>给爸妈和孩子的专属分组</p>
+          <h2>菜品分类</h2>
         </div>
         <NButton class="primary-soft" size="small" type="primary" @click="openCategoryModal()">新增分类</NButton>
       </div>
       <div class="category-list" v-if="categories.length">
+        <!-- 全部选项 -->
+        <button
+          class="category-item"
+          :class="{ active: selectedCategoryId === null }"
+          @click="selectCategory(null)"
+        >
+          <div>
+            <strong>全部</strong>
+            <p>查看所有菜品</p>
+          </div>
+        </button>
+        
+        <!-- 分类列表 -->
         <button
           v-for="category in categories"
           :key="category.id"
@@ -47,6 +59,7 @@
         :data="dishes"
         :loading="dishLoading"
         :pagination="pagination"
+        :remote="true"
         size="large"
       />
     </section>
@@ -158,7 +171,7 @@
     </NModal>
 
     <!-- 详情弹窗 -->
-    <NModal v-model:show="detailModal.show" preset="card" style="max-width: 400px" :title="detailModal.data?.name">
+    <NModal v-model:show="detailModal.show" preset="card" style="max-width: 400px; max-height: 100vh" :title="detailModal.data?.name">
       <div v-if="detailModal.data" class="dish-detail">
         <div class="detail-image-wrapper">
           <img :src="detailModal.data.image" class="detail-image" />
@@ -293,7 +306,7 @@ const imageUploading = ref(false);
 
 const pagination = reactive<PaginationProps>({
   page: 1,
-  pageSize: 5,
+  pageSize: 10,
   itemCount: 0,
   showQuickJumper: true,
   showSizePicker: true,
@@ -461,7 +474,7 @@ function lookupCategoryName(id: number) {
   return categories.value.find((item) => item.id === id)?.name || '未分类';
 }
 
-const selectCategory = (id: number) => {
+const selectCategory = (id: number | null) => {
   selectedCategoryId.value = id;
 };
 
@@ -716,10 +729,9 @@ const handleImageUpload = async (options: UploadCustomRequestOptions) => {
 const loadCategories = async () => {
   const result = await fetchCategories();
   categories.value = result.data || [];
-  if (!categories.value.length) {
+  // 默认选中"全部"(null),不自动选中第一个分类
+  if (selectedCategoryId.value !== null && !categories.value.some((item) => item.id === selectedCategoryId.value)) {
     selectedCategoryId.value = null;
-  } else if (!selectedCategoryId.value || !categories.value.some((item) => item.id === selectedCategoryId.value)) {
-    selectedCategoryId.value = categories.value[0].id;
   }
 };
 
