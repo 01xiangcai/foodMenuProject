@@ -16,7 +16,7 @@
         <text class="card-title">订单商品</text>
       </view>
       <view class="order-items">
-        <view class="order-item" v-for="item in order.items" :key="item.id">
+        <view class="order-item" v-for="item in order.items" :key="item.id" @tap="navigateToDishDetail(item.dishId)">
           <image class="item-image" :src="item.image" mode="aspectFill" />
           <view class="item-info">
             <text class="item-name">{{ item.name }}</text>
@@ -28,13 +28,17 @@
     </view>
 
     <!-- 备注 -->
-    <view class="section-card" v-if="order.remark">
+    <view class="section-card">
       <view class="card-header">
         <view class="header-line"></view>
         <text class="card-title">备注</text>
+        <view class="btn-edit" v-if="order.status === 0" @tap="showRemarkModal">
+          <text>修改</text>
+        </view>
       </view>
       <view class="remark-content">
-        <text class="remark-text">{{ order.remark }}</text>
+        <text class="remark-text" v-if="order.remark">{{ order.remark }}</text>
+        <text class="remark-text empty" v-else>暂无备注</text>
       </view>
     </view>
 
@@ -71,13 +75,47 @@
         <text>取消订单</text>
       </view>
     </view>
+
+    <!-- 自定义备注编辑弹窗 -->
+    <view class="remark-modal" v-if="showModal" @tap="closeModal">
+      <view class="modal-content" @tap.stop>
+        <view class="modal-header">
+          <text class="modal-title">✏️ 修改备注</text>
+          <view class="close-btn" @tap="closeModal">
+            <text>✕</text>
+          </view>
+        </view>
+        <view class="modal-body">
+          <textarea 
+            class="remark-input" 
+            v-model="tempRemark" 
+            placeholder="请输入备注内容,如:不要辣椒、多加香菜等..."
+            placeholder-class="input-placeholder"
+            maxlength="200"
+            :auto-height="true"
+            :show-confirm-bar="false"
+          />
+          <view class="char-count">
+            <text>{{ tempRemark.length }}/200</text>
+          </view>
+        </view>
+        <view class="modal-footer">
+          <view class="btn btn-cancel-modal" @tap="closeModal">
+            <text>取消</text>
+          </view>
+          <view class="btn btn-confirm" @tap="confirmRemark">
+            <text>确定</text>
+          </view>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
 <script setup>
 import { ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
-import { getOrderDetail, updateOrderStatus } from '@/api/index'
+import { getOrderDetail, updateOrderStatus, updateOrderRemark } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 
 const order = ref({
@@ -88,6 +126,9 @@ const order = ref({
   remark: '',
   items: []
 })
+
+const showModal = ref(false)
+const tempRemark = ref('')
 
 const getStatusIcon = (status) => {
   const iconMap = {
@@ -153,6 +194,7 @@ const loadOrderDetail = async (id) => {
         remark: data.remark || '',
         items: (data.orderItems || []).map(item => ({
           id: item.id,
+          dishId: item.dishId,
           name: item.dishName,
           quantity: item.quantity,
           price: item.price,
@@ -176,6 +218,7 @@ const loadOrderDetail = async (id) => {
       items: [
         {
           id: 1,
+          dishId: 1,
           name: '宫保鸡丁',
           quantity: 1,
           price: 38,
@@ -183,6 +226,7 @@ const loadOrderDetail = async (id) => {
         },
         {
           id: 2,
+          dishId: 2,
           name: '红烧肉',
           quantity: 1,
           price: 48,
@@ -216,6 +260,40 @@ const cancelOrder = () => {
         }
       }
     }
+  })
+}
+
+const showRemarkModal = () => {
+  tempRemark.value = order.value.remark || ''
+  showModal.value = true
+}
+
+const closeModal = () => {
+  showModal.value = false
+}
+
+const confirmRemark = async () => {
+  try {
+    await updateOrderRemark(order.value.id, tempRemark.value)
+    order.value.remark = tempRemark.value
+    showModal.value = false
+    uni.showToast({
+      title: '备注修改成功',
+      icon: 'success'
+    })
+  } catch (error) {
+    console.error('修改备注失败:', error)
+    uni.showToast({
+      title: '修改失败',
+      icon: 'error'
+    })
+  }
+}
+
+const navigateToDishDetail = (dishId) => {
+  if (!dishId) return
+  uni.navigateTo({ 
+    url: `/pages/detail/detail?id=${dishId}` 
   })
 }
 
@@ -315,6 +393,7 @@ onShow(() => {
   align-items: center;
   padding: 30rpx;
   border-bottom: 1px solid v-bind('themeConfig.borderColor');
+  position: relative;
 }
 
 .header-line {
@@ -329,6 +408,22 @@ onShow(() => {
   font-size: 32rpx;
   font-weight: 700;
   color: v-bind('themeConfig.textPrimary');
+  flex: 1;
+}
+
+.btn-edit {
+  padding: 8rpx 24rpx;
+  border-radius: 20rpx;
+  font-size: 24rpx;
+  font-weight: 500;
+  background: v-bind('themeConfig.primaryColor');
+  color: #fff;
+  transition: all 0.3s;
+  
+  &:active {
+    opacity: 0.8;
+    transform: scale(0.95);
+  }
 }
 
 /* 商品列表优化 */
@@ -441,6 +536,11 @@ onShow(() => {
   color: v-bind('themeConfig.textPrimary');
   line-height: 1.6;
   word-break: break-all;
+  
+  &.empty {
+    color: v-bind('themeConfig.textSecondary');
+    opacity: 0.6;
+  }
 }
 
 /* 底部栏 */
@@ -474,6 +574,162 @@ onShow(() => {
   &:active {
     opacity: 0.8;
     transform: scale(0.98);
+  }
+}
+
+/* 自定义备注弹窗样式 */
+.remark-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10rpx);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-content {
+  width: 640rpx;
+  background: v-bind('themeConfig.cardBg');
+  border-radius: 32rpx;
+  overflow: hidden;
+  box-shadow: 0 20rpx 60rpx rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100rpx);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 40rpx 40rpx 30rpx;
+  border-bottom: 1px solid v-bind('themeConfig.borderColor');
+  background: linear-gradient(135deg, v-bind('themeConfig.primaryColor') 0%, v-bind('themeConfig.primaryColor') 100%);
+}
+
+.modal-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #fff;
+}
+
+.close-btn {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 32rpx;
+  transition: all 0.3s;
+  
+  &:active {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(0.9);
+  }
+}
+
+.modal-body {
+  padding: 40rpx;
+}
+
+.remark-input {
+  width: 100%;
+  min-height: 200rpx;
+  padding: 24rpx;
+  background: v-bind('themeConfig.inputBg');
+  border: 2px solid v-bind('themeConfig.borderColor');
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  color: v-bind('themeConfig.textPrimary');
+  line-height: 1.6;
+  transition: all 0.3s;
+  box-sizing: border-box;
+  
+  &:focus {
+    border-color: v-bind('themeConfig.primaryColor');
+    background: v-bind('themeConfig.cardBg');
+  }
+}
+
+.input-placeholder {
+  color: v-bind('themeConfig.textSecondary');
+  opacity: 0.5;
+}
+
+.char-count {
+  margin-top: 16rpx;
+  text-align: right;
+  font-size: 24rpx;
+  color: v-bind('themeConfig.textSecondary');
+  opacity: 0.7;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 20rpx;
+  padding: 0 40rpx 40rpx;
+}
+
+.btn {
+  flex: 1;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 44rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  transition: all 0.3s;
+  
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+.btn-cancel-modal {
+  background: v-bind('themeConfig.inputBg');
+  border: 2px solid v-bind('themeConfig.borderColor');
+  color: v-bind('themeConfig.textSecondary');
+  
+  &:active {
+    background: v-bind('themeConfig.borderColor');
+  }
+}
+
+.btn-confirm {
+  background: linear-gradient(135deg, v-bind('themeConfig.primaryColor') 0%, v-bind('themeConfig.primaryColor') 100%);
+  color: #fff;
+  box-shadow: 0 8rpx 20rpx rgba(255, 107, 107, 0.3);
+  
+  &:active {
+    box-shadow: 0 4rpx 12rpx rgba(255, 107, 107, 0.3);
   }
 }
 </style>

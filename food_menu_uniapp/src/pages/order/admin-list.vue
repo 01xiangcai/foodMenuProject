@@ -38,6 +38,7 @@
               class="order-item" 
               v-for="item in getDisplayItems(order)" 
               :key="item.id"
+              @tap.stop="navigateToDishDetail(item.dishId)"
             >
               <image v-if="item.image" class="item-image" :src="item.image" mode="aspectFill" lazy-load @error="handleImageError" />
               <view v-else class="item-placeholder">
@@ -202,6 +203,7 @@ const loadOrders = async (reset = false) => {
       expanded: false, // 默认收起
       items: (order.orderItems || []).map(item => ({
         id: item.id,
+        dishId: item.dishId,
         name: item.dishName,
         image: item.dishImage,
         price: item.price,

@@ -46,6 +46,18 @@ export const updateOrderStatus = (id, status) => {
 }
 
 /**
+ * 更新订单备注
+ * @param {Number} id 订单ID
+ * @param {String} remark 备注内容
+ */
+export const updateOrderRemark = (id, remark) => {
+    return request({
+        url: `/order/remark?id=${id}&remark=${encodeURIComponent(remark)}`,
+        method: 'PUT'
+    })
+}
+
+/**
  * 获取菜品详情
  * @param {Number} id 菜品ID
  */

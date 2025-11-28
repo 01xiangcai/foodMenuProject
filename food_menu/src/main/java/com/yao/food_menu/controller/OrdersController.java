@@ -326,6 +326,51 @@ public class OrdersController {
     }
 
     /**
+     * Update order remark
+     */
+    @Operation(summary = "修改订单备注", description = "修改订单备注，仅待接单状态下可修改")
+    @PutMapping("/remark")
+    public Result<String> updateRemark(@RequestParam Long id, @RequestParam String remark,
+            @RequestHeader(value = "Authorization", required = false) String token) {
+        log.info("Update order remark: id={}, remark={}", id, remark);
+
+        try {
+            // Remove "Bearer " prefix if exists
+            if (token != null && token.startsWith("Bearer ")) {
+                token = token.substring(7);
+            }
+
+            Long userId = JwtUtil.getUserId(token);
+            if (userId == null) {
+                return Result.error("未登录");
+            }
+
+            Orders order = ordersService.getById(id);
+            if (order == null) {
+                return Result.error("订单不存在");
+            }
+
+            // Verify ownership
+            if (!order.getUserId().equals(userId)) {
+                return Result.error("无权限修改他人订单");
+            }
+
+            // Verify status (only 0: Pending Acceptance)
+            if (order.getStatus() != 0) {
+                return Result.error("当前状态不可修改备注");
+            }
+
+            order.setRemark(remark);
+            ordersService.updateById(order);
+
+            return Result.success("备注修改成功");
+        } catch (Exception e) {
+            log.error("Update order remark failed: {}", e.getMessage());
+            return Result.error("修改失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * Update order status
      */
     @Operation(summary = "更新订单状态", description = "更新订单状态:0-待接单,1-准备中,2-配送中,3-已完成,4-已取消。仅管理员可操作，普通用户仅可取消")
