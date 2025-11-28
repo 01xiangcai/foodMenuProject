@@ -19,31 +19,53 @@
     <scroll-view class="dish-scroll" scroll-y @scrolltolower="loadMore">
       <view class="dish-list">
         <view 
-          class="dish-card glass-card"
+          class="dish-card"
           v-for="dish in dishes" 
           :key="dish.id"
           @tap="goToDetail(dish.id)"
         >
-          <view class="dish-media">
+          <!-- 图片区域 -->
+          <view class="dish-image-wrapper">
             <image class="dish-image" :src="dish.image" mode="aspectFill" />
+            <view class="image-overlay"></view>
             <view 
               class="favorite-btn" 
               :class="{ active: dish.isFavorite }"
               @tap.stop="toggleFavorite(dish)"
             >
-              <text class="heart">{{ dish.isFavorite ? '❤' : '♡' }}</text>
+              <text class="heart-icon">{{ dish.isFavorite ? '❤️' : '🤍' }}</text>
+            </view>
+            <!-- 分类标签 -->
+            <view class="category-badge" v-if="dish.categoryName">
+              <text>{{ dish.categoryName }}</text>
             </view>
           </view>
-          <view class="dish-info">
-            <view class="dish-header">
+          
+          <!-- 信息区域 -->
+          <view class="dish-content">
+            <!-- 标题行 -->
+            <view class="title-row">
               <text class="dish-name">{{ dish.name }}</text>
-              <view class="tags" v-if="dish.tags">
-                <text class="tag" v-for="tag in dish.tags" :key="tag">{{ tag }}</text>
+            </view>
+            
+            <!-- 标签行 -->
+            <view class="tags-row" v-if="dish.tags && dish.tags.length">
+              <view class="tag" v-for="(tag, index) in dish.tags.slice(0, 3)" :key="tag">
+                <text class="tag-icon">{{ getTagIcon(tag) }}</text>
+                <text class="tag-text">{{ tag }}</text>
               </view>
             </view>
+            
+            <!-- 描述 -->
             <text class="dish-desc">{{ dish.description }}</text>
-            <view class="dish-footer">
-              <text class="dish-price">¥{{ dish.price }}<text class="unit">/份</text></text>
+            
+            <!-- 底部操作栏 -->
+            <view class="action-bar">
+              <view class="price-section">
+                <text class="price-symbol">¥</text>
+                <text class="price-value">{{ dish.price }}</text>
+                <text class="price-unit">/份</text>
+              </view>
               
               <!-- 数量控制器 -->
               <view class="quantity-control" @tap.stop>
@@ -52,10 +74,10 @@
                   v-if="cartStore.getDishQuantity(dish.id) > 0"
                   @tap.stop="cartStore.removeFromCart(dish)"
                 >
-                  <text>-</text>
+                  <text>−</text>
                 </view>
                 <text 
-                  class="quantity-text" 
+                  class="quantity-num" 
                   v-if="cartStore.getDishQuantity(dish.id) > 0"
                 >{{ cartStore.getDishQuantity(dish.id) }}</text>
                 <view class="btn-plus" @tap.stop="cartStore.addToCart(dish)">
@@ -119,7 +141,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getCategoryList, getDishList, addFavorite, removeFavorite, checkFavoriteBatch } from '@/api/index'
+import { getCategoryList, getDishList, addFavorite, removeFavorite, checkFavoriteBatch, getTagIconMap } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 import { useCartStore } from '@/stores/cart'
 import CartPopup from '@/components/CartPopup.vue'
@@ -139,6 +161,7 @@ const page = ref(1)
 const pageSize = ref(10)
 const favoriteIds = ref(new Set())
 const cartPopupVisible = ref(false)
+const tagIconMap = ref({})
 
 // 加载分类
 const loadCategories = async () => {
@@ -334,8 +357,28 @@ const toggleFavorite = async (dish) => {
   }
 }
 
+// 加载标签图标映射
+const loadTagIconMap = async () => {
+  try {
+    const res = await getTagIconMap()
+    if (res.data) {
+      tagIconMap.value = res.data
+    }
+  } catch (error) {
+    console.error('加载标签图标映射失败:', error)
+    // 如果加载失败，使用默认图标
+    tagIconMap.value = {}
+  }
+}
+
+// 获取标签图标
+const getTagIcon = (tag) => {
+  return tagIconMap.value[tag] || '🔸'
+}
+
 onMounted(() => {
   loadTheme()
+  loadTagIconMap()
   loadCategories()
   loadDishes(true)
 })
@@ -413,209 +456,325 @@ onMounted(() => {
 }
 
 .dish-card {
-  display: flex;
-  padding: 20rpx;
-  margin-bottom: 20rpx;
+  position: relative;
+  margin-bottom: 24rpx;
+  border-radius: 24rpx;
+  overflow: hidden;
   background: v-bind('themeConfig.cardBg');
-  border-radius: 16rpx;
   border: 1px solid v-bind('themeConfig.cardBorder');
-  backdrop-filter: blur(10px);
-  transition: all 0.3s ease;
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  backdrop-filter: blur(20px);
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  
+  &:active {
+    transform: scale(0.98);
+    box-shadow: 
+      0 2px 8px rgba(0, 0, 0, 0.12),
+      0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  }
 }
 
-.dish-media {
+/* 图片区域 */
+.dish-image-wrapper {
   position: relative;
-  margin-right: 20rpx;
+  width: 100%;
+  height: 320rpx;
+  overflow: hidden;
 }
 
 .dish-image {
-  width: 180rpx;
-  height: 180rpx;
-  border-radius: 12rpx;
-  flex-shrink: 0;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s ease;
 }
 
+.dish-card:active .dish-image {
+  transform: scale(1.05);
+}
+
+.image-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 120rpx;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.5), transparent);
+  pointer-events: none;
+}
+
+/* 收藏按钮 */
 .favorite-btn {
   position: absolute;
-  top: 12rpx;
-  right: 12rpx;
-  width: 54rpx;
-  height: 54rpx;
+  top: 16rpx;
+  right: 16rpx;
+  width: 64rpx;
+  height: 64rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(0, 0, 0, 0.65), rgba(30, 30, 50, 0.75));
-  border: 2px solid rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 
-    0 3px 12px rgba(0, 0, 0, 0.3),
-    0 0 15px rgba(255, 255, 255, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  backdrop-filter: blur(10px);
+    0 4px 16px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(0, 0, 0, 0.05) inset;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 10;
 }
 
 .favorite-btn:active {
-  transform: scale(0.92);
-  box-shadow: 
-    0 2px 8px rgba(0, 0, 0, 0.35),
-    0 0 10px rgba(255, 255, 255, 0.1);
+  transform: scale(0.88);
 }
 
-.favorite-btn .heart {
-  font-size: 28rpx;
-  color: #fff;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
-  transition: transform 0.3s ease;
+.favorite-btn .heart-icon {
+  font-size: 32rpx;
+  line-height: 1;
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
 .favorite-btn.active {
-  background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
-  border-color: rgba(255, 255, 255, 0.95);
+  background: linear-gradient(135deg, #ff6b6b, #ff8787);
   box-shadow: 
-    0 4px 16px rgba(238, 90, 111, 0.5),
-    0 0 25px rgba(238, 90, 111, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35);
-  animation: heartBeat 0.5s ease;
+    0 6px 20px rgba(255, 107, 107, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.3) inset;
+  animation: favoritePopIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.favorite-btn.active .heart {
-  color: #fff;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
-  animation: heartPulse 0.5s ease;
+.favorite-btn.active .heart-icon {
+  animation: heartBounce 0.6s ease;
 }
 
-@keyframes heartBeat {
-  0%, 100% { transform: scale(1); }
-  30% { transform: scale(1.12); }
-  60% { transform: scale(1.05); }
-}
-
-@keyframes heartPulse {
-  0%, 100% { transform: scale(1); }
+@keyframes favoritePopIn {
+  0% { transform: scale(0.8); }
   50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
 }
 
-.dish-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+@keyframes heartBounce {
+  0%, 100% { transform: scale(1); }
+  25% { transform: scale(1.2) rotate(-10deg); }
+  50% { transform: scale(1.3) rotate(10deg); }
+  75% { transform: scale(1.2) rotate(-5deg); }
 }
 
-.dish-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+/* 分类标签 */
+.category-badge {
+  position: absolute;
+  bottom: 16rpx;
+  left: 16rpx;
+  padding: 8rpx 16rpx;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  border-radius: 20rpx;
+  z-index: 10;
+  
+  text {
+    font-size: 22rpx;
+    color: #fff;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* 内容区域 */
+.dish-content {
+  padding: 24rpx;
+}
+
+.title-row {
+  margin-bottom: 12rpx;
 }
 
 .dish-name {
-  font-size: 30rpx;
-  font-weight: 600;
+  font-size: 32rpx;
+  font-weight: 700;
   color: v-bind('themeConfig.textPrimary');
-  margin-bottom: 8rpx;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
   transition: color 0.3s ease;
 }
 
-.tags {
+/* 标签行 */
+.tags-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8rpx;
+  margin-bottom: 12rpx;
 }
 
 .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4rpx;
+  padding: 6rpx 12rpx;
+  border-radius: 16rpx;
   font-size: 20rpx;
-  color: v-bind('themeConfig.primaryColor');
-  background: v-bind('themeConfig.primaryColor + "1a"');
-  padding: 2rpx 8rpx;
-  border-radius: 4rpx;
+  font-weight: 600;
+  position: relative;
+  overflow: hidden;
   transition: all 0.3s ease;
+  
+  /* 渐变背景 */
+  background: linear-gradient(
+    135deg,
+    v-bind('themeConfig.primaryColor + "12"'),
+    v-bind('themeConfig.primaryColor + "20"')
+  );
+  
+  /* 边框 */
+  border: 1px solid v-bind('themeConfig.primaryColor + "30"');
+  
+  /* 毛玻璃效果 */
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* 不同标签的颜色主题 */
+.tag:nth-child(3n+1) {
+  background: linear-gradient(135deg, #ff6b6b10, #ff6b6b18);
+  border-color: #ff6b6b30;
+  
+  .tag-text {
+    color: #ff6b6b;
+  }
+}
+
+.tag:nth-child(3n+2) {
+  background: linear-gradient(135deg, #51cf6610, #51cf6618);
+  border-color: #51cf6630;
+  
+  .tag-text {
+    color: #51cf66;
+  }
+}
+
+.tag:nth-child(3n+3) {
+  background: linear-gradient(135deg, #339af010, #339af018);
+  border-color: #339af030;
+  
+  .tag-text {
+    color: #339af0;
+  }
+}
+
+.tag-icon {
+  font-size: 20rpx;
+  line-height: 1;
+}
+
+.tag-text {
+  line-height: 1;
+  letter-spacing: 0.3rpx;
 }
 
 .dish-desc {
   font-size: 24rpx;
   color: v-bind('themeConfig.textSecondary');
-  margin-bottom: 16rpx;
+  line-height: 1.6;
+  margin-bottom: 20rpx;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  line-clamp: 2; /* 标准属性 */
   overflow: hidden;
   transition: color 0.3s ease;
 }
 
-.dish-footer {
+/* 底部操作栏 */
+.action-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding-top: 16rpx;
+  border-top: 1px solid v-bind('themeConfig.borderColor');
 }
 
-.dish-price {
-  font-size: 36rpx;
+.price-section {
+  display: flex;
+  align-items: baseline;
+  gap: 4rpx;
+}
+
+.price-symbol {
+  font-size: 24rpx;
   font-weight: 700;
-  color: v-bind('themeConfig.errorColor');
-  transition: color 0.3s ease;
-  
-  .unit {
-    font-size: 24rpx;
-    color: v-bind('themeConfig.textSecondary');
-    font-weight: normal;
-    margin-left: 4rpx;
-  }
+  color: #ff6b6b;
 }
 
-/* 数量控制器样式 */
+.price-value {
+  font-size: 40rpx;
+  font-weight: 800;
+  color: #ff6b6b;
+  line-height: 1;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.price-unit {
+  font-size: 22rpx;
+  color: v-bind('themeConfig.textSecondary');
+  font-weight: 500;
+}
+
+/* 数量控制器 */
 .quantity-control {
   display: flex;
   align-items: center;
+  gap: 12rpx;
+}
+
+.btn-minus,
+.btn-plus {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   
-  .btn-minus,
-  .btn-plus {
-    width: 50rpx;
-    height: 50rpx;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    
-    &:active {
-      transform: scale(0.9);
-    }
-    
-    text {
-      font-size: 32rpx;
-      line-height: 1;
-      margin-top: -4rpx;
-    }
+  &:active {
+    transform: scale(0.85);
   }
   
-  .btn-minus {
-    background: transparent;
-    border: 1px solid v-bind('themeConfig.textSecondary');
-    
-    text {
-      color: v-bind('themeConfig.textSecondary');
-    }
-  }
-  
-  .btn-plus {
-    background: v-bind('themeConfig.primaryGradient');
-    box-shadow: v-bind('themeConfig.shadowLight');
-    border: none;
-    
-    text {
-      color: #fff;
-    }
-  }
-  
-  .quantity-text {
-    font-size: 30rpx;
-    color: v-bind('themeConfig.textPrimary');
-    margin: 0 20rpx;
-    min-width: 40rpx;
-    text-align: center;
+  text {
+    font-size: 28rpx;
     font-weight: 600;
+    line-height: 1;
   }
+}
+
+.btn-minus {
+  background: v-bind('themeConfig.inputBg');
+  border: 2px solid v-bind('themeConfig.borderColor');
+  
+  text {
+    color: v-bind('themeConfig.textSecondary');
+  }
+}
+
+.btn-plus {
+  background: linear-gradient(135deg, #ff6b6b, #ff8787);
+  box-shadow: 
+    0 4px 12px rgba(255, 107, 107, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+  border: none;
+  
+  text {
+    color: #fff;
+  }
+}
+
+.quantity-num {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: v-bind('themeConfig.textPrimary');
+  min-width: 36rpx;
+  text-align: center;
 }
 
 .loading,

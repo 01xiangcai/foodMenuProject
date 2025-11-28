@@ -130,6 +130,7 @@ const menuOptions: MenuOption[] = [
   { label: renderLabel('订单记录', '/orders'), key: 'orders', icon: renderIcon('i-tabler-activity-heartbeat') },
   { label: renderLabel('轮播图管理', '/banners'), key: 'banners', icon: renderIcon('i-tabler-photo') },
   { label: renderLabel('用户管理', '/users'), key: 'users', icon: renderIcon('i-tabler-users') },
+  { label: renderLabel('标签管理', '/tags'), key: 'tags', icon: renderIcon('i-tabler-tags') },
   { label: renderLabel('图片迁移', '/migration'), key: 'migration', icon: renderIcon('i-tabler-cloud-upload') }
 ];
 

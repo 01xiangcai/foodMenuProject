@@ -15,6 +15,15 @@
             <text class="category-tag">· {{ dish.categoryName || '家庭菜谱' }}</text>
           </view>
         </view>
+        
+        <!-- 标签 -->
+        <view class="tags" v-if="dish.tags && dish.tags.length">
+          <view class="tag" v-for="(tag, index) in dish.tags" :key="tag">
+            <view class="tag-icon">{{ getTagIcon(tag) }}</view>
+            <text class="tag-text">{{ tag }}</text>
+          </view>
+        </view>
+        
         <text class="dish-desc">{{ dish.description }}</text>
       </view>
 
@@ -71,7 +80,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { getDishDetail } from '@/api/index'
+import { getDishDetail, getTagIconMap } from '@/api/index'
 import { getCommentList, addComment } from '@/api/comment'
 import { useTheme } from '@/stores/theme'
 import { useCartStore } from '@/stores/cart'
@@ -82,6 +91,7 @@ import CommentInput from '@/components/CommentInput.vue'
 const { themeConfig, loadTheme } = useTheme()
 const cartStore = useCartStore()
 const cartPopupVisible = ref(false)
+const tagIconMap = ref({})
 
 const dish = ref({
   id: 0,
@@ -112,7 +122,12 @@ const loadDishDetail = async (id) => {
   try {
     const res = await getDishDetail(id)
     if (res.data) {
-      dish.value = res.data
+      dish.value = {
+        ...res.data,
+        tags: res.data.tags && typeof res.data.tags === 'string' 
+          ? res.data.tags.split(/[,，]/).filter(Boolean) 
+          : []
+      }
     }
   } catch (error) {
     console.error('加载菜品详情失败:', error)
@@ -123,9 +138,28 @@ const loadDishDetail = async (id) => {
       description: '经典川菜，选用优质鸡肉，配以花生米、干辣椒等食材，口感香辣酥脆，色泽红亮，是一道深受欢迎的传统名菜。',
       price: 38,
       image: 'https://dummyimage.com/800x600/ff6b6b/ffffff&text=宫保鸡丁',
-      categoryName: '川菜经典'
+      categoryName: '川菜经典',
+      tags: ['川菜', '辣', '经典']
     }
   }
+}
+
+// 加载标签图标映射
+const loadTagIconMap = async () => {
+  try {
+    const res = await getTagIconMap()
+    if (res.data) {
+      tagIconMap.value = res.data
+    }
+  } catch (error) {
+    console.error('加载标签图标映射失败:', error)
+    tagIconMap.value = {}
+  }
+}
+
+// 获取标签图标
+const getTagIcon = (tag) => {
+  return tagIconMap.value[tag] || '🔸'
 }
 
 // 加载评论列表
@@ -244,6 +278,7 @@ onLoad((options) => {
 
 onMounted(() => {
   loadTheme()
+  loadTagIconMap()
 })
 </script>
 
@@ -318,6 +353,151 @@ onMounted(() => {
 .category-tag {
   font-size: 28rpx;
   color: v-bind('themeConfig.textSecondary');
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-bottom: 20rpx;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 10rpx 18rpx;
+  border-radius: 22rpx;
+  font-size: 24rpx;
+  font-weight: 500;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  
+  /* 渐变背景 */
+  background: linear-gradient(
+    135deg,
+    v-bind('themeConfig.primaryColor + "15"'),
+    v-bind('themeConfig.primaryColor + "25"')
+  );
+  
+  /* 边框光晕 */
+  border: 1px solid v-bind('themeConfig.primaryColor + "40"');
+  box-shadow: 
+    0 2px 8px v-bind('themeConfig.primaryColor + "15"'),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  
+  /* 毛玻璃效果 */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  
+  /* 动画效果 */
+  animation: tagFloat 3s ease-in-out infinite;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      45deg,
+      transparent,
+      rgba(255, 255, 255, 0.1),
+      transparent
+    );
+    transform: rotate(45deg);
+    animation: tagShine 3s linear infinite;
+  }
+  
+  &:active {
+    transform: scale(0.95);
+    box-shadow: 
+      0 1px 4px v-bind('themeConfig.primaryColor + "20"'),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  }
+}
+
+/* 不同标签的颜色主题 */
+.tag:nth-child(3n+1) {
+  background: linear-gradient(135deg, #ff6b6b15, #ff6b6b25);
+  border-color: #ff6b6b40;
+  box-shadow: 
+    0 2px 8px #ff6b6b15,
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  
+  .tag-text {
+    color: #ff6b6b;
+  }
+}
+
+.tag:nth-child(3n+2) {
+  background: linear-gradient(135deg, #51cf6615, #51cf6625);
+  border-color: #51cf6640;
+  box-shadow: 
+    0 2px 8px #51cf6615,
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  
+  .tag-text {
+    color: #51cf66;
+  }
+}
+
+.tag:nth-child(3n+3) {
+  background: linear-gradient(135deg, #339af015, #339af025);
+  border-color: #339af040;
+  box-shadow: 
+    0 2px 8px #339af015,
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  
+  .tag-text {
+    color: #339af0;
+  }
+}
+
+.tag-icon {
+  font-size: 26rpx;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+  animation: tagIconBounce 2s ease-in-out infinite;
+}
+
+.tag-text {
+  font-weight: 600;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  letter-spacing: 0.5rpx;
+}
+
+/* 标签浮动动画 */
+@keyframes tagFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2rpx);
+  }
+}
+
+/* 标签光晕动画 */
+@keyframes tagShine {
+  0% {
+    transform: translateX(-100%) translateY(-100%) rotate(45deg);
+  }
+  100% {
+    transform: translateX(100%) translateY(100%) rotate(45deg);
+  }
+}
+
+/* 图标弹跳动画 */
+@keyframes tagIconBounce {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
 }
 
 .dish-desc {

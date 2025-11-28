@@ -7,6 +7,7 @@ import OrdersView from '@/views/orders/OrdersView.vue';
 import BannersView from '@/views/banners/BannersView.vue';
 import UsersView from '@/views/users/UsersView.vue';
 import MigrationView from '@/views/migration/MigrationView.vue';
+import TagsView from '@/views/tags/TagsView.vue';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -57,6 +58,12 @@ const routes: RouteRecordRaw[] = [
         name: 'migration',
         component: MigrationView,
         meta: { title: '图片迁移' }
+      },
+      {
+        path: 'tags',
+        name: 'tags',
+        component: TagsView,
+        meta: { title: '标签管理' }
       }
     ]
   }

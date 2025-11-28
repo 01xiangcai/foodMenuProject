@@ -147,9 +147,13 @@
             />
           </NFormItem>
           <NFormItem label="菜品标签">
-            <NInput
-              v-model:value="dishModal.form.tags"
-              placeholder="用逗号分隔，如: 暖胃,低油,家常"
+            <NSelect
+              v-model:value="dishModal.form.tagsArray"
+              :options="tagOptions"
+              multiple
+              filterable
+              placeholder="选择菜品标签"
+              :loading="tagsLoading"
             />
           </NFormItem>
           <NFormItem label="家庭备注">
@@ -253,7 +257,8 @@ import {
   removeDish,
   updateCategory,
   updateDish,
-  uploadImage
+  uploadImage,
+  fetchAllDishTags
 } from '@/api/modules';
 
 type Category = {
@@ -302,6 +307,16 @@ const keyword = ref('');
 
 const dishes = ref<DishRecord[]>([]);
 const dishLoading = ref(false);
+
+// 标签相关
+const dishTags = ref<Array<{ id: number; name: string; icon: string }>>([]);
+const tagsLoading = ref(false);
+const tagOptions = computed(() => {
+  return dishTags.value.map(tag => ({
+    label: `${tag.icon} ${tag.name}`,
+    value: tag.name
+  }));
+});
 const imageUploading = ref(false);
 
 const pagination = reactive<PaginationProps>({
@@ -347,7 +362,8 @@ const dishModal = reactive({
     flavorText: '',
     image: '', // Store object key (relative path) for database
     calories: '',
-    tags: ''
+    tags: '',
+    tagsArray: [] as string[] // 标签数组，用于多选
   },
   imagePreviewUrl: '' // Store presigned URL for preview
 });
@@ -544,6 +560,7 @@ const resetDishForm = () => {
   dishModal.form.image = '';
   dishModal.form.calories = '';
   dishModal.form.tags = '';
+  dishModal.form.tagsArray = [];
   dishModal.imagePreviewUrl = '';
 };
 
@@ -587,6 +604,8 @@ const fillDishForm = (dish: any) => {
   dishModal.form.flavorText = parseFlavorText(dish.flavors);
   dishModal.form.calories = dish.calories || '';
   dishModal.form.tags = dish.tags || '';
+  // 将标签字符串转换为数组
+  dishModal.form.tagsArray = dish.tags ? dish.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [];
   // Backend returns presigned URL when image is OSS object key
   // For existing dishes, image might be presigned URL or default image URL
   // We need to extract object key if it's a presigned URL, or keep as is
@@ -641,6 +660,11 @@ const saveDish = async () => {
   }
   dishModal.loading = true;
   try {
+    // 将标签数组转换为字符串
+    const tagsString = dishModal.form.tagsArray.length > 0 
+      ? dishModal.form.tagsArray.join(',') 
+      : null;
+    
     const payload: any = {
       id: dishModal.form.id,
       name: dishModal.form.name.trim(),
@@ -651,7 +675,7 @@ const saveDish = async () => {
       flavors: buildFlavorPayload(dishModal.form.flavorText),
       image: dishModal.form.image,
       calories: dishModal.form.calories.trim() || null,
-      tags: dishModal.form.tags.trim() || null
+      tags: tagsString
     };
     if (payload.id) {
       await updateDish(payload);
@@ -735,6 +759,19 @@ const loadCategories = async () => {
   }
 };
 
+// 加载标签列表
+const loadDishTags = async () => {
+  tagsLoading.value = true;
+  try {
+    const result = await fetchAllDishTags();
+    dishTags.value = result.data || [];
+  } catch (error) {
+    console.error('加载标签失败:', error);
+  } finally {
+    tagsLoading.value = false;
+  }
+};
+
 const loadDishes = async () => {
   dishLoading.value = true;
   try {
@@ -759,6 +796,7 @@ watch(selectedCategoryId, () => {
 onMounted(async () => {
   await loadCategories();
   await loadDishes();
+  await loadDishTags();
 });
 </script>
 

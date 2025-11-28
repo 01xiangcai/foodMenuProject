@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <view class="page">
     <!-- 用户信息卡片 -->
     <view class="user-card glass-card" @tap="handleUserCardClick">
@@ -34,7 +34,7 @@
         <text class="arrow">→</text>
       </view>
       <view class="menu-item" @tap="goToMessages">
-        <text class="icon">�</text>
+        <text class="icon">🔔</text>
         <text class="label">我的消息</text>
         <text class="arrow">→</text>
       </view>

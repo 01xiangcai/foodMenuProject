@@ -172,6 +172,19 @@ export const getFavoriteList = () => {
 }
 
 /**
+ * 分页获取收藏列表
+ * @param {Number} page 页码，从1开始
+ * @param {Number} pageSize 每页数量
+ */
+export const getFavoritePage = (page = 1, pageSize = 10) => {
+    return request({
+        url: '/favorite/page',
+        method: 'GET',
+        data: { page, pageSize }
+    })
+}
+
+/**
  * 获取明星菜品
  */
 export const getTopDishes = () => {
@@ -257,5 +270,27 @@ export const uploadFile = (filePath) => {
                 reject(err)
             }
         })
+    })
+}
+
+/**
+ * 获取标签图标映射
+ */
+export const getTagIconMap = () => {
+    return request({
+        url: '/dish-tag/icon-map',
+        method: 'GET'
+    })
+}
+
+/**
+ * 获取标签列表
+ * @param {Number} type 标签类型
+ */
+export const getTagList = (type) => {
+    return request({
+        url: '/dish-tag/list',
+        method: 'GET',
+        data: type ? { type } : {}
     })
 }

@@ -165,4 +165,22 @@ export const updateWxUserStatus = (id: number, status: number) =>
   http.put('/wx/user/status', null, { params: { id, status } });
 export const resetWxUserPassword = (id: number) => http.put(`/wx/user/reset-password/${id}`);
 
+export type DishTagQuery = {
+  page: number;
+  pageSize: number;
+  name?: string;
+};
+
+export type DishTagPayload = {
+  id?: number;
+  name: string;
+  icon: string;
+  sort?: number;
+};
+
+export const fetchDishTags = (params: DishTagQuery) => http.get('/dish-tag/page', { params });
+export const fetchAllDishTags = () => http.get('/dish-tag/list');
+export const createDishTag = (data: DishTagPayload) => http.post('/dish-tag', data);
+export const updateDishTag = (data: DishTagPayload) => http.put('/dish-tag', data);
+export const removeDishTag = (id: number) => http.delete(`/dish-tag/${id}`);
 

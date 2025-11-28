@@ -1,7 +1,12 @@
 <template>
   <view class="page">
-    <scroll-view class="favorites-scroll" scroll-y>
-      <view v-if="loading" class="state loading">
+    <scroll-view 
+      class="favorites-scroll" 
+      scroll-y
+      @scrolltolower="loadMore"
+      :lower-threshold="100"
+    >
+      <view v-if="loading && page === 1" class="state loading">
         <view class="skeleton-card" v-for="n in 4" :key="n">
           <view class="skeleton-cover"></view>
           <view class="skeleton-line short"></view>
@@ -34,9 +39,17 @@
             </view>
           </view>
         </view>
+        
+        <!-- 加载更多提示 -->
+        <view v-if="loadingMore" class="loading-more">
+          <text>加载中...</text>
+        </view>
+        <view v-else-if="!hasMore && favorites.length > 0" class="no-more">
+          <text>没有更多了</text>
+        </view>
       </view>
 
-      <view class="state empty" v-else>
+      <view class="state empty" v-else-if="!loading">
         <view class="icon-wrapper">
           <text class="icon">❤</text>
         </view>
@@ -59,7 +72,7 @@
 import { ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { useTheme } from '@/stores/theme'
-import { getFavoriteList, removeFavorite } from '@/api/index'
+import { getFavoritePage, removeFavorite } from '@/api/index'
 
 const { themeConfig, loadTheme } = useTheme()
 const DEFAULT_IMAGE = 'https://dummyimage.com/600x400/0f172a/ffffff&text=family+dish'
@@ -67,7 +80,11 @@ const heartIcon = '❤'
 
 const favorites = ref([])
 const loading = ref(false)
+const loadingMore = ref(false)
 const needLogin = ref(false)
+const page = ref(1)
+const pageSize = ref(10)
+const hasMore = ref(true)
 
 const mapFavorite = (item) => ({
   id: item.id || item.dishId,
@@ -78,7 +95,8 @@ const mapFavorite = (item) => ({
   image: item.image || item.dishImage || DEFAULT_IMAGE
 })
 
-const loadFavorites = async () => {
+// 加载收藏列表（分页）
+const loadFavorites = async (isRefresh = false) => {
   const token = uni.getStorageSync('fm_token')
   if (!token) {
     needLogin.value = true
@@ -87,14 +105,64 @@ const loadFavorites = async () => {
   }
 
   needLogin.value = false
-  loading.value = true
+  
+  // 如果是刷新，重置分页
+  if (isRefresh) {
+    page.value = 1
+    favorites.value = []
+    hasMore.value = true
+  }
+
+  // 如果没有更多数据，不加载
+  if (!hasMore.value && !isRefresh) {
+    return
+  }
+
+  // 设置加载状态
+  if (page.value === 1) {
+    loading.value = true
+  } else {
+    loadingMore.value = true
+  }
+
   try {
-    const res = await getFavoriteList()
-    favorites.value = (res.data || []).map(mapFavorite)
+    const res = await getFavoritePage(page.value, pageSize.value)
+    
+    if (res.data && res.data.records) {
+      const newFavorites = (res.data.records || []).map(mapFavorite)
+      
+      if (isRefresh) {
+        favorites.value = newFavorites
+      } else {
+        favorites.value = [...favorites.value, ...newFavorites]
+      }
+      
+      // 判断是否还有更多数据
+      hasMore.value = res.data.current < res.data.pages
+      
+      // 如果有数据，页码加1，准备下次加载
+      if (hasMore.value) {
+        page.value += 1
+      }
+    } else {
+      hasMore.value = false
+    }
   } catch (error) {
     console.error('加载收藏失败:', error)
+    uni.showToast({
+      title: '加载失败',
+      icon: 'none'
+    })
   } finally {
     loading.value = false
+    loadingMore.value = false
+  }
+}
+
+// 加载更多
+const loadMore = () => {
+  if (!loadingMore.value && hasMore.value && !loading.value) {
+    loadFavorites(false)
   }
 }
 
@@ -117,11 +185,16 @@ const unfavorite = (dishId) => {
             title: '已取消收藏',
             icon: 'success'
           })
+          // 如果当前页没有数据了，重新加载第一页
           if (!favorites.value.length) {
-            loadFavorites()
+            loadFavorites(true)
           }
         } catch (error) {
           console.error('取消收藏失败:', error)
+          uni.showToast({
+            title: '取消收藏失败',
+            icon: 'none'
+          })
         }
       }
     }
@@ -142,11 +215,12 @@ const goToLogin = () => {
 
 onMounted(() => {
   loadTheme()
-  loadFavorites()
+  loadFavorites(true)
 })
 
 onShow(() => {
-  loadFavorites()
+  // 每次显示页面时刷新数据
+  loadFavorites(true)
 })
 </script>
 
@@ -361,5 +435,15 @@ onShow(() => {
   color: #fff;
   font-size: 28rpx;
   box-shadow: v-bind('themeConfig.shadowMedium');
+}
+
+.loading-more,
+.no-more {
+  width: 100%;
+  padding: 40rpx 0;
+  text-align: center;
+  font-size: 26rpx;
+  color: v-bind('themeConfig.textSecondary');
+  grid-column: 1 / -1;
 }
 </style>
