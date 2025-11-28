@@ -29,6 +29,8 @@ export type DishPayload = {
   flavors: DishFlavorPayload[];
   image?: string;
   code?: string;
+  calories?: string;
+  tags?: string;
 };
 
 export type DishQuery = {

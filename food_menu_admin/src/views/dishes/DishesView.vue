@@ -156,6 +156,54 @@
         </div>
       </template>
     </NModal>
+
+    <!-- 详情弹窗 -->
+    <NModal v-model:show="detailModal.show" preset="card" style="max-width: 400px" :title="detailModal.data?.name">
+      <div v-if="detailModal.data" class="dish-detail">
+        <div class="detail-image-wrapper">
+          <img :src="detailModal.data.image" class="detail-image" />
+          <div class="detail-price">¥{{ Number(detailModal.data.price).toFixed(2) }}</div>
+        </div>
+        
+        <div class="detail-content">
+          <div class="detail-section">
+            <div class="section-label">标签</div>
+            <div class="detail-tags" v-if="detailModal.data.tags">
+              <NTag size="small" type="primary" v-for="tag in detailModal.data.tags.split(/[,，]/)" :key="tag">
+                {{ tag }}
+              </NTag>
+            </div>
+            <div class="section-text" v-else>暂无</div>
+          </div>
+          
+          <div class="detail-section">
+            <div class="section-label">家庭备注</div>
+            <div class="section-text">{{ detailModal.data.description || '暂无' }}</div>
+          </div>
+          
+          <div class="detail-section">
+            <div class="section-label">能量</div>
+            <div class="section-text">{{ detailModal.data.calories || '暂无' }}</div>
+          </div>
+
+          <div class="detail-section">
+            <div class="section-label">口味</div>
+            <div class="section-text">{{ parseFlavorText(detailModal.data.flavors) || '暂无' }}</div>
+          </div>
+
+          <div class="detail-stats">
+            <div class="stat-box">
+              <div class="stat-value">{{ detailModal.data.categoryName || lookupCategoryName(detailModal.data.categoryId) }}</div>
+              <div class="stat-label">所属分类</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value">{{ detailModal.data.status === 1 ? '在售' : '下架' }}</div>
+              <div class="stat-label">当前状态</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </NModal>
   </div>
 </template>
 
@@ -216,6 +264,8 @@ type DishRecord = {
   description?: string;
   flavors?: DishFlavor[];
   image?: string;
+  calories?: string;
+  tags?: string;
 };
 
 type DishForm = {
@@ -282,9 +332,16 @@ const dishModal = reactive({
     status: 'on' as 'on' | 'off',
     description: '',
     flavorText: '',
-    image: '' // Store object key (relative path) for database
+    image: '', // Store object key (relative path) for database
+    calories: '',
+    tags: ''
   },
   imagePreviewUrl: '' // Store presigned URL for preview
+});
+
+const detailModal = reactive({
+  show: false,
+  data: null as DishRecord | null
 });
 
 const columns: DataTableColumns<DishRecord> = [
@@ -350,13 +407,18 @@ const columns: DataTableColumns<DishRecord> = [
   {
     title: '操作',
     key: 'actions',
-    width: 220,
+    width: 280,
     render: (row) =>
       h(
         NSpace,
         { size: 8 },
         {
           default: () => [
+            h(
+              NButton,
+              { size: 'small', tertiary: true, type: 'info', onClick: () => openDetailModal(row) },
+              { default: () => '详情' }
+            ),
             h(
               NButton,
               { size: 'small', tertiary: true, onClick: () => openDishModal(row.id) },
@@ -485,6 +547,20 @@ const openDishModal = async (id?: number) => {
     fillDishForm(result.data);
   } finally {
     dishModal.fetching = false;
+  }
+};
+
+const openDetailModal = async (dish: DishRecord) => {
+  detailModal.data = dish;
+  detailModal.show = true;
+  // Fetch full details to ensure we have flavors etc.
+  try {
+    const result = await fetchDishDetail(dish.id);
+    if (result.data) {
+      detailModal.data = { ...dish, ...result.data };
+    }
+  } catch (error) {
+    console.error('Failed to fetch detail', error);
   }
 };
 
@@ -794,6 +870,97 @@ onMounted(async () => {
   .menu-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Detail Modal Styles */
+.dish-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.detail-image-wrapper {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.detail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.detail-price {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-family: 'DIN Alternate', sans-serif;
+}
+
+.detail-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.section-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.section-text {
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.detail-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stat-box {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 </style>
 

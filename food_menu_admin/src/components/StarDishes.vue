@@ -52,20 +52,24 @@
         </div>
         
         <div class="detail-content">
-          <div class="detail-tags" v-if="currentDish.tags">
-            <NTag size="small" type="primary" v-for="tag in currentDish.tags.split(',')" :key="tag">
-              {{ tag }}
-            </NTag>
+          <div class="detail-section">
+            <div class="section-label">标签</div>
+            <div class="detail-tags" v-if="currentDish.tags">
+              <NTag size="small" type="primary" v-for="tag in currentDish.tags.split(',')" :key="tag">
+                {{ tag }}
+              </NTag>
+            </div>
+            <div class="section-text" v-else>暂无</div>
           </div>
           
-          <div class="detail-section" v-if="currentDish.description">
+          <div class="detail-section">
             <div class="section-label">家庭备注</div>
-            <div class="section-text">{{ currentDish.description }}</div>
+            <div class="section-text">{{ currentDish.description || '暂无' }}</div>
           </div>
           
-          <div class="detail-section" v-if="currentDish.calories">
+          <div class="detail-section">
             <div class="section-label">能量</div>
-            <div class="section-text">{{ currentDish.calories }}</div>
+            <div class="section-text">{{ currentDish.calories || '暂无' }}</div>
           </div>
 
           <div class="detail-stats">

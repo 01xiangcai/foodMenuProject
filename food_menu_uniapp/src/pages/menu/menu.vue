@@ -190,7 +190,8 @@ const loadDishes = async (reset = false) => {
 
     list = list.map(item => ({
       ...item,
-      isFavorite: favoriteIds.value.has(item.id)
+      isFavorite: favoriteIds.value.has(item.id),
+      tags: item.tags && typeof item.tags === 'string' ? item.tags.split(/[,，]/).filter(Boolean) : []
     }))
     
     // 更新 Store 中的缓存
