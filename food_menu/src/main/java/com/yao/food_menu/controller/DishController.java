@@ -40,6 +40,9 @@ public class DishController {
     @Autowired
     private com.yao.food_menu.common.config.FileStorageProperties fileStorageProperties;
 
+    @Autowired
+    private com.yao.food_menu.service.DishStatisticsService dishStatisticsService;
+
     @Operation(summary = "添加菜品", description = "添加菜品及其口味信息")
     @PostMapping
     public Result<String> save(@RequestBody DishDto dishDto) {
@@ -133,8 +136,26 @@ public class DishController {
     @GetMapping("/top")
     public Result<List<DishDto>> getTopDishes() {
         List<DishDto> list = dishService.getTopSellingDishes(5);
-        // Convert OSS object keys to presigned URLs
-        list.forEach(this::convertImageToPresignedUrl);
+
+        // 批量查询菜品统计数据
+        List<Long> dishIds = list.stream()
+                .map(DishDto::getId)
+                .collect(Collectors.toList());
+        java.util.Map<Long, com.yao.food_menu.entity.DishStatistics> statisticsMap = dishStatisticsService
+                .getBatchByDishIds(dishIds);
+
+        // 填充点菜次数
+        list.forEach(dishDto -> {
+            com.yao.food_menu.entity.DishStatistics statistics = statisticsMap.get(dishDto.getId());
+            if (statistics != null) {
+                dishDto.setOrderCount(statistics.getTotalOrderCount());
+            } else {
+                dishDto.setOrderCount(0);
+            }
+            // Convert OSS object keys to presigned URLs
+            convertImageToPresignedUrl(dishDto);
+        });
+
         return Result.success(list);
     }
 

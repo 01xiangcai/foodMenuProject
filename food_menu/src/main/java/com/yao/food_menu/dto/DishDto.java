@@ -18,4 +18,7 @@ public class DishDto extends Dish {
     private Integer copies;
 
     private Integer sales;
+
+    // 点单次数统计
+    private Integer orderCount;
 }

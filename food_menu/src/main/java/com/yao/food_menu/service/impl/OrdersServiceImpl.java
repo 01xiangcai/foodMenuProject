@@ -30,6 +30,9 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
     @Autowired
     private DishService dishService;
 
+    @Autowired
+    private com.yao.food_menu.service.DishStatisticsService dishStatisticsService;
+
     private static final AtomicLong orderCounter = new AtomicLong(1);
 
     @Override
@@ -79,16 +82,41 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
     }
 
     @Override
+    @Transactional
     public void updateStatus(Long id, Integer status) {
         Orders orders = this.getById(id);
         if (orders == null) {
             throw new RuntimeException("Order not found");
         }
 
+        Integer oldStatus = orders.getStatus();
         orders.setStatus(status);
         this.updateById(orders);
 
         log.info("Order status updated: {} -> {}", id, status);
+
+        // 如果订单状态变更为已完成(2或3),更新菜品统计
+        if ((status == 2 || status == 3) && !status.equals(oldStatus)) {
+            log.info("Order completed, updating dish statistics for order: {}", id);
+            try {
+                // 查询订单明细
+                com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<OrderItem> queryWrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+                queryWrapper.eq(OrderItem::getOrderId, id);
+                List<OrderItem> orderItems = orderItemService.list(queryWrapper);
+
+                // 提取菜品ID列表并更新统计
+                List<Long> dishIds = orderItems.stream()
+                        .map(OrderItem::getDishId)
+                        .distinct()
+                        .collect(java.util.stream.Collectors.toList());
+
+                dishStatisticsService.batchIncrementOrderCount(dishIds);
+                log.info("Dish statistics updated for {} dishes", dishIds.size());
+            } catch (Exception e) {
+                log.error("Failed to update dish statistics for order: {}", id, e);
+                // 不影响订单状态更新,只记录错误
+            }
+        }
     }
 
     /**

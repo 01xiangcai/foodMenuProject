@@ -81,6 +81,10 @@
               <text class="dish-energy" v-if="item.energy">{{ item.energy }}</text>
             </view>
           </view>
+          <view class="dish-count" v-if="item.orderCount !== undefined">
+            <text class="count-icon">🔥</text>
+            <text class="count-number">{{ item.orderCount }}</text>
+          </view>
         </view>
       </view>
     </view>
@@ -127,7 +131,8 @@ const loadFeaturedDishes = async () => {
           description: item.description || '',
           tag: item.tags ? item.tags.split(',')[0] : '热销', // 没有标签时显示"热销"
           energy: item.calories ? `${item.calories} kcal` : '', // 有卡路里时加单位
-          image: item.image || 'https://dummyimage.com/200x200/e2e8f0/94a3b8&text=No+Image'
+          image: item.image || 'https://dummyimage.com/200x200/e2e8f0/94a3b8&text=No+Image',
+          orderCount: item.orderCount || 0 // 点菜次数
         }
       })
       console.log('处理后的数据:', featuredDishes.value) // 调试处理后的数据
@@ -463,6 +468,29 @@ onUnmounted(() => {
     font-size: 22rpx;
     color: v-bind('themeConfig.textSecondary');
     transition: color 0.3s ease;
+  }
+  
+  .dish-count {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8rpx 16rpx;
+    background: v-bind('themeConfig.primaryColor + "1a"');
+    border-radius: 12rpx;
+    min-width: 80rpx;
+    
+    .count-icon {
+      font-size: 32rpx;
+      margin-bottom: 4rpx;
+    }
+    
+    .count-number {
+      font-size: 24rpx;
+      font-weight: 600;
+      color: v-bind('themeConfig.primaryColor');
+      transition: color 0.3s ease;
+    }
   }
 }
 
