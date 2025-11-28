@@ -17,7 +17,7 @@
         </div>
         
         <div class="dish-image-wrapper">
-          <img :src="dish.image" :alt="dish.name" class="dish-image" />
+          <img :src="getDishImageUrl(dish)" :alt="dish.name" class="dish-image" />
         </div>
         
         <div class="dish-info">
@@ -47,7 +47,7 @@
     <NModal v-model:show="showModal" preset="card" style="max-width: 400px" :title="currentDish?.name">
       <div v-if="currentDish" class="dish-detail">
         <div class="detail-image-wrapper">
-          <img :src="currentDish.image" class="detail-image" />
+          <img :src="getDishImageUrl(currentDish)" class="detail-image" />
           <div class="detail-price">¥{{ currentDish.price }}</div>
         </div>
         
@@ -92,6 +92,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { fetchTopDishes, fetchDishDetail } from '@/api/modules';
 import { useMessage, NModal, NTag } from 'naive-ui';
+import { getDishImageUrl } from '@/utils/image';
 
 type Dish = {
   id: number;
