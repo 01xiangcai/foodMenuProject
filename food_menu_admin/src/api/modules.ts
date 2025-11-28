@@ -184,3 +184,8 @@ export const createDishTag = (data: DishTagPayload) => http.post('/dish-tag', da
 export const updateDishTag = (data: DishTagPayload) => http.put('/dish-tag', data);
 export const removeDishTag = (id: number) => http.delete(`/dish-tag/${id}`);
 
+// 系统配置
+export const fetchSystemConfig = (key: string) => http.get(`/systemConfig/${key}`);
+export const updateSystemConfig = (data: { configKey: string; configValue: string }) => http.put('/systemConfig', data);
+export const fetchSystemConfigs = () => http.get('/systemConfig/list');
+

@@ -16,8 +16,11 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 
 import java.util.List;
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 @Tag(name = "菜品管理", description = "菜品的增删改查、口味管理")
@@ -43,12 +46,16 @@ public class DishController {
     @Autowired
     private com.yao.food_menu.service.DishStatisticsService dishStatisticsService;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @Operation(summary = "添加菜品", description = "添加菜品及其口味信息")
     @PostMapping
     public Result<String> save(@RequestBody DishDto dishDto) {
         log.info(dishDto.toString());
         ensureImage(dishDto);
         handleImageFields(dishDto);
+        validateMainImageInList(dishDto);
         dishService.saveWithFlavor(dishDto);
         return Result.success("Dish added successfully");
     }
@@ -83,6 +90,8 @@ public class DishController {
             }
             // Convert OSS object key to presigned URL if needed
             convertImageToPresignedUrl(dishDto);
+            // 将 localImages JSON 字符串转换为数组
+            convertLocalImagesToArray(dishDto);
             return dishDto;
         }).collect(Collectors.toList());
 
@@ -95,8 +104,10 @@ public class DishController {
     @GetMapping("/{id}")
     public Result<DishDto> get(@PathVariable Long id) {
         DishDto dishDto = dishService.getByIdWithFlavor(id);
-        // Convert OSS object key to presigned URL if needed
+        // 先转换主图 URL
         convertImageToPresignedUrl(dishDto);
+        // 然后将 localImages JSON 字符串转换为数组（此时主图 URL 已转换）
+        convertLocalImagesToArray(dishDto);
         return Result.success(dishDto);
     }
 
@@ -106,6 +117,7 @@ public class DishController {
         log.info(dishDto.toString());
         ensureImage(dishDto);
         handleImageFields(dishDto);
+        validateMainImageInList(dishDto);
         dishService.updateWithFlavor(dishDto);
         return Result.success("Dish updated successfully");
     }
@@ -117,11 +129,14 @@ public class DishController {
         return Result.success("Dish deleted successfully");
     }
 
-    @Operation(summary = "查询分类下的菜品", description = "查询指定分类下所有在售菜品")
+    @Operation(summary = "查询分类下的菜品", description = "查询指定分类下所有在售菜品，支持按名称模糊搜索")
     @GetMapping("/list")
-    public Result<List<Dish>> list(Dish dish) {
+    public Result<List<Dish>> list(
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String name) {
         LambdaQueryWrapper<Dish> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(dish.getCategoryId() != null, Dish::getCategoryId, dish.getCategoryId());
+        queryWrapper.eq(categoryId != null, Dish::getCategoryId, categoryId);
+        queryWrapper.like(StringUtils.hasText(name), Dish::getName, name);
         queryWrapper.eq(Dish::getStatus, 1);
         queryWrapper.orderByAsc(Dish::getSort).orderByDesc(Dish::getUpdateTime);
 
@@ -154,6 +169,8 @@ public class DishController {
             }
             // Convert OSS object keys to presigned URLs
             convertImageToPresignedUrl(dishDto);
+            // 将 localImages JSON 字符串转换为数组
+            convertLocalImagesToArray(dishDto);
         });
 
         // 重新排序，确保按点单次数降序排列
@@ -254,6 +271,136 @@ public class DishController {
             } catch (Exception e) {
                 log.warn("Failed to generate presigned URL for object key: {}, using default image", image, e);
                 dish.setImage(DEFAULT_IMAGE);
+            }
+        }
+    }
+
+    /**
+     * 验证主图是否在图片列表中
+     */
+    private void validateMainImageInList(DishDto dishDto) {
+        String localImage = dishDto.getLocalImage();
+        String localImages = dishDto.getLocalImages();
+        
+        if (!StringUtils.hasText(localImage)) {
+            return; // 如果没有主图，跳过验证
+        }
+        
+        if (!StringUtils.hasText(localImages)) {
+            // 如果没有图片列表，将主图作为唯一图片
+            try {
+                List<String> imageList = new ArrayList<>();
+                imageList.add(localImage);
+                dishDto.setLocalImages(objectMapper.writeValueAsString(imageList));
+            } catch (Exception e) {
+                log.error("转换图片列表失败", e);
+            }
+            return;
+        }
+        
+        try {
+            List<String> imageList = objectMapper.readValue(localImages, new TypeReference<List<String>>() {});
+            
+            // 如果主图不在列表中，将其添加到列表开头
+            if (!imageList.contains(localImage)) {
+                imageList.add(0, localImage);
+                dishDto.setLocalImages(objectMapper.writeValueAsString(imageList));
+            }
+        } catch (Exception e) {
+            log.warn("解析 localImages 失败: {}", localImages, e);
+            // 如果解析失败，将主图作为唯一图片
+            try {
+                List<String> imageList = new ArrayList<>();
+                imageList.add(localImage);
+                dishDto.setLocalImages(objectMapper.writeValueAsString(imageList));
+            } catch (Exception ex) {
+                log.error("转换图片列表失败", ex);
+            }
+        }
+    }
+
+    /**
+     * 将 localImages JSON 字符串转换为数组（用于前端显示）
+     * 同时将图片路径转换为完整 URL
+     */
+    private void convertLocalImagesToArray(DishDto dishDto) {
+        String localImages = dishDto.getLocalImages();
+        List<String> imagePathList = new ArrayList<>();
+        
+        // 解析 JSON 字符串为路径数组
+        if (StringUtils.hasText(localImages)) {
+            try {
+                imagePathList = objectMapper.readValue(localImages, new TypeReference<List<String>>() {});
+            } catch (Exception e) {
+                log.warn("解析 localImages JSON 失败: {}", localImages, e);
+                // 如果解析失败，尝试从主图生成
+                if (StringUtils.hasText(dishDto.getLocalImage())) {
+                    imagePathList.add(dishDto.getLocalImage());
+                }
+            }
+        } else if (StringUtils.hasText(dishDto.getLocalImage())) {
+            // 如果没有 localImages，从 localImage 生成数组
+            imagePathList.add(dishDto.getLocalImage());
+        }
+        
+        // 将图片路径转换为完整 URL
+        List<String> imageUrlList = new ArrayList<>();
+        for (String imagePath : imagePathList) {
+            if (imagePath == null || imagePath.isEmpty()) {
+                continue;
+            }
+            String imageUrl = convertImagePathToUrl(imagePath, dishDto);
+            imageUrlList.add(imageUrl);
+        }
+        
+        // 设置到 DTO 中供前端使用
+        dishDto.setLocalImagesArray(imageUrlList);
+    }
+    
+    /**
+     * 将图片路径转换为完整 URL（与 convertImageToPresignedUrl 逻辑一致）
+     */
+    private String convertImagePathToUrl(String imagePath, DishDto dishDto) {
+        if (imagePath == null || imagePath.isEmpty()) {
+            return DEFAULT_IMAGE;
+        }
+        
+        // 如果已经是完整 URL，直接返回（不要再次转换）
+        if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+            return imagePath;
+        }
+        
+        // 如果是主图，使用已经转换好的 dishDto.getImage()（在调用此方法前应该已经转换）
+        if (StringUtils.hasText(dishDto.getLocalImage()) && imagePath.equals(dishDto.getLocalImage())) {
+            // 直接使用已转换的主图 URL
+            String mainImageUrl = dishDto.getImage();
+            if (StringUtils.hasText(mainImageUrl) && (mainImageUrl.startsWith("http://") || mainImageUrl.startsWith("https://"))) {
+                return mainImageUrl;
+            }
+            // 如果主图 URL 还没转换，继续下面的转换逻辑
+        }
+        
+        // 其他图片，使用与主图相同的转换逻辑
+        // 优先使用本地图片路径
+        if (fileStorageProperties.isLocal()) {
+            // 使用本地存储 URL 前缀
+            try {
+                String urlPrefix = localStorageProperties.getUrlPrefix();
+                if (!urlPrefix.endsWith("/")) {
+                    urlPrefix += "/";
+                }
+                return urlPrefix + imagePath;
+            } catch (Exception e) {
+                log.warn("获取本地存储 URL 前缀失败", e);
+                return imagePath;
+            }
+        } else {
+            // 如果使用 OSS，尝试生成预签名 URL
+            try {
+                return ossService.generatePresignedUrl(imagePath);
+            } catch (Exception e) {
+                log.warn("生成预签名 URL 失败: {}", imagePath, e);
+                return imagePath;
             }
         }
     }

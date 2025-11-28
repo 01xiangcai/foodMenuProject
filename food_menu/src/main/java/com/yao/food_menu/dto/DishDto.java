@@ -21,4 +21,7 @@ public class DishDto extends Dish {
 
     // 点单次数统计
     private Integer orderCount;
+
+    // 图片数组（用于前端显示，不存储到数据库）
+    private List<String> localImagesArray;
 }

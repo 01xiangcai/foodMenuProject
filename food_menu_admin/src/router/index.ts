@@ -8,6 +8,7 @@ import BannersView from '@/views/banners/BannersView.vue';
 import UsersView from '@/views/users/UsersView.vue';
 import MigrationView from '@/views/migration/MigrationView.vue';
 import TagsView from '@/views/tags/TagsView.vue';
+import SettingsView from '@/views/settings/SettingsView.vue';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -64,6 +65,12 @@ const routes: RouteRecordRaw[] = [
         name: 'tags',
         component: TagsView,
         meta: { title: '标签管理' }
+      },
+      {
+        path: 'settings',
+        name: 'settings',
+        component: SettingsView,
+        meta: { title: '系统设置' }
       }
     ]
   }

@@ -104,28 +104,54 @@
             <NInputNumber v-model:value="dishModal.form.price" :min="0" :precision="2" placeholder="例如 28" />
           </NFormItem>
           <NFormItem label="菜品图片" required>
-            <div class="image-upload">
-              <NImage
-                v-if="dishModal.imagePreviewUrl || dishModal.form.localImage || dishModal.form.image"
-                class="image-preview"
-                :src="dishModal.imagePreviewUrl || dishModal.form.localImage || dishModal.form.image || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YzZjRmNiIvPgogIDx0ZXh0IHg9IjUwJSIgeT0iNDUlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iODAiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPvCfjaU8L3RleHQ+CiAgPHRleHQgeD0iNTAlIiB5PSI2NSUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzljYTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5pqC5peg5Zu+54mHPC90ZXh0Pgo8L3N2Zz4='"
-                width="140"
-                height="140"
-                object-fit="cover"
-              />
-              <NUpload
-                :custom-request="handleImageUpload"
-                :show-file-list="false"
-                accept="image/*"
-                :disabled="imageUploading"
-              >
-                <NUploadDragger>
-                  <div class="upload-inner">
-                    <p>{{ imageUploading ? '上传中...' : '点击或拖拽上传' }}</p>
-                    <p class="upload-tip">支持 jpg/png，较大图片更清晰</p>
+            <div class="multi-image-upload">
+              <div class="image-list">
+                <div 
+                  v-for="(img, index) in dishModal.form.localImagesArray" 
+                  :key="index"
+                  class="image-item"
+                  :class="{ 'is-main': img === dishModal.form.localImage }"
+                >
+                  <NImage :src="dishModal.imagePreviewUrls[index] || img" width="120" height="120" object-fit="cover" />
+                  <div class="image-actions">
+                    <NButton 
+                      size="tiny" 
+                      type="primary" 
+                      v-if="img !== dishModal.form.localImage"
+                      @click="setMainImage(img)"
+                    >
+                      设为主图
+                    </NButton>
+                    <NButton 
+                      size="tiny" 
+                      type="error" 
+                      @click="removeImage(index)"
+                    >
+                      删除
+                    </NButton>
                   </div>
-                </NUploadDragger>
-              </NUpload>
+                  <div v-if="img === dishModal.form.localImage" class="main-badge">主图</div>
+                </div>
+                
+                <NUpload
+                  v-if="dishModal.form.localImagesArray.length < imageLimit"
+                  :custom-request="handleImageUpload"
+                  :show-file-list="false"
+                  accept="image/*"
+                  :disabled="imageUploading"
+                >
+                  <div class="upload-placeholder">
+                    <div class="upload-icon">+</div>
+                    <div class="upload-text">上传图片</div>
+                    <div class="upload-tip">
+                      {{ dishModal.form.localImagesArray.length }}/{{ imageLimit }}
+                    </div>
+                  </div>
+                </NUpload>
+              </div>
+              <div class="image-limit-tip" v-if="dishModal.form.localImagesArray.length >= imageLimit">
+                已达到最大上传数量（{{ imageLimit }}张）
+              </div>
             </div>
           </NFormItem>
           <NFormItem label="上架状态">
@@ -178,7 +204,27 @@
     <NModal v-model:show="detailModal.show" preset="card" style="max-width: 400px; max-height: 100vh" :title="detailModal.data?.name">
       <div v-if="detailModal.data" class="dish-detail">
         <div class="detail-image-wrapper">
-          <img :src="detailModal.data?.localImage || detailModal.data?.image || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YzZjRmNiIvPgogIDx0ZXh0IHg9IjUwJSIgeT0iNDUlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iODAiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPvCfjaU8L3RleHQ+CiAgPHRleHQgeD0iNTAlIiB5PSI2NSUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzljYTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5pqC5peg5Zu+54mHPC90ZXh0Pgo8L3N2Zz4='" class="detail-image" />
+          <NCarousel 
+            v-if="getDetailImages().length > 1"
+            :show-dots="true"
+            :show-arrow="true"
+            :autoplay="true"
+            :interval="3000"
+            :duration="500"
+            style="width: 100%; height: 200px;"
+          >
+            <img
+              v-for="(img, index) in getDetailImages()"
+              :key="index"
+              :src="img"
+              class="detail-image"
+            />
+          </NCarousel>
+          <img
+            v-else
+            :src="getDetailImages()[0] || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YzZjRmNiIvPgogIDx0ZXh0IHg9IjUwJSIgeT0iNDUlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iODAiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPvCfjaU8L3RleHQ+CiAgPHRleHQgeD0iNTAlIiB5PSI2NSUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzljYTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5pqC5peg5Zu+54mHPC90ZXh0Pgo8L3N2Zz4='"
+            class="detail-image"
+          />
           <div class="detail-price">¥{{ Number(detailModal.data.price).toFixed(2) }}</div>
         </div>
         
@@ -242,6 +288,7 @@ import {
   NTag,
   NUpload,
   NUploadDragger,
+  NCarousel,
   useMessage,
   type DataTableColumns,
   type PaginationProps,
@@ -258,7 +305,8 @@ import {
   updateCategory,
   updateDish,
   uploadImage,
-  fetchAllDishTags
+  fetchAllDishTags,
+  fetchSystemConfig
 } from '@/api/modules';
 
 type Category = {
@@ -317,6 +365,9 @@ const tagOptions = computed(() => {
     value: tag.name
   }));
 });
+
+// 图片数量限制
+const imageLimit = ref(5);
 const imageUploading = ref(false);
 
 const pagination = reactive<PaginationProps>({
@@ -361,12 +412,14 @@ const dishModal = reactive({
     description: '',
     flavorText: '',
     image: '', // Store object key (relative path) for database (OSS)
-    localImage: '', // Store local image path
+    localImage: '', // Store local image path (主图)
+    localImages: '', // Store JSON string of all images
+    localImagesArray: [] as string[], // 图片数组，用于前端操作
     calories: '',
     tags: '',
     tagsArray: [] as string[] // 标签数组，用于多选
   },
-  imagePreviewUrl: '' // Store presigned URL for preview
+  imagePreviewUrls: [] as string[] // Store presigned URLs for preview
 });
 
 const detailModal = reactive({
@@ -562,10 +615,12 @@ const resetDishForm = () => {
   dishModal.form.flavorText = '';
   dishModal.form.image = '';
   dishModal.form.localImage = '';
+  dishModal.form.localImages = '';
+  dishModal.form.localImagesArray = [];
   dishModal.form.calories = '';
   dishModal.form.tags = '';
   dishModal.form.tagsArray = [];
-  dishModal.imagePreviewUrl = '';
+  dishModal.imagePreviewUrls = [];
 };
 
 const openDishModal = async (id?: number) => {
@@ -598,6 +653,42 @@ const openDetailModal = async (dish: DishRecord) => {
   }
 };
 
+// 获取详情弹窗的图片数组
+const getDetailImages = () => {
+  if (!detailModal.data) {
+    return [];
+  }
+  
+  // 优先使用 localImagesArray（后端已转换的 URL 数组）
+  if (detailModal.data.localImagesArray && Array.isArray(detailModal.data.localImagesArray) && detailModal.data.localImagesArray.length > 0) {
+    return detailModal.data.localImagesArray;
+  }
+  
+  // 兼容处理：解析 localImages JSON 字符串
+  if (detailModal.data.localImages) {
+    try {
+      const parsed = typeof detailModal.data.localImages === 'string'
+        ? JSON.parse(detailModal.data.localImages)
+        : detailModal.data.localImages;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    } catch (e) {
+      console.warn('解析 localImages 失败:', e);
+    }
+  }
+  
+  // 降级到主图
+  if (detailModal.data.localImage) {
+    return [detailModal.data.localImage];
+  }
+  if (detailModal.data.image) {
+    return [detailModal.data.image];
+  }
+  
+  return [];
+};
+
 const fillDishForm = (dish: any) => {
   dishModal.form.id = dish.id;
   dishModal.form.name = dish.name;
@@ -611,32 +702,55 @@ const fillDishForm = (dish: any) => {
   // 将标签字符串转换为数组
   dishModal.form.tagsArray = dish.tags ? dish.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [];
   
-  // 优先使用 localImage，其次使用 image
-  const localImage = dish.localImage || '';
-  const image = dish.image || '';
-  const displayImage = localImage || image;
+  // 处理图片
+  dishModal.form.localImage = dish.localImage || '';
+  dishModal.form.localImages = dish.localImages || '';
   
-  // Backend returns presigned URL when image is OSS object key
-  // For existing dishes, image might be presigned URL or default image URL
-  // We need to extract object key if it's a presigned URL, or keep as is
-  if (displayImage.includes('?Expires=')) {
-    // Extract object key from presigned URL (everything before ?)
-    const urlObj = new URL(displayImage);
-    const objectKey = urlObj.pathname.substring(1); // Remove leading /
-    dishModal.form.image = objectKey;
-    dishModal.form.localImage = localImage;
-    dishModal.imagePreviewUrl = displayImage; // Use presigned URL for preview
-  } else if (displayImage.startsWith('http://') || displayImage.startsWith('https://')) {
-    // Default image URL, save as is
-    dishModal.form.image = image;
-    dishModal.form.localImage = localImage;
-    dishModal.imagePreviewUrl = displayImage;
+  // 使用后端返回的 localImagesArray（已经转换为完整 URL 的数组）
+  if (dish.localImagesArray && Array.isArray(dish.localImagesArray) && dish.localImagesArray.length > 0) {
+    dishModal.form.localImagesArray = dish.localImagesArray;
+    dishModal.imagePreviewUrls = dish.localImagesArray;
   } else {
-    // Object key, save as is (backend will convert to presigned URL when returning)
-    dishModal.form.image = image;
-    dishModal.form.localImage = localImage;
-    dishModal.imagePreviewUrl = displayImage || ''; // Will be generated by backend when needed
+    // 兼容处理：如果没有 localImagesArray，尝试解析 localImages JSON 字符串
+    let imageArray: string[] = [];
+    if (dish.localImages) {
+      try {
+        const parsed = typeof dish.localImages === 'string' 
+          ? JSON.parse(dish.localImages) 
+          : dish.localImages;
+        imageArray = Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        console.warn('解析 localImages 失败:', e);
+        imageArray = dish.localImage ? [dish.localImage] : [];
+      }
+    } else if (dish.localImage) {
+      imageArray = [dish.localImage];
+    }
+    
+    dishModal.form.localImagesArray = imageArray;
+    // 如果后端没有转换 URL，前端使用 dish.image 的格式作为参考
+    dishModal.imagePreviewUrls = imageArray.map((imgPath: string) => {
+      if (imgPath.startsWith('http://') || imgPath.startsWith('https://')) {
+        return imgPath;
+      }
+      // 使用 dish.image 的 URL 前缀
+      if (dish.image && dish.image.startsWith('http')) {
+        try {
+          const url = new URL(dish.image);
+          const baseUrl = url.origin;
+          const basePath = url.pathname.substring(0, url.pathname.lastIndexOf('/') + 1);
+          return baseUrl + basePath + imgPath;
+        } catch (e) {
+          return imgPath;
+        }
+      }
+      return imgPath;
+    });
   }
+  
+  // 处理主图
+  dishModal.form.localImage = dish.localImage || '';
+  dishModal.form.image = dish.image || '';
 };
 
 const parseFlavorText = (flavors?: DishFlavor[]) => {
@@ -664,16 +778,25 @@ const saveDish = async () => {
     message.warning('请完整填写菜品信息');
     return;
   }
-  if (!dishModal.form.image) {
-    message.warning('请上传菜品图片');
+  if (dishModal.form.localImagesArray.length === 0) {
+    message.warning('请至少上传一张图片');
     return;
   }
+  
+  // 确保主图在图片列表中
+  if (!dishModal.form.localImage || !dishModal.form.localImagesArray.includes(dishModal.form.localImage)) {
+    dishModal.form.localImage = dishModal.form.localImagesArray[0];
+  }
+  
   dishModal.loading = true;
   try {
     // 将标签数组转换为字符串
     const tagsString = dishModal.form.tagsArray.length > 0 
       ? dishModal.form.tagsArray.join(',') 
       : null;
+    
+    // 将图片数组转换为JSON字符串
+    const localImagesString = JSON.stringify(dishModal.form.localImagesArray);
     
     const payload: any = {
       id: dishModal.form.id,
@@ -684,6 +807,8 @@ const saveDish = async () => {
       description: dishModal.form.description,
       flavors: buildFlavorPayload(dishModal.form.flavorText),
       image: dishModal.form.image,
+      localImage: dishModal.form.localImage,
+      localImages: localImagesString,
       calories: dishModal.form.calories.trim() || null,
       tags: tagsString
     };
@@ -741,15 +866,29 @@ const handleImageUpload = async (options: UploadCustomRequestOptions) => {
     onError?.();
     return;
   }
+
+  // 检查数量限制
+  if (dishModal.form.localImagesArray.length >= imageLimit.value) {
+    message.warning(`最多只能上传 ${imageLimit.value} 张图片`);
+    onError?.();
+    return;
+  }
+
   imageUploading.value = true;
   try {
     const result = await uploadImage(file.file as File);
     // result.data is UploadResult: { objectKey, presignedUrl }
     const uploadResult = result.data as { objectKey: string; presignedUrl: string };
-    // Save object key to database (not presigned URL, which expires)
-    dishModal.form.image = uploadResult.objectKey;
-    // Use presigned URL for preview
-    dishModal.imagePreviewUrl = uploadResult.presignedUrl;
+    
+    // 添加到图片数组
+    dishModal.form.localImagesArray.push(uploadResult.objectKey);
+    dishModal.imagePreviewUrls.push(uploadResult.presignedUrl);
+    
+    // 如果是第一张图片，自动设为主图
+    if (dishModal.form.localImagesArray.length === 1) {
+      dishModal.form.localImage = uploadResult.objectKey;
+    }
+    
     message.success('图片上传成功');
     onFinish?.();
   } catch (error) {
@@ -758,6 +897,30 @@ const handleImageUpload = async (options: UploadCustomRequestOptions) => {
   } finally {
     imageUploading.value = false;
   }
+};
+
+// 设置主图
+const setMainImage = (imagePath: string) => {
+  dishModal.form.localImage = imagePath;
+  message.success('已设置为主图');
+};
+
+// 删除图片
+const removeImage = (index: number) => {
+  const removed = dishModal.form.localImagesArray[index];
+  dishModal.form.localImagesArray.splice(index, 1);
+  dishModal.imagePreviewUrls.splice(index, 1);
+  
+  // 如果删除的是主图，自动设置第一张为主图
+  if (removed === dishModal.form.localImage) {
+    if (dishModal.form.localImagesArray.length > 0) {
+      dishModal.form.localImage = dishModal.form.localImagesArray[0];
+    } else {
+      dishModal.form.localImage = '';
+    }
+  }
+  
+  message.success('图片已删除');
 };
 
 const loadCategories = async () => {
@@ -803,10 +966,23 @@ watch(selectedCategoryId, () => {
   loadDishes();
 });
 
+// 加载图片数量限制
+const loadImageLimit = async () => {
+  try {
+    const res = await fetchSystemConfig('dish_image_limit');
+    if (res.data && res.data.configValue) {
+      imageLimit.value = Number(res.data.configValue) || 5;
+    }
+  } catch (error) {
+    console.error('加载图片限制失败:', error);
+  }
+};
+
 onMounted(async () => {
   await loadCategories();
   await loadDishes();
   await loadDishTags();
+  await loadImageLimit();
 });
 </script>
 
@@ -911,6 +1087,101 @@ onMounted(async () => {
   font-size: 12px;
   opacity: 0.7;
   margin-top: 4px;
+}
+
+/* 多图上传样式 */
+.multi-image-upload {
+  width: 100%;
+}
+
+.image-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.image-item {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  transition: all 0.3s;
+}
+
+.image-item.is-main {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.image-item:hover .image-actions {
+  opacity: 1;
+}
+
+.image-actions {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.main-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.upload-placeholder {
+  width: 120px;
+  height: 120px;
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: #f9fafb;
+}
+
+.upload-placeholder:hover {
+  border-color: #667eea;
+  background: #f3f4f6;
+}
+
+.upload-icon {
+  font-size: 32px;
+  color: #9ca3af;
+  margin-bottom: 4px;
+}
+
+.upload-text {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.image-limit-tip {
+  font-size: 12px;
+  color: #ef4444;
+  margin-top: 8px;
 }
 
 :deep(.n-button.primary-soft) {

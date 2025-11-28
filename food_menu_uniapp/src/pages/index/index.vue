@@ -95,6 +95,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { getBannerList, getTopDishes } from '@/api/index'
 import { useTheme } from '@/stores/theme'
+import { getDishImage } from '@/utils/image'
 
 // 使用主题
 const { themeConfig, loadTheme } = useTheme()
@@ -121,21 +122,18 @@ const updateClock = () => {
 const loadFeaturedDishes = async () => {
   try {
     const res = await getTopDishes()
-    console.log('明星菜原始数据:', res.data) // 调试日志
     if (res.data) {
       featuredDishes.value = res.data.map(item => {
-        console.log('菜品数据:', item) // 调试每个菜品
         return {
           id: item.id,
           title: item.name,
           description: item.description || '',
           tag: item.tags ? item.tags.split(',')[0] : '热销', // 没有标签时显示"热销"
           energy: item.calories ? `${item.calories} kcal` : '', // 有卡路里时加单位
-          image: item.image || 'https://dummyimage.com/200x200/e2e8f0/94a3b8&text=No+Image',
+          image: getDishImage(item), // 使用工具函数获取主图
           orderCount: item.orderCount || 0 // 点菜次数
         }
       })
-      console.log('处理后的数据:', featuredDishes.value) // 调试处理后的数据
     }
   } catch (error) {
     console.error('加载明星菜失败:', error)

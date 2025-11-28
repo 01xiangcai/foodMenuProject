@@ -3,7 +3,43 @@
     <scroll-view class="detail-scroll" scroll-y>
       <!-- 1. 图片卡片 -->
       <view class="card image-card">
-        <image class="dish-image" :src="getDishImage(dish)" mode="aspectFill" />
+        <swiper 
+          v-if="displayImages.length > 0"
+          class="dish-swiper" 
+          :indicator-dots="displayImages.length > 1"
+          :autoplay="displayImages.length > 1"
+          :interval="3000"
+          :duration="500"
+          :circular="true"
+          @change="onSwiperChange"
+        >
+          <swiper-item 
+            v-for="(img, index) in displayImages" 
+            :key="index"
+            @tap="previewImage(index)"
+          >
+            <image 
+              class="dish-image" 
+              :src="img" 
+              mode="aspectFill"
+              @error="handleImageError"
+            />
+          </swiper-item>
+        </swiper>
+        
+        <!-- 没有图片时显示占位图 -->
+        <view v-else class="no-image-placeholder">
+          <image 
+            class="dish-image" 
+            :src="getDishImage(dish)" 
+            mode="aspectFill"
+          />
+        </view>
+        
+        <!-- 图片计数器 -->
+        <view class="image-counter" v-if="displayImages.length > 1">
+          {{ currentImageIndex + 1 }} / {{ displayImages.length }}
+        </view>
       </view>
 
       <!-- 2. 信息卡片 -->
@@ -100,7 +136,32 @@ const dish = ref({
   description: '',
   price: 0,
   image: 'https://dummyimage.com/800x600/6366f1/ffffff&text=Loading',
+  localImage: '',
+  localImages: [],
   categoryName: '家庭菜谱'
+})
+
+const currentImageIndex = ref(0)
+
+// 计算显示的图片列表（兼容旧数据）
+const displayImages = computed(() => {
+  // 优先使用 localImages 数组
+  if (dish.value.localImages && Array.isArray(dish.value.localImages) && dish.value.localImages.length > 0) {
+    return dish.value.localImages
+  }
+  
+  // 其次使用 localImage（主图）
+  if (dish.value.localImage) {
+    return [dish.value.localImage]
+  }
+  
+  // 最后使用 image（OSS 图片）
+  if (dish.value.image) {
+    return [dish.value.image]
+  }
+  
+  // 都没有则返回默认图片
+  return [getDishImage(dish.value)]
 })
 
 // 评论相关
@@ -122,13 +183,47 @@ const totalCommentCount = computed(() => {
 const loadDishDetail = async (id) => {
   try {
     const res = await getDishDetail(id)
-    if (res.data) {
+    
+    // API 返回格式：{ code: 1, data: {...}, msg: '...' }
+    const dishData = res.data || res
+    
+    if (dishData) {
+      // 优先使用后端返回的 localImagesArray（已经转换为完整 URL 的数组）
+      let localImagesArray = []
+      
+      if (dishData.localImagesArray && Array.isArray(dishData.localImagesArray) && dishData.localImagesArray.length > 0) {
+        localImagesArray = dishData.localImagesArray
+      } else if (dishData.localImages) {
+        // 兼容处理：解析 localImages JSON 字符串
+        if (typeof dishData.localImages === 'string') {
+          try {
+            localImagesArray = JSON.parse(dishData.localImages)
+          } catch (e) {
+            console.warn('解析 localImages 失败:', e)
+          }
+        } else if (Array.isArray(dishData.localImages)) {
+          localImagesArray = dishData.localImages
+        }
+      }
+      
+      // 如果还是没有图片，尝试从主图生成
+      if (localImagesArray.length === 0) {
+        if (dishData.localImage) {
+          localImagesArray = [dishData.localImage]
+        } else if (dishData.image) {
+          localImagesArray = [dishData.image]
+        }
+      }
+      
       dish.value = {
-        ...res.data,
-        tags: res.data.tags && typeof res.data.tags === 'string' 
-          ? res.data.tags.split(/[,，]/).filter(Boolean) 
+        ...dishData,
+        localImages: localImagesArray,
+        tags: dishData.tags && typeof dishData.tags === 'string' 
+          ? dishData.tags.split(/[,，]/).filter(Boolean) 
           : []
       }
+      
+      currentImageIndex.value = 0
     }
   } catch (error) {
     console.error('加载菜品详情失败:', error)
@@ -277,6 +372,27 @@ onLoad((options) => {
   }
 })
 
+// 轮播图切换
+const onSwiperChange = (e) => {
+  currentImageIndex.value = e.detail.current
+}
+
+// 图片预览
+const previewImage = (index) => {
+  if (displayImages.value.length === 0) {
+    return
+  }
+  uni.previewImage({
+    urls: displayImages.value,
+    current: index
+  })
+}
+
+// 图片加载错误处理
+const handleImageError = (e) => {
+  // 图片加载失败时的处理
+}
+
 onMounted(() => {
   loadTheme()
   loadTagIconMap()
@@ -312,12 +428,30 @@ onMounted(() => {
 .image-card {
   height: 460rpx;
   padding: 12rpx; /* 内边距效果 */
+  position: relative;
   
-  .dish-image {
+  .dish-swiper {
     width: 100%;
     height: 100%;
-    border-radius: 16rpx;
-    background-color: v-bind('themeConfig.bgSecondary');
+    
+    .dish-image {
+      width: 100%;
+      height: 100%;
+      border-radius: 16rpx;
+      background-color: v-bind('themeConfig.bgSecondary');
+    }
+  }
+  
+  .image-counter {
+    position: absolute;
+    bottom: 24rpx;
+    right: 24rpx;
+    padding: 8rpx 16rpx;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    border-radius: 20rpx;
+    font-size: 24rpx;
+    backdrop-filter: blur(10px);
   }
 }
 
@@ -348,7 +482,7 @@ onMounted(() => {
 .price {
   font-size: 40rpx;
   font-weight: 700;
-  color: v-bind('themeConfig.textPrimary'); /* 使用主色而非红色，更显高级 */
+  color: #ff4757; /* 红色价格 */
 }
 
 .category-tag {

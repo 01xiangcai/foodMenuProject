@@ -121,7 +121,7 @@ const loadFavorites = async (isRefresh = false) => {
 
   // 设置加载状态
   if (page.value === 1) {
-    loading.value = true
+  loading.value = true
   } else {
     loadingMore.value = true
   }

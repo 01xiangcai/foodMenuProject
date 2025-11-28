@@ -1,22 +1,46 @@
 <template>
   <view class="page">
-    <!-- 侧边栏分类 -->
-    <scroll-view class="sidebar" scroll-y>
-      <view 
-        class="sidebar-item"
-        :class="{ active: currentCategory === item.id }"
-        v-for="item in categories" 
-        :key="item.id"
-        @tap="selectCategory(item.id)"
-      >
-        <view class="active-line" v-if="currentCategory === item.id"></view>
-        <image v-if="item.icon" class="category-icon" :src="item.icon" mode="aspectFit" />
-        <text class="category-name">{{ item.name }}</text>
+    <!-- 搜索框 -->
+    <view class="search-bar">
+      <view class="search-input-wrapper">
+        <text class="search-icon">🔍</text>
+        <input 
+          class="search-input" 
+          v-model="searchKeyword" 
+          placeholder="搜索菜品名称..."
+          @input="onSearchInput"
+          @confirm="onSearchConfirm"
+          confirm-type="search"
+        />
+        <view 
+          class="clear-btn" 
+          v-if="searchKeyword"
+          @tap="clearSearch"
+        >
+          <text>✕</text>
+        </view>
       </view>
-    </scroll-view>
+    </view>
+    
+    <!-- 内容区域 -->
+    <view class="page-content">
+      <!-- 侧边栏分类 -->
+      <scroll-view class="sidebar" scroll-y>
+        <view 
+          class="sidebar-item"
+          :class="{ active: currentCategory === item.id }"
+          v-for="item in categories" 
+          :key="item.id"
+          @tap="selectCategory(item.id)"
+        >
+          <view class="active-line" v-if="currentCategory === item.id"></view>
+          <image v-if="item.icon" class="category-icon" :src="item.icon" mode="aspectFit" />
+          <text class="category-name">{{ item.name }}</text>
+        </view>
+      </scroll-view>
 
-    <!-- 右侧菜品列表 -->
-    <scroll-view class="dish-scroll" scroll-y @scrolltolower="loadMore">
+      <!-- 右侧菜品列表 -->
+      <scroll-view class="dish-scroll" scroll-y @scrolltolower="loadMore">
       <view class="dish-list">
         <view 
           class="dish-card"
@@ -106,7 +130,8 @@
       
       <!-- 底部占位 -->
       <view class="bottom-spacer"></view>
-    </scroll-view>
+      </scroll-view>
+    </view>
     
     <!-- 购物车弹窗组件 -->
     <CartPopup 
@@ -163,6 +188,8 @@ const pageSize = ref(10)
 const favoriteIds = ref(new Set())
 const cartPopupVisible = ref(false)
 const tagIconMap = ref({})
+const searchKeyword = ref('')
+let searchTimer = null
 
 // 加载分类
 const loadCategories = async () => {
@@ -204,6 +231,11 @@ const loadDishes = async (reset = false) => {
       params.categoryId = currentCategory.value
     }
     
+    // 添加搜索关键词
+    if (searchKeyword.value && searchKeyword.value.trim()) {
+      params.name = searchKeyword.value.trim()
+    }
+    
     const res = await getDishList(params)
     let list = []
     if (Array.isArray(res.data)) {
@@ -242,6 +274,37 @@ const loadDishes = async (reset = false) => {
 // 选择分类
 const selectCategory = (categoryId) => {
   currentCategory.value = categoryId
+  // 选择分类时不清空搜索关键词，但重新加载数据
+  loadDishes(true)
+}
+
+// 搜索输入处理（防抖）
+const onSearchInput = () => {
+  if (searchTimer) {
+    clearTimeout(searchTimer)
+  }
+  // 延迟500ms后执行搜索
+  searchTimer = setTimeout(() => {
+    if (searchKeyword.value.trim()) {
+      loadDishes(true)
+    } else {
+      // 如果搜索框为空，重新加载所有菜品
+      loadDishes(true)
+    }
+  }, 500)
+}
+
+// 搜索确认
+const onSearchConfirm = () => {
+  if (searchTimer) {
+    clearTimeout(searchTimer)
+  }
+  loadDishes(true)
+}
+
+// 清空搜索
+const clearSearch = () => {
+  searchKeyword.value = ''
   loadDishes(true)
 }
 
@@ -388,10 +451,80 @@ onMounted(() => {
 <style lang="scss" scoped>
 .page {
   display: flex;
+  flex-direction: column;
   height: 100vh;
   background-color: v-bind('themeConfig.bgPrimary');
   overflow: hidden;
   transition: background-color 0.3s ease;
+}
+
+/* 搜索框样式 */
+.search-bar {
+  padding: 20rpx;
+  background: v-bind('themeConfig.cardBg');
+  border-bottom: 1px solid v-bind('themeConfig.borderColor');
+  transition: all 0.3s ease;
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: v-bind('themeConfig.inputBg');
+  border-radius: 50rpx;
+  padding: 0 30rpx;
+  height: 80rpx;
+  border: 1px solid v-bind('themeConfig.borderColor');
+  transition: all 0.3s ease;
+}
+
+.search-icon {
+  font-size: 32rpx;
+  margin-right: 16rpx;
+  color: v-bind('themeConfig.textSecondary');
+  transition: color 0.3s ease;
+}
+
+.search-input {
+  flex: 1;
+  font-size: 28rpx;
+  color: v-bind('themeConfig.textPrimary');
+  background: transparent;
+  border: none;
+  outline: none;
+  transition: color 0.3s ease;
+  
+  &::placeholder {
+    color: v-bind('themeConfig.textSecondary');
+  }
+}
+
+.clear-btn {
+  width: 40rpx;
+  height: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: v-bind('themeConfig.bgTertiary');
+  margin-left: 16rpx;
+  transition: all 0.3s ease;
+  
+  text {
+    font-size: 24rpx;
+    color: v-bind('themeConfig.textSecondary');
+  }
+  
+  &:active {
+    background: v-bind('themeConfig.borderColor');
+    transform: scale(0.9);
+  }
+}
+
+.page-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
 }
 
 /* 侧边栏样式 */
@@ -474,7 +607,7 @@ onMounted(() => {
     box-shadow: 
       0 2px 8px rgba(0, 0, 0, 0.12),
       0 0 0 1px rgba(255, 255, 255, 0.05) inset;
-  }
+}
 }
 
 /* 图片区域 */
@@ -577,7 +710,7 @@ onMounted(() => {
     color: #fff;
     font-weight: 600;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  }
+}
 }
 
 /* 内容区域 */
@@ -717,7 +850,7 @@ onMounted(() => {
 
 .price-unit {
   font-size: 22rpx;
-  color: v-bind('themeConfig.textSecondary');
+    color: v-bind('themeConfig.textSecondary');
   font-weight: 500;
 }
 
@@ -727,55 +860,55 @@ onMounted(() => {
   align-items: center;
   gap: 12rpx;
 }
-
-.btn-minus,
-.btn-plus {
+  
+  .btn-minus,
+  .btn-plus {
   width: 56rpx;
   height: 56rpx;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  
-  &:active {
+    
+    &:active {
     transform: scale(0.85);
-  }
-  
-  text {
+    }
+    
+    text {
     font-size: 28rpx;
     font-weight: 600;
-    line-height: 1;
+      line-height: 1;
+    }
   }
-}
-
-.btn-minus {
+  
+  .btn-minus {
   background: v-bind('themeConfig.inputBg');
   border: 2px solid v-bind('themeConfig.borderColor');
-  
-  text {
-    color: v-bind('themeConfig.textSecondary');
+    
+    text {
+      color: v-bind('themeConfig.textSecondary');
+    }
   }
-}
-
-.btn-plus {
+  
+  .btn-plus {
   background: linear-gradient(135deg, #ff6b6b, #ff8787);
   box-shadow: 
     0 4px 12px rgba(255, 107, 107, 0.3),
     0 0 0 1px rgba(255, 255, 255, 0.2) inset;
-  border: none;
-  
-  text {
-    color: #fff;
+    border: none;
+    
+    text {
+      color: #fff;
+    }
   }
-}
-
+  
 .quantity-num {
   font-size: 28rpx;
   font-weight: 700;
-  color: v-bind('themeConfig.textPrimary');
+    color: v-bind('themeConfig.textPrimary');
   min-width: 36rpx;
-  text-align: center;
+    text-align: center;
 }
 
 .loading,
