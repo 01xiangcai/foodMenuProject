@@ -32,6 +32,7 @@ public class OrderItem implements Serializable {
     private String dishName;
 
     // Dish image
+    @TableField("dish_image")
     private String dishImage;
 
     // Price

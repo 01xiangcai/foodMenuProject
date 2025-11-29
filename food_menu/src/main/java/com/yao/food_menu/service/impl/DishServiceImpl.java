@@ -52,6 +52,7 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
      * @param id
      * @return
      */
+    @Transactional(readOnly = true)
     public DishDto getByIdWithFlavor(Long id) {
         // 查询菜品基本信息
         Dish dish = this.getById(id);
@@ -91,6 +92,7 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<DishDto> getTopSellingDishes(int limit) {
         return baseMapper.selectTopSelling(limit);
     }

@@ -58,7 +58,12 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
             Dish dish = dishService.getById(item.getDishId());
             if (dish != null) {
                 item.setDishName(dish.getName());
-                item.setDishImage(dish.getImage());
+                // 优先使用 localImage（本地图片/主图），如果为空则使用 image
+                String dishImage = dish.getLocalImage();
+                if (dishImage == null || dishImage.trim().isEmpty()) {
+                    dishImage = dish.getImage();
+                }
+                item.setDishImage(dishImage);
                 item.setPrice(dish.getPrice());
             }
 

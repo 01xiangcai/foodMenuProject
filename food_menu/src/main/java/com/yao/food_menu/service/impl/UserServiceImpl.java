@@ -38,6 +38,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public String login(LoginDto loginDto) {
         User user = null;
         Integer type = resolveLoginType(loginDto);
@@ -118,11 +119,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public User getCurrentUser(Long userId) {
         return this.getById(userId);
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public Page<User> pageUsers(UserQueryDto queryDto) {
         Page<User> page = new Page<>(queryDto.getPage(), queryDto.getPageSize());
         LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
@@ -142,6 +145,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public void createUser(UserDto userDto) {
         // 检查用户名是否已存在
         LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
@@ -168,6 +172,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public void updateUser(UserDto userDto) {
         User user = this.getById(userDto.getId());
         if (user == null) {
@@ -189,6 +194,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public void deleteUser(Long id) {
         User user = this.getById(id);
         if (user == null) {
@@ -201,6 +207,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public void updateUserStatus(Long id, Integer status) {
         User user = this.getById(id);
         if (user == null) {
@@ -212,6 +219,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public String resetPassword(Long id) {
         User user = this.getById(id);
         if (user == null) {

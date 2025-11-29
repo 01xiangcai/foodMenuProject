@@ -262,19 +262,28 @@ const handleStatusUpdate = (orderId, status) => {
     content: `确定要${actionText}吗？`,
     success: async (res) => {
       if (res.confirm) {
+        uni.showLoading({ title: '处理中...', mask: true })
         try {
           await updateOrderStatus(orderId, status)
+          
+          // 本地更新状态，无需重新加载列表
+          const order = orders.value.find(o => o.id === orderId)
+          if (order) {
+            order.status = status
+          }
+          
           uni.showToast({
             title: '操作成功',
             icon: 'success'
           })
-          loadOrders(true)
         } catch (error) {
           console.error('操作失败:', error)
           uni.showToast({
             title: '操作失败',
             icon: 'none'
           })
+        } finally {
+          uni.hideLoading()
         }
       }
     }
