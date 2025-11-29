@@ -103,6 +103,12 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
     @Override
     @Transactional(readOnly = true)
     public List<DishDto> getTopSellingDishes(int limit) {
-        return baseMapper.selectTopSelling(limit);
+        // 获取当前用户的家庭ID和角色
+        Long familyId = FamilyContext.getFamilyId();
+        boolean isSuperAdmin = FamilyContext.isSuperAdmin();
+        
+        // 如果是超级管理员，familyId传null，可以查看所有家庭的菜品
+        // 如果不是超级管理员，传具体的familyId，只能查看本家庭的菜品
+        return baseMapper.selectTopSelling(limit, isSuperAdmin ? null : familyId, isSuperAdmin);
     }
 }

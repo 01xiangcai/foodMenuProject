@@ -9,6 +9,10 @@ public class FamilyContext {
     private static final ThreadLocal<Long> FAMILY_ID = new ThreadLocal<>();
     private static final ThreadLocal<Integer> USER_ROLE = new ThreadLocal<>();
     private static final ThreadLocal<Long> USER_ID = new ThreadLocal<>();
+    // 标记当前请求是否为登录操作（用于安全控制）
+    private static final ThreadLocal<Boolean> IS_LOGIN_OPERATION = new ThreadLocal<>();
+    // 标记当前请求是否为查询当前用户自己的信息（用于跳过数据隔离）
+    private static final ThreadLocal<Boolean> IS_QUERY_CURRENT_USER = new ThreadLocal<>();
 
     /**
      * 设置家庭ID
@@ -70,11 +74,43 @@ public class FamilyContext {
     }
 
     /**
+     * 设置是否为登录操作
+     */
+    public static void setLoginOperation(boolean isLogin) {
+        IS_LOGIN_OPERATION.set(isLogin);
+    }
+
+    /**
+     * 判断是否为登录操作
+     */
+    public static boolean isLoginOperation() {
+        Boolean flag = IS_LOGIN_OPERATION.get();
+        return flag != null && flag;
+    }
+
+    /**
+     * 设置是否为查询当前用户自己的信息
+     */
+    public static void setQueryCurrentUser(boolean isQuery) {
+        IS_QUERY_CURRENT_USER.set(isQuery);
+    }
+
+    /**
+     * 判断是否为查询当前用户自己的信息
+     */
+    public static boolean isQueryCurrentUser() {
+        Boolean flag = IS_QUERY_CURRENT_USER.get();
+        return flag != null && flag;
+    }
+
+    /**
      * 清除上下文
      */
     public static void clear() {
         FAMILY_ID.remove();
         USER_ROLE.remove();
         USER_ID.remove();
+        IS_LOGIN_OPERATION.remove();
+        IS_QUERY_CURRENT_USER.remove();
     }
 }

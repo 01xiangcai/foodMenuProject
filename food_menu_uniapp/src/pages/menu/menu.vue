@@ -93,19 +93,24 @@
               
               <!-- 数量控制器 -->
               <view class="quantity-control" @tap.stop>
-                <view 
-                  class="btn-minus" 
-                  v-if="cartStore.getDishQuantity(dish.id) > 0"
-                  @tap.stop="cartStore.removeFromCart(dish)"
-                >
-                  <text>−</text>
-                </view>
-                <text 
-                  class="quantity-num" 
-                  v-if="cartStore.getDishQuantity(dish.id) > 0"
-                >{{ cartStore.getDishQuantity(dish.id) }}</text>
-                <view class="btn-plus" @tap.stop="cartStore.addToCart(dish)">
-                  <text>+</text>
+                <template v-if="isLoggedIn">
+                  <view 
+                    class="btn-minus" 
+                    v-if="cartStore.getDishQuantity(dish.id) > 0"
+                    @tap.stop="cartStore.removeFromCart(dish)"
+                  >
+                    <text>−</text>
+                  </view>
+                  <text 
+                    class="quantity-num" 
+                    v-if="cartStore.getDishQuantity(dish.id) > 0"
+                  >{{ cartStore.getDishQuantity(dish.id) }}</text>
+                  <view class="btn-plus" @tap.stop="cartStore.addToCart(dish)">
+                    <text>+</text>
+                  </view>
+                </template>
+                <view class="login-tip" v-else @tap.stop="goToLogin">
+                  <text>登录点餐</text>
                 </view>
               </view>
             </view>
@@ -165,7 +170,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { getCategoryList, getDishList, addFavorite, removeFavorite, checkFavoriteBatch, getTagIconMap } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 import { useCartStore } from '@/stores/cart'
@@ -175,6 +180,19 @@ import { getDishImage } from '@/utils/image'
 // 使用主题
 const { themeConfig, loadTheme } = useTheme()
 const cartStore = useCartStore()
+
+const isLoggedIn = ref(false)
+
+const checkLoginStatus = () => {
+  const token = uni.getStorageSync('fm_token')
+  isLoggedIn.value = !!token
+}
+
+const goToLogin = () => {
+  uni.navigateTo({
+    url: '/pages/login/login'
+  })
+}
 
 const currentCategory = ref(0)
 const categories = ref([
@@ -440,8 +458,11 @@ const getTagIcon = (tag) => {
   return tagIconMap.value[tag] || '🔸'
 }
 
-onMounted(() => {
+import { onShow } from '@dcloudio/uni-app'
+
+onShow(() => {
   loadTheme()
+  checkLoginStatus()
   loadTagIconMap()
   loadCategories()
   loadDishes(true)

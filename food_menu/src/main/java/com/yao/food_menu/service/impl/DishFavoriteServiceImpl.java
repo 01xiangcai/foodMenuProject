@@ -60,7 +60,7 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
 
             // Check if dish exists
             Dish dish = dishService.getById(dishId);
-            if (dish == null || dish.getIsDeleted() == 1) {
+            if (dish == null || dish.getDeleted() == 1) {
                 log.warn("Dish not found or deleted: dishId={}", dishId);
                 return false;
             }
@@ -142,7 +142,7 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
         // Get dishes
         LambdaQueryWrapper<Dish> dishQuery = new LambdaQueryWrapper<>();
         dishQuery.in(Dish::getId, dishIds)
-                .eq(Dish::getIsDeleted, 0);
+                .eq(Dish::getDeleted, 0);
         
         List<Dish> dishes = dishService.list(dishQuery);
 
@@ -188,7 +188,7 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
         // Get dishes
         LambdaQueryWrapper<Dish> dishQuery = new LambdaQueryWrapper<>();
         dishQuery.in(Dish::getId, dishIds)
-                .eq(Dish::getIsDeleted, 0);
+                .eq(Dish::getDeleted, 0);
         
         List<Dish> dishes = dishService.list(dishQuery);
 

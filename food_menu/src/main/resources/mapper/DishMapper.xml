@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yao.food_menu.mapper.DishMapper">
+
+    <!-- 查询销量前N的菜品 -->
+    <select id="selectTopSelling" resultType="com.yao.food_menu.dto.DishDto">
+        SELECT d.*, IFNULL(SUM(oi.quantity), 0) as sales
+        FROM dish d
+        LEFT JOIN order_items oi ON d.id = oi.dish_id
+        WHERE d.status = 1 AND d.deleted = 0
+        <if test="!isSuperAdmin and familyId != null">
+            AND d.family_id = #{familyId}
+        </if>
+        GROUP BY d.id
+        ORDER BY sales DESC
+        LIMIT #{limit}
+    </select>
+
+</mapper>
+

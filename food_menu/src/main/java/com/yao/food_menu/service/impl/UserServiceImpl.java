@@ -40,18 +40,44 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     @org.springframework.transaction.annotation.Transactional
     public String login(LoginDto loginDto) {
-        User user = null;
-        Integer type = resolveLoginType(loginDto);
+        // 标记当前为登录操作，允许跳过user表的数据隔离（仅限登录时）
+        com.yao.food_menu.common.context.FamilyContext.setLoginOperation(true);
+        try {
+            User user = null;
+            Integer type = resolveLoginType(loginDto);
 
         if (type == 1) {
             // 用户名/密码登录
+            String username = loginDto.getUsername();
+            if (username == null || username.trim().isEmpty()) {
+                throw new RuntimeException("用户名不能为空");
+            }
+            username = username.trim();
+            
+            log.info("尝试登录，用户名: {}", username);
+            
             LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
-            queryWrapper.eq(User::getUsername, loginDto.getUsername());
+            queryWrapper.eq(User::getUsername, username);
             user = this.getOne(queryWrapper);
 
             if (user == null) {
+                log.warn("用户不存在，用户名: {}", username);
+                // 尝试直接查询数据库，绕过逻辑删除，用于调试
+                try {
+                    User debugUser = this.baseMapper.selectOne(queryWrapper);
+                    if (debugUser != null) {
+                        log.warn("找到用户但可能被逻辑删除过滤，用户ID: {}, deleted值: {}", 
+                                debugUser.getId(), debugUser.getDeleted());
+                        log.warn("提示：如果deleted字段为NULL，请执行: UPDATE user SET deleted = 0 WHERE deleted IS NULL");
+                    }
+                } catch (Exception e) {
+                    log.error("调试查询失败: {}", e.getMessage());
+                }
                 throw new RuntimeException("用户不存在");
             }
+            
+            log.info("找到用户，ID: {}, 用户名: {}, 状态: {}, deleted: {}", 
+                    user.getId(), user.getUsername(), user.getStatus(), user.getDeleted());
 
             if (!passwordEncoder.matches(loginDto.getPassword(), user.getPassword())) {
                 throw new RuntimeException("密码错误");
@@ -87,12 +113,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             throw new RuntimeException("用户已被禁用");
         }
 
-        // 生成JWT token（包含familyId和role信息）
-        return JwtUtil.generateToken(
-                user.getId(),
-                user.getUsername() != null ? user.getUsername() : user.getPhone(),
-                user.getFamilyId(),
-                user.getRole());
+            // 生成JWT token（包含familyId和role信息）
+            return JwtUtil.generateToken(
+                    user.getId(),
+                    user.getUsername() != null ? user.getUsername() : user.getPhone(),
+                    user.getFamilyId(),
+                    user.getRole());
+        } finally {
+            // 清除登录操作标记
+            com.yao.food_menu.common.context.FamilyContext.setLoginOperation(false);
+        }
     }
 
     /**

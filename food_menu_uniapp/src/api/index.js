@@ -207,6 +207,18 @@ export const wxLogin = (data) => {
 }
 
 /**
+ * 用户注册
+ * @param {Object} data 注册数据 { username, password, nickname?, phone? }
+ */
+export const wxRegister = (data) => {
+    return request({
+        url: '/wx/user/register',
+        method: 'POST',
+        data
+    })
+}
+
+/**
  * 发送验证码
  * @param {String} phone 手机号
  */

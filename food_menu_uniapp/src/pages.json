@@ -62,6 +62,13 @@
             }
         },
         {
+            "path": "pages/register/register",
+            "style": {
+                "navigationBarTitleText": "注册",
+                "navigationStyle": "custom"
+            }
+        },
+        {
             "path": "pages/favorites/favorites",
             "style": {
                 "navigationBarTitleText": "我的收藏"

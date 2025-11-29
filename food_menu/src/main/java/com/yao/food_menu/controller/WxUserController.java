@@ -178,8 +178,13 @@ public class WxUserController {
      */
     @Operation(summary = "获取用户信息", description = "根据Token获取当前登录用户信息")
     @GetMapping("/info")
-    public Result<WxUser> getUserInfo(@RequestHeader("Authorization") String token) {
-        log.info("获取用户信息,token: {}", token);
+    public Result<WxUser> getUserInfo(@RequestHeader(value = "Authorization", required = false) String token) {
+        log.info("获取用户信息,token: {}", token != null ? (token.length() > 20 ? token.substring(0, 20) + "..." : token) : "null");
+
+        if (token == null || token.trim().isEmpty()) {
+            log.warn("获取用户信息失败: token为空");
+            return Result.error("未提供token，请先登录");
+        }
 
         try {
             // 移除"Bearer "前缀(如果存在)
@@ -188,29 +193,42 @@ public class WxUserController {
             }
 
             Long userId = com.yao.food_menu.common.util.JwtUtil.getUserId(token);
-            WxUser user = wxUserService.getCurrentUser(userId);
-
-            // 不返回密码
-            user.setPassword(null);
-
-            // 1. 优先使用本地头像
-            if (StringUtils.hasText(user.getLocalAvatar())) {
-                String urlPrefix = localStorageProperties.getUrlPrefix();
-                if (!urlPrefix.endsWith("/")) {
-                    urlPrefix += "/";
+            
+            // 标记为查询当前用户自己的信息，跳过数据隔离
+            // 这样可以允许用户查询自己的信息，即使还没有绑定家庭
+            com.yao.food_menu.common.context.FamilyContext.setQueryCurrentUser(true);
+            try {
+                WxUser user = wxUserService.getCurrentUser(userId);
+                
+                if (user == null) {
+                    return Result.error("用户不存在");
                 }
-                user.setAvatar(urlPrefix + user.getLocalAvatar());
-            }
-            // 2. 如果存在头像,将objectKey转换为预签名URL
-            else if (StringUtils.hasText(user.getAvatar())) {
-                String presignedUrl = ossService.generatePresignedUrl(user.getAvatar());
-                user.setAvatar(presignedUrl);
-            }
 
-            return Result.success(user);
+                // 不返回密码
+                user.setPassword(null);
+
+                // 1. 优先使用本地头像
+                if (StringUtils.hasText(user.getLocalAvatar())) {
+                    String urlPrefix = localStorageProperties.getUrlPrefix();
+                    if (!urlPrefix.endsWith("/")) {
+                        urlPrefix += "/";
+                    }
+                    user.setAvatar(urlPrefix + user.getLocalAvatar());
+                }
+                // 2. 如果存在头像,将objectKey转换为预签名URL
+                else if (StringUtils.hasText(user.getAvatar())) {
+                    String presignedUrl = ossService.generatePresignedUrl(user.getAvatar());
+                    user.setAvatar(presignedUrl);
+                }
+
+                return Result.success(user);
+            } finally {
+                // 清除查询当前用户的标记
+                com.yao.food_menu.common.context.FamilyContext.setQueryCurrentUser(false);
+            }
         } catch (Exception e) {
-            log.error("获取用户信息失败: {}", e.getMessage());
-            return Result.error("无效的token");
+            log.error("获取用户信息失败: {}", e.getMessage(), e);
+            return Result.error("无效的token: " + e.getMessage());
         }
     }
 

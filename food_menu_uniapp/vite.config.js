@@ -15,11 +15,8 @@ export default defineConfig(({ mode }) => {
                 '/api': {
                     target: 'http://localhost:8080',
                     changeOrigin: true,
-                    rewrite: (path) => {
-                        const newPath = path.replace(/^\/api/, '')
-                        console.log('Proxy rewrite:', path, '->', newPath)
-                        return newPath
-                    }
+                    secure: false,
+                    rewrite: (path) => path.replace(/^\/api/, '')
                 }
             }
         }

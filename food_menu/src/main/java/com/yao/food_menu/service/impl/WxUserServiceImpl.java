@@ -37,8 +37,11 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
 
     @Override
     public String login(LoginDto loginDto) {
-        WxUser user = null;
-        Integer type = resolveLoginType(loginDto);
+        // 标记当前为登录操作，允许跳过wx_user表的数据隔离（仅限登录时）
+        com.yao.food_menu.common.context.FamilyContext.setLoginOperation(true);
+        try {
+            WxUser user = null;
+            Integer type = resolveLoginType(loginDto);
 
         if (type == 1) {
             // 用户名/密码登录
@@ -81,12 +84,16 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
             throw new RuntimeException("无效的登录类型");
         }
 
-        // 生成JWT token（包含familyId和role信息）
-        return JwtUtil.generateToken(
-                user.getId(),
-                user.getUsername() != null ? user.getUsername() : user.getPhone(),
-                user.getFamilyId(),
-                user.getRole());
+            // 生成JWT token（包含familyId和role信息）
+            return JwtUtil.generateToken(
+                    user.getId(),
+                    user.getUsername() != null ? user.getUsername() : user.getPhone(),
+                    user.getFamilyId(),
+                    user.getRole());
+        } finally {
+            // 清除登录操作标记
+            com.yao.food_menu.common.context.FamilyContext.setLoginOperation(false);
+        }
     }
 
     /**
@@ -279,14 +286,22 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
 
     @Override
     public void updateUserFamily(Long userId, Long familyId) {
-        WxUser user = this.getById(userId);
-        if (user == null) {
-            throw new RuntimeException("用户不存在");
+        // 标记为查询当前用户自己的信息，跳过数据隔离
+        // 这样可以允许用户更新自己的家庭ID，即使还没有绑定家庭
+        com.yao.food_menu.common.context.FamilyContext.setQueryCurrentUser(true);
+        try {
+            WxUser user = this.getById(userId);
+            if (user == null) {
+                throw new RuntimeException("用户不存在");
+            }
+
+            user.setFamilyId(familyId);
+            this.updateById(user);
+
+            log.info("用户 {} 已加入家庭 {}", userId, familyId);
+        } finally {
+            // 清除查询当前用户的标记
+            com.yao.food_menu.common.context.FamilyContext.setQueryCurrentUser(false);
         }
-
-        user.setFamilyId(familyId);
-        this.updateById(user);
-
-        log.info("用户 {} 已加入家庭 {}", userId, familyId);
     }
 }

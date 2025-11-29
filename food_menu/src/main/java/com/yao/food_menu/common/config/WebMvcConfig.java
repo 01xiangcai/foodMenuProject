@@ -39,13 +39,19 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addInterceptor(jwtTokenInterceptor)
                 .addPathPatterns("/**")
                 .excludePathPatterns(
-                        "/admin/user/login",
-                        "/uniapp/user/login",
-                        "/uniapp/user/register",
+                        // 后台管理端登录和验证码接口
+                        "/user/login",
+                        "/user/sendcode",
+                        // 小程序端登录、注册和验证码接口
+                        "/wx/user/login",
+                        "/wx/user/register",
+                        "/wx/user/sendcode",
+                        // 静态资源和文档
                         "/uploads/**",
                         "/doc.html",
                         "/webjars/**",
                         "/swagger-resources/**",
-                        "/v3/api-docs/**");
+                        "/v3/api-docs/**",
+                        "/swagger-ui/**");
     }
 }

@@ -6,11 +6,11 @@
       <text class="theme-text">{{ themeConfig.name }}</text>
     </view>
 
-    <!-- 登录弹窗 -->
-    <view class="login-modal">
+    <!-- 注册弹窗 -->
+    <view class="register-modal">
       <view class="modal-content glass-card" :style="{ background: themeConfig.cardBg, border: `1px solid ${themeConfig.cardBorder}` }">
         <view class="modal-header" :style="{ borderBottom: `1px solid ${themeConfig.borderColor}` }">
-          <text class="title" :style="{ color: themeConfig.textPrimary }">登录</text>
+          <text class="title" :style="{ color: themeConfig.textPrimary }">注册</text>
           <view class="close-btn" @tap="goBack">
             <text :style="{ color: themeConfig.textSecondary }">✕</text>
           </view>
@@ -21,8 +21,31 @@
             <text class="label" :style="{ color: themeConfig.textPrimary }">用户名</text>
             <input 
               class="input" 
-              v-model="username"
+              v-model="formData.username"
               placeholder="请输入用户名"
+              placeholder-class="placeholder"
+              :style="{ background: themeConfig.inputBg, border: `1px solid ${themeConfig.inputBorder}`, color: themeConfig.textPrimary }"
+            />
+          </view>
+
+          <view class="form-item">
+            <text class="label" :style="{ color: themeConfig.textPrimary }">昵称</text>
+            <input 
+              class="input" 
+              v-model="formData.nickname"
+              placeholder="请输入昵称（可选）"
+              placeholder-class="placeholder"
+              :style="{ background: themeConfig.inputBg, border: `1px solid ${themeConfig.inputBorder}`, color: themeConfig.textPrimary }"
+            />
+          </view>
+
+          <view class="form-item">
+            <text class="label" :style="{ color: themeConfig.textPrimary }">手机号</text>
+            <input 
+              class="input" 
+              v-model="formData.phone"
+              type="number"
+              placeholder="请输入手机号（可选）"
               placeholder-class="placeholder"
               :style="{ background: themeConfig.inputBg, border: `1px solid ${themeConfig.inputBorder}`, color: themeConfig.textPrimary }"
             />
@@ -33,25 +56,41 @@
             <view class="password-input-wrapper">
               <input 
                 class="input password-input" 
-                v-model="password"
+                v-model="formData.password"
                 :type="showPassword ? 'text' : 'password'"
                 placeholder="请输入密码"
                 placeholder-class="placeholder"
                 :style="{ background: themeConfig.inputBg, border: `1px solid ${themeConfig.inputBorder}`, color: themeConfig.textPrimary }"
               />
               <view class="eye-icon" @tap="togglePasswordVisibility">
-                <text v-if="showPassword">🙉</text>
-                <text v-else>🙈</text>
+                <text>{{ showPassword ? '🙉' : '🙈' }}</text>
               </view>
             </view>
           </view>
 
-          <view class="login-btn" :style="{ background: themeConfig.primaryGradient }" @tap="handleLogin">
-            <text>登录</text>
+          <view class="form-item">
+            <text class="label" :style="{ color: themeConfig.textPrimary }">确认密码</text>
+            <view class="password-input-wrapper">
+              <input 
+                class="input password-input" 
+                v-model="formData.confirmPassword"
+                :type="showConfirmPassword ? 'text' : 'password'"
+                placeholder="请再次输入密码"
+                placeholder-class="placeholder"
+                :style="{ background: themeConfig.inputBg, border: `1px solid ${themeConfig.inputBorder}`, color: themeConfig.textPrimary }"
+              />
+              <view class="eye-icon" @tap="toggleConfirmPasswordVisibility">
+                <text>{{ showConfirmPassword ? '🙉' : '🙈' }}</text>
+              </view>
+            </view>
+          </view>
+
+          <view class="register-btn" :style="{ background: themeConfig.primaryGradient }" @tap="handleRegister">
+            <text>注册</text>
           </view>
 
           <view class="footer">
-            <text class="link" :style="{ color: themeConfig.primaryColor }" @tap="goToRegister">没有账号？去注册</text>
+            <text class="link" :style="{ color: themeConfig.primaryColor }" @tap="goToLogin">已有账号？去登录</text>
           </view>
         </view>
       </view>
@@ -61,18 +100,29 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { wxLogin } from '@/api/index'
+import { wxRegister } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 
 // 使用主题
 const { themeConfig, toggleTheme, loadTheme } = useTheme()
 
-const username = ref('')
-const password = ref('')
+const formData = ref({
+  username: '',
+  nickname: '',
+  phone: '',
+  password: '',
+  confirmPassword: ''
+})
+
 const showPassword = ref(false)
+const showConfirmPassword = ref(false)
 
 const togglePasswordVisibility = () => {
   showPassword.value = !showPassword.value
+}
+
+const toggleConfirmPasswordVisibility = () => {
+  showConfirmPassword.value = !showConfirmPassword.value
 }
 
 const goBack = () => {
@@ -88,18 +138,13 @@ const switchTheme = () => {
   })
 }
 
-const goToRegister = () => {
-  uni.navigateTo({
-    url: '/pages/register/register'
-  })
+const goToLogin = () => {
+  uni.navigateBack()
 }
 
-onMounted(() => {
-  loadTheme()
-})
-
-const handleLogin = async () => {
-  if (!username.value) {
+const handleRegister = async () => {
+  // 验证用户名
+  if (!formData.value.username || formData.value.username.trim() === '') {
     uni.showToast({
       title: '请输入用户名',
       icon: 'none'
@@ -107,7 +152,8 @@ const handleLogin = async () => {
     return
   }
 
-  if (!password.value) {
+  // 验证密码
+  if (!formData.value.password || formData.value.password.trim() === '') {
     uni.showToast({
       title: '请输入密码',
       icon: 'none'
@@ -115,70 +161,63 @@ const handleLogin = async () => {
     return
   }
 
+  // 验证密码长度
+  if (formData.value.password.length < 6) {
+    uni.showToast({
+      title: '密码长度至少6位',
+      icon: 'none'
+    })
+    return
+  }
+
+  // 验证确认密码
+  if (formData.value.password !== formData.value.confirmPassword) {
+    uni.showToast({
+      title: '两次输入的密码不一致',
+      icon: 'none'
+    })
+    return
+  }
+
+  // 验证手机号（如果填写了）
+  if (formData.value.phone && formData.value.phone.length !== 11) {
+    uni.showToast({
+      title: '请输入正确的手机号',
+      icon: 'none'
+    })
+    return
+  }
+
   try {
-    const res = await wxLogin({
-      username: username.value,
-      password: password.value
+    const res = await wxRegister({
+      username: formData.value.username.trim(),
+      password: formData.value.password,
+      nickname: formData.value.nickname.trim() || undefined,
+      phone: formData.value.phone.trim() || undefined
     })
 
-    console.log('登录响应:', res)
-
-    // 兼容多种响应格式
-    let token = null
-    if (res && res.data) {
-      // 格式1: { data: { token: 'xxx' } }
-      if (res.data.token) {
-        token = res.data.token
-      }
-      // 格式2: { data: 'token_string' }
-      else if (typeof res.data === 'string') {
-        token = res.data
-      }
-    }
-
-    if (token) {
-      // 存储token
-      uni.setStorageSync('fm_token', token)
-      console.log('Token已存储:', token.substring(0, 20) + '...')
-      
-      // 验证token是否存储成功
-      const storedToken = uni.getStorageSync('fm_token')
-      if (!storedToken) {
-        uni.showToast({
-          title: 'Token存储失败',
-          icon: 'none'
-        })
-        return
-      }
-      
-      uni.showToast({
-        title: '登录成功',
-        icon: 'success',
-        duration: 1500
-      })
-      
-      // 延迟跳转，确保token已存储
-      setTimeout(() => {
-        uni.switchTab({
-          url: '/pages/profile/profile'
-        })
-      }, 1500)
-    } else {
-      console.error('未获取到token，响应数据:', res)
-      uni.showToast({
-        title: '登录失败，未获取到token',
-        icon: 'none'
-      })
-    }
-  } catch (error) {
-    console.error('登录失败:', error)
     uni.showToast({
-      title: error.message || '登录失败，请检查用户名和密码',
+      title: '注册成功',
+      icon: 'success',
+      duration: 1500
+    })
+
+    setTimeout(() => {
+      uni.navigateBack()
+    }, 1500)
+  } catch (error) {
+    console.error('注册失败:', error)
+    uni.showToast({
+      title: error.message || '注册失败，请重试',
       icon: 'none',
       duration: 2000
     })
   }
 }
+
+onMounted(() => {
+  loadTheme()
+})
 </script>
 
 <style lang="scss" scoped>
@@ -215,7 +254,7 @@ const handleLogin = async () => {
   }
 }
 
-.login-modal {
+.register-modal {
   width: 100%;
   max-width: 600rpx;
 }
@@ -304,7 +343,7 @@ const handleLogin = async () => {
   color: v-bind('themeConfig.textSecondary');
 }
 
-.login-btn {
+.register-btn {
   margin-top: 40rpx;
   height: 90rpx;
   border-radius: 45rpx;
@@ -331,3 +370,4 @@ const handleLogin = async () => {
   cursor: pointer;
 }
 </style>
+
