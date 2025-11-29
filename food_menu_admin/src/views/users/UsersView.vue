@@ -8,6 +8,15 @@
         </div>
         <div class="table-actions">
           <NSelect
+            v-if="isSuperAdmin"
+            v-model:value="filters.familyId"
+            :options="familyFilterOptions"
+            placeholder="选择家庭"
+            clearable
+            style="width: 180px"
+            @update:value="refreshUsers"
+          />
+          <NSelect
             v-model:value="filters.userType"
             placeholder="用户类型"
             :options="userTypeOptions"
@@ -71,6 +80,23 @@
           <NFormItem label="姓名">
             <NInput v-model:value="userModal.form.name" placeholder="张三" />
           </NFormItem>
+          <template v-if="isSuperAdmin">
+            <NFormItem label="所属家庭" required>
+              <NSelect
+                v-model:value="userModal.form.familyId"
+                :options="familyOptions"
+                placeholder="请选择家庭"
+                clearable
+              />
+            </NFormItem>
+            <NFormItem label="角色" required>
+              <NSelect
+                v-model:value="userModal.form.role"
+                :options="adminRoleOptions"
+                placeholder="请选择角色"
+              />
+            </NFormItem>
+          </template>
         </template>
 
         <!-- WxUser-specific fields -->
@@ -87,8 +113,8 @@
           </NFormItem>
         </template>
 
-        <NFormItem label="手机号" required>
-          <NInput v-model:value="userModal.form.phone" placeholder="13800138000" />
+        <NFormItem label="手机号">
+          <NInput v-model:value="userModal.form.phone" placeholder="13800138000（可选）" />
         </NFormItem>
         
         <NFormItem v-if="userModal.form.userType === 'wxuser'" label="小程序角色">
@@ -145,7 +171,7 @@
 </template>
 
 <script setup lang="ts">
-import { h, onMounted, reactive, ref } from 'vue';
+import { h, onMounted, reactive, ref, computed } from 'vue';
 import {
   NAvatar,
   NButton,
@@ -179,7 +205,9 @@ import {
   updateWxUser,
   updateWxUserStatus,
   type UserPayload,
-  type WxUserPayload
+  type WxUserPayload,
+  fetchAllFamilies,
+  fetchProfile
 } from '@/api/modules';
 
 type UnifiedUserRecord = {
@@ -194,6 +222,8 @@ type UnifiedUserRecord = {
   status: number;
   createTime: string;
   role?: number;
+  familyId?: number;
+  familyName?: string;
 };
 
 const message = useMessage();
@@ -205,8 +235,14 @@ const loading = ref(false);
 const filters = reactive({
   userType: 'all' as 'all' | 'admin' | 'wxuser',
   search: '',
-  status: 0 as number | null
+  status: 0 as number | null,
+  familyId: null as number | null // 家庭筛选（仅超级管理员使用）
 });
+
+// 家庭相关
+const families = ref<any[]>([]);
+const currentUserRole = ref<number | null>(null);
+const isSuperAdmin = computed(() => currentUserRole.value === 2);
 
 const pagination = reactive<PaginationProps>({
   page: 1,
@@ -240,7 +276,8 @@ const userModal = reactive({
     phone: '',
     gender: 0,
     status: 1,
-    role: 0
+    role: 0,
+    familyId: null as number | null
   }
 });
 
@@ -262,6 +299,31 @@ const statusOptions = [
   { label: '全部', value: 0 }, // Changed from null to 0 to avoid type error, need to handle in fetch
   { label: '启用', value: 1 },
   { label: '禁用', value: 2 } // Changed 0 to 2 to avoid conflict if 0 is 'all'
+];
+
+// 家庭选项（用于添加/编辑用户）
+const familyOptions = computed(() => {
+  return families.value.map(f => ({
+    label: f.name,
+    value: f.id
+  }));
+});
+
+// 家庭筛选选项（用于筛选用户列表）
+const familyFilterOptions = computed(() => {
+  return [
+    { label: '全部家庭', value: null },
+    ...families.value.map(f => ({
+      label: f.name,
+      value: f.id
+    }))
+  ];
+});
+
+// 管理员角色选项
+const adminRoleOptions = [
+  { label: '普通管理员', value: 0 },
+  { label: '家庭管理员', value: 1 }
 ];
 
 const columns: DataTableColumns<UnifiedUserRecord> = [
@@ -296,6 +358,11 @@ const columns: DataTableColumns<UnifiedUserRecord> = [
     title: '姓名/昵称',
     key: 'displayName',
     render: (row) => row.name || row.nickname || '—'
+  },
+  {
+    title: '所属家庭',
+    key: 'familyName',
+    render: (row) => row.familyName || '—'
   },
   {
     title: '手机号',
@@ -411,6 +478,7 @@ const resetUserForm = () => {
   userModal.form.gender = 0;
   userModal.form.status = 1;
   userModal.form.role = 0;
+  userModal.form.familyId = null;
 };
 
 const openUserModal = () => {
@@ -428,7 +496,8 @@ const openEditModal = (user: UnifiedUserRecord) => {
   userModal.form.phone = user.phone || '';
   userModal.form.gender = user.gender || 0;
   userModal.form.status = user.status;
-  userModal.form.role = user.role ?? 0;
+  userModal.form.role = user.role || 0;
+  userModal.form.familyId = user.familyId || null;
   userModal.show = true;
 };
 
@@ -447,10 +516,6 @@ const saveUser = async () => {
       message.warning('密码至少6位');
       return;
     }
-    if (!userModal.form.phone) {
-      message.warning('请输入手机号');
-      return;
-    }
   }
 
   userModal.loading = true;
@@ -462,7 +527,9 @@ const saveUser = async () => {
         password: userModal.form.password || undefined,
         name: userModal.form.name || undefined,
         phone: userModal.form.phone || undefined,
-        status: userModal.form.status
+        status: userModal.form.status,
+        role: userModal.form.role,
+        familyId: userModal.form.familyId || undefined
       };
       
       if (userModal.form.id) {
@@ -578,7 +645,8 @@ const loadUsers = async () => {
           pageSize: Math.ceil(pageSize / 2),
           username: filters.search || undefined,
           phone: filters.search || undefined,
-          status: (filters.status === 0 || filters.status === null) ? undefined : (filters.status === 2 ? 0 : filters.status)
+          status: (filters.status === 0 || filters.status === null) ? undefined : (filters.status === 2 ? 0 : filters.status),
+          familyId: isSuperAdmin.value ? (filters.familyId ?? undefined) : undefined
         }),
         fetchWxUsers({
           page,
@@ -586,33 +654,45 @@ const loadUsers = async () => {
           username: filters.search || undefined,
           nickname: filters.search || undefined,
           phone: filters.search || undefined,
-          status: (filters.status === 0 || filters.status === null) ? undefined : (filters.status === 2 ? 0 : filters.status)
+          status: (filters.status === 0 || filters.status === null) ? undefined : (filters.status === 2 ? 0 : filters.status),
+          familyId: isSuperAdmin.value ? (filters.familyId ?? undefined) : undefined
         })
       ]);
 
-      const adminUsers: UnifiedUserRecord[] = (adminResult.data?.records || []).map((user: any) => ({
-        id: user.id,
-        userType: 'admin' as const,
-        username: user.username,
-        name: user.name,
-        phone: user.phone,
-        avatar: user.avatar,
-        status: user.status,
-        createTime: user.createTime
-      }));
+      const adminUsers: UnifiedUserRecord[] = (adminResult.data?.records || []).map((user: any) => {
+        const family = families.value.find(f => f.id === user.familyId);
+        return {
+          id: user.id,
+          userType: 'admin' as const,
+          username: user.username,
+          name: user.name,
+          phone: user.phone,
+          avatar: user.avatar,
+          status: user.status,
+          createTime: user.createTime,
+          role: user.role,
+          familyId: user.familyId,
+          familyName: family?.name || '—'
+        };
+      });
 
-      const wxUsers: UnifiedUserRecord[] = (wxUserResult.data?.records || []).map((user: any) => ({
-        id: user.id,
-        userType: 'wxuser' as const,
-        username: user.username,
-        nickname: user.nickname,
-        phone: user.phone,
-        avatar: user.avatar,
-        gender: user.gender,
-        status: user.status,
-        createTime: user.createTime,
-        role: user.role
-      }));
+      const wxUsers: UnifiedUserRecord[] = (wxUserResult.data?.records || []).map((user: any) => {
+        const family = families.value.find(f => f.id === user.familyId);
+        return {
+          id: user.id,
+          userType: 'wxuser' as const,
+          username: user.username,
+          nickname: user.nickname,
+          phone: user.phone,
+          avatar: user.avatar,
+          gender: user.gender,
+          status: user.status,
+          createTime: user.createTime,
+          role: user.role,
+          familyId: user.familyId,
+          familyName: family?.name || '—'
+        };
+      });
 
       users.value = [...adminUsers, ...wxUsers].sort(
         (a, b) => new Date(b.createTime).getTime() - new Date(a.createTime).getTime()
@@ -625,19 +705,26 @@ const loadUsers = async () => {
         pageSize,
         username: filters.search || undefined,
         phone: filters.search || undefined,
-        status: (filters.status === 0 || filters.status === null) ? undefined : (filters.status === 2 ? 0 : filters.status)
+        status: (filters.status === 0 || filters.status === null) ? undefined : (filters.status === 2 ? 0 : filters.status),
+        familyId: isSuperAdmin.value ? (filters.familyId ?? undefined) : undefined
       });
 
-      users.value = (result.data?.records || []).map((user: any) => ({
-        id: user.id,
-        userType: 'admin' as const,
-        username: user.username,
-        name: user.name,
-        phone: user.phone,
-        avatar: user.avatar,
-        status: user.status,
-        createTime: user.createTime
-      }));
+      users.value = (result.data?.records || []).map((user: any) => {
+        const family = families.value.find(f => f.id === user.familyId);
+        return {
+          id: user.id,
+          userType: 'admin' as const,
+          username: user.username,
+          name: user.name,
+          phone: user.phone,
+          avatar: user.avatar,
+          status: user.status,
+          createTime: user.createTime,
+          role: user.role,
+          familyId: user.familyId,
+          familyName: family?.name || '—'
+        };
+      });
       pagination.itemCount = result.data?.total || 0;
     } else {
       // Load only wxuser
@@ -647,21 +734,27 @@ const loadUsers = async () => {
         username: filters.search || undefined,
         nickname: filters.search || undefined,
         phone: filters.search || undefined,
-        status: (filters.status === 0 || filters.status === null) ? undefined : (filters.status === 2 ? 0 : filters.status)
+        status: (filters.status === 0 || filters.status === null) ? undefined : (filters.status === 2 ? 0 : filters.status),
+        familyId: isSuperAdmin.value ? (filters.familyId ?? undefined) : undefined
       });
 
-      users.value = (result.data?.records || []).map((user: any) => ({
-        id: user.id,
-        userType: 'wxuser' as const,
-        username: user.username,
-        nickname: user.nickname,
-        phone: user.phone,
-        avatar: user.avatar,
-        gender: user.gender,
-        status: user.status,
-        createTime: user.createTime,
-        role: user.role
-      }));
+      users.value = (result.data?.records || []).map((user: any) => {
+        const family = families.value.find(f => f.id === user.familyId);
+        return {
+          id: user.id,
+          userType: 'wxuser' as const,
+          username: user.username,
+          nickname: user.nickname,
+          phone: user.phone,
+          avatar: user.avatar,
+          gender: user.gender,
+          status: user.status,
+          createTime: user.createTime,
+          role: user.role,
+          familyId: user.familyId,
+          familyName: family?.name || '—'
+        };
+      });
       pagination.itemCount = result.data?.total || 0;
     }
   } catch (error) {
@@ -672,8 +765,32 @@ const loadUsers = async () => {
   }
 };
 
-onMounted(() => {
-  loadUsers();
+// 加载家庭列表
+const loadFamilies = async () => {
+  try {
+    const result = await fetchAllFamilies();
+    families.value = result.data || [];
+  } catch (error) {
+    console.error('加载家庭列表失败:', error);
+  }
+};
+
+// 加载当前用户信息
+const loadCurrentUser = async () => {
+  try {
+    const result = await fetchProfile();
+    currentUserRole.value = result.data?.role ?? null;
+  } catch (error) {
+    console.error('加载用户信息失败:', error);
+  }
+};
+
+onMounted(async () => {
+  await loadCurrentUser();
+  // 超级管理员需要加载家庭列表用于筛选和设置
+  // 非超级管理员也需要加载家庭列表用于显示家庭名称
+  await loadFamilies();
+  await loadUsers();
 });
 </script>
 

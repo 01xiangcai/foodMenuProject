@@ -66,13 +66,19 @@ public class DishController {
             int page,
             int pageSize,
             @RequestParam(required = false) String name,
-            @RequestParam(required = false) Long categoryId) {
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Long familyId) {
         Page<Dish> pageInfo = new Page<>(page, pageSize);
         Page<DishDto> dishDtoPage = new Page<>();
 
         LambdaQueryWrapper<Dish> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.like(name != null, Dish::getName, name);
         queryWrapper.eq(categoryId != null, Dish::getCategoryId, categoryId);
+        // 超级管理员可以通过familyId参数筛选特定家庭的数据
+        // 非超级管理员由拦截器自动过滤，这里不需要处理
+        if (familyId != null && com.yao.food_menu.common.context.FamilyContext.isSuperAdmin()) {
+            queryWrapper.eq(Dish::getFamilyId, familyId);
+        }
         queryWrapper.orderByDesc(Dish::getUpdateTime);
         dishService.page(pageInfo, queryWrapper);
 
@@ -143,7 +149,6 @@ public class DishController {
         List<Dish> list = dishService.list(queryWrapper);
         // Convert OSS object keys to presigned URLs for all dishes
         list.forEach(this::convertDishImageToPresignedUrl);
-        list.forEach(this::convertDishImageToPresignedUrl);
         return Result.success(list);
     }
 
@@ -180,24 +185,61 @@ public class DishController {
     }
 
     private void ensureImage(DishDto dishDto) {
-        if (!StringUtils.hasText(dishDto.getImage())) {
-            dishDto.setImage(DEFAULT_IMAGE);
+        // 本地存储模式下，如果有localImage，不需要设置image字段
+        // OSS存储模式下，如果没有image，设置默认图片
+        if (fileStorageProperties.isLocal()) {
+            // 本地存储模式下，只使用localImage，不设置image字段
+            // 如果既没有localImage也没有image，也不设置默认值（避免污染数据库）
+            return;
+        } else {
+            // OSS存储模式下，如果没有image，设置默认图片
+            if (!StringUtils.hasText(dishDto.getImage())) {
+                dishDto.setImage(DEFAULT_IMAGE);
+            }
         }
     }
 
     /**
-     * 处理图片字段，确保本地存储的图片路径同时保存到localImage字段
+     * 处理图片字段，根据存储方式保存到对应字段
      */
     private void handleImageFields(DishDto dishDto) {
-        String image = dishDto.getImage();
-        if (!StringUtils.hasText(image)) {
-            return;
-        }
-
-        // 如果使用本地存储，且image字段是相对路径（不是完整URL），则同时保存到localImage
-        if (fileStorageProperties.isLocal() && !image.startsWith("http://") && !image.startsWith("https://")) {
-            dishDto.setLocalImage(image);
-            log.debug("设置本地图片路径: {}", image);
+        if (fileStorageProperties.isLocal()) {
+            // 本地存储模式：只使用localImage字段
+            // 如果前端传了image字段（可能是完整URL），需要提取出相对路径保存到localImage
+            String image = dishDto.getImage();
+            if (StringUtils.hasText(image)) {
+                // 如果是完整URL，提取相对路径
+                if (image.startsWith("http://") || image.startsWith("https://")) {
+                    String urlPrefix = localStorageProperties.getUrlPrefix();
+                    if (!urlPrefix.endsWith("/")) {
+                        urlPrefix += "/";
+                    }
+                    if (image.startsWith(urlPrefix)) {
+                        // 提取相对路径
+                        String relativePath = image.substring(urlPrefix.length());
+                        dishDto.setLocalImage(relativePath);
+                        // 清空image字段，本地存储模式下不保存image
+                        dishDto.setImage(null);
+                    }
+                } else {
+                    // 如果不是完整URL，直接保存到localImage
+                    dishDto.setLocalImage(image);
+                    // 清空image字段，本地存储模式下不保存image
+                    dishDto.setImage(null);
+                }
+            }
+            // 如果只有localImage，确保image字段为空
+            if (StringUtils.hasText(dishDto.getLocalImage()) && StringUtils.hasText(dishDto.getImage())) {
+                // 如果image字段是完整URL且包含urlPrefix，说明是前端传过来的，需要清空
+                String urlPrefix = localStorageProperties.getUrlPrefix();
+                if (dishDto.getImage().startsWith(urlPrefix)) {
+                    dishDto.setImage(null);
+                }
+            }
+        } else {
+            // OSS存储模式：只使用image字段（OSS object key）
+            // 清空localImage字段，OSS存储模式下不使用localImage
+            dishDto.setLocalImage(null);
         }
     }
 
@@ -213,84 +255,193 @@ public class DishController {
             return;
         }
 
-        // 1. 优先使用本地图片
-        if (StringUtils.hasText(dishDto.getLocalImage())) {
-            String urlPrefix = localStorageProperties.getUrlPrefix();
-            if (!urlPrefix.endsWith("/")) {
-                urlPrefix += "/";
+        // 根据存储方式处理图片URL
+        if (fileStorageProperties.isLocal()) {
+            // 本地存储模式：将localImage拼接URL后设置到image字段（供前端使用）
+            // 同时将拼接好的URL也设置到localImage字段（覆盖相对路径）
+            if (StringUtils.hasText(dishDto.getLocalImage())) {
+                String localImage = dishDto.getLocalImage();
+                // 如果localImage已经是完整URL（以http://或https://开头），直接使用，不要拼接
+                if (localImage.startsWith("http://") || localImage.startsWith("https://")) {
+                    // 已经是完整URL，直接使用
+                    dishDto.setImage(localImage);
+                    // localImage字段保持原样（已经是完整URL）
+                } else {
+                    // 如果是相对路径，需要拼接URL前缀
+                    String urlPrefix = localStorageProperties.getUrlPrefix();
+                    if (!urlPrefix.endsWith("/")) {
+                        urlPrefix += "/";
+                    }
+                    // 移除localImage开头的斜杠
+                    String localPath = localImage.startsWith("/") 
+                        ? localImage.substring(1) 
+                        : localImage;
+                    String fullUrl = urlPrefix + localPath;
+                    // 将完整URL设置到image字段，供前端使用
+                    dishDto.setImage(fullUrl);
+                    // 同时将完整URL设置到localImage字段（前端优先使用localImage）
+                    dishDto.setLocalImage(fullUrl);
+                }
             }
-            dishDto.setImage(urlPrefix + dishDto.getLocalImage());
-            return;
-        }
-
-        if (!StringUtils.hasText(dishDto.getImage())) {
-            return;
-        }
-        String image = dishDto.getImage();
-        // If image is not a full URL (doesn't start with http:// or https://),
-        // treat it as OSS object key and convert to presigned URL
-        if (!image.startsWith("http://") && !image.startsWith("https://")) {
-            try {
-                String presignedUrl = ossService.generatePresignedUrl(image);
-                dishDto.setImage(presignedUrl);
-            } catch (Exception e) {
-                log.warn("Failed to generate presigned URL for object key: {}, using default image", image, e);
-                dishDto.setImage(DEFAULT_IMAGE);
+            // 本地存储模式下，如果image字段存在但不是完整URL，忽略它（可能是旧数据）
+        } else {
+            // OSS存储模式：使用image字段（OSS object key），转换为预签名URL
+            if (!StringUtils.hasText(dishDto.getImage())) {
+                return;
+            }
+            String image = dishDto.getImage();
+            // If image is not a full URL (doesn't start with http:// or https://),
+            // treat it as OSS object key and convert to presigned URL
+            if (!image.startsWith("http://") && !image.startsWith("https://")) {
+                try {
+                    String presignedUrl = ossService.generatePresignedUrl(image);
+                    dishDto.setImage(presignedUrl);
+                } catch (Exception e) {
+                    log.warn("Failed to generate presigned URL for object key: {}, using default image", image, e);
+                    dishDto.setImage(DEFAULT_IMAGE);
+                }
             }
         }
     }
 
     /**
      * Convert OSS object key to presigned URL for Dish entity
+     * 用于小程序端的 /dish/list 接口
      */
     private void convertDishImageToPresignedUrl(Dish dish) {
         if (dish == null) {
             return;
         }
 
-        // 1. 优先使用本地图片
-        if (StringUtils.hasText(dish.getLocalImage())) {
-            String urlPrefix = localStorageProperties.getUrlPrefix();
-            if (!urlPrefix.endsWith("/")) {
-                urlPrefix += "/";
+        // 根据存储方式处理图片URL
+        if (fileStorageProperties.isLocal()) {
+            // 本地存储模式：将localImage拼接URL后设置到image字段（供前端使用）
+            // 同时将拼接好的URL也设置到localImage字段（覆盖相对路径）
+            if (StringUtils.hasText(dish.getLocalImage())) {
+                String localImage = dish.getLocalImage();
+                // 如果localImage已经是完整URL（以http://或https://开头），直接使用，不要拼接
+                if (localImage.startsWith("http://") || localImage.startsWith("https://")) {
+                    // 已经是完整URL，直接使用
+                    dish.setImage(localImage);
+                    // localImage字段保持原样（已经是完整URL）
+                } else {
+                    // 如果是相对路径，需要拼接URL前缀
+                    String urlPrefix = localStorageProperties.getUrlPrefix();
+                    if (!urlPrefix.endsWith("/")) {
+                        urlPrefix += "/";
+                    }
+                    // 移除localImage开头的斜杠
+                    String localPath = localImage.startsWith("/") 
+                        ? localImage.substring(1) 
+                        : localImage;
+                    String fullUrl = urlPrefix + localPath;
+                    // 将完整URL设置到image字段，供前端使用
+                    dish.setImage(fullUrl);
+                    // 同时将完整URL设置到localImage字段（前端优先使用localImage）
+                    dish.setLocalImage(fullUrl);
+                }
             }
-            dish.setImage(urlPrefix + dish.getLocalImage());
-            return;
-        }
-
-        if (!StringUtils.hasText(dish.getImage())) {
-            return;
-        }
-        String image = dish.getImage();
-        // If image is not a full URL (doesn't start with http:// or https://),
-        // treat it as OSS object key and convert to presigned URL
-        if (!image.startsWith("http://") && !image.startsWith("https://")) {
-            try {
-                String presignedUrl = ossService.generatePresignedUrl(image);
-                dish.setImage(presignedUrl);
-            } catch (Exception e) {
-                log.warn("Failed to generate presigned URL for object key: {}, using default image", image, e);
-                dish.setImage(DEFAULT_IMAGE);
+            // 本地存储模式下，如果image字段存在但不是完整URL，忽略它（可能是旧数据）
+        } else {
+            // OSS存储模式：使用image字段（OSS object key），转换为预签名URL
+            if (!StringUtils.hasText(dish.getImage())) {
+                return;
+            }
+            String image = dish.getImage();
+            // If image is not a full URL (doesn't start with http:// or https://),
+            // treat it as OSS object key and convert to presigned URL
+            if (!image.startsWith("http://") && !image.startsWith("https://")) {
+                try {
+                    String presignedUrl = ossService.generatePresignedUrl(image);
+                    dish.setImage(presignedUrl);
+                } catch (Exception e) {
+                    log.warn("Failed to generate presigned URL for object key: {}, using default image", image, e);
+                    dish.setImage(DEFAULT_IMAGE);
+                }
             }
         }
     }
 
     /**
      * 验证主图是否在图片列表中
+     * 同时将图片列表中的完整 URL 转换为相对路径
      */
     private void validateMainImageInList(DishDto dishDto) {
         String localImage = dishDto.getLocalImage();
         String localImages = dishDto.getLocalImages();
         
-        if (!StringUtils.hasText(localImage)) {
+        // 处理图片列表：将完整 URL 转换为相对路径
+        if (fileStorageProperties.isLocal() && StringUtils.hasText(localImages)) {
+            try {
+                List<String> imageList = objectMapper.readValue(localImages, new TypeReference<List<String>>() {});
+                List<String> processedList = new ArrayList<>();
+                String urlPrefix = localStorageProperties.getUrlPrefix();
+                if (!urlPrefix.endsWith("/")) {
+                    urlPrefix += "/";
+                }
+                
+                for (String imagePath : imageList) {
+                    if (!StringUtils.hasText(imagePath)) {
+                        continue;
+                    }
+                    
+                    // 如果是完整 URL，提取相对路径
+                    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+                        if (imagePath.startsWith(urlPrefix)) {
+                            String relativePath = imagePath.substring(urlPrefix.length());
+                            processedList.add(relativePath);
+                        } else {
+                            // 如果不是本地 URL，保留原值（可能是外部链接）
+                            processedList.add(imagePath);
+                        }
+                    } else {
+                        // 已经是相对路径，直接使用
+                        processedList.add(imagePath);
+                    }
+                }
+                
+                // 去重并更新列表
+                List<String> uniqueList = new ArrayList<>();
+                for (String path : processedList) {
+                    if (!uniqueList.contains(path)) {
+                        uniqueList.add(path);
+                    }
+                }
+                
+                dishDto.setLocalImages(objectMapper.writeValueAsString(uniqueList));
+            } catch (Exception e) {
+                log.warn("处理 localImages 失败: {}", localImages, e);
+            }
+        }
+        
+        // 处理主图：将完整 URL 转换为相对路径
+        if (fileStorageProperties.isLocal() && StringUtils.hasText(localImage)) {
+            String urlPrefix = localStorageProperties.getUrlPrefix();
+            if (!urlPrefix.endsWith("/")) {
+                urlPrefix += "/";
+            }
+            
+            if (localImage.startsWith("http://") || localImage.startsWith("https://")) {
+                if (localImage.startsWith(urlPrefix)) {
+                    String relativePath = localImage.substring(urlPrefix.length());
+                    dishDto.setLocalImage(relativePath);
+                }
+            }
+        }
+        
+        // 确保主图在图片列表中（使用转换后的值）
+        String processedLocalImage = dishDto.getLocalImage();
+        String processedLocalImages = dishDto.getLocalImages();
+        
+        if (!StringUtils.hasText(processedLocalImage)) {
             return; // 如果没有主图，跳过验证
         }
         
-        if (!StringUtils.hasText(localImages)) {
+        if (!StringUtils.hasText(processedLocalImages)) {
             // 如果没有图片列表，将主图作为唯一图片
             try {
                 List<String> imageList = new ArrayList<>();
-                imageList.add(localImage);
+                imageList.add(processedLocalImage);
                 dishDto.setLocalImages(objectMapper.writeValueAsString(imageList));
             } catch (Exception e) {
                 log.error("转换图片列表失败", e);
@@ -299,19 +450,19 @@ public class DishController {
         }
         
         try {
-            List<String> imageList = objectMapper.readValue(localImages, new TypeReference<List<String>>() {});
+            List<String> imageList = objectMapper.readValue(processedLocalImages, new TypeReference<List<String>>() {});
             
             // 如果主图不在列表中，将其添加到列表开头
-            if (!imageList.contains(localImage)) {
-                imageList.add(0, localImage);
+            if (!imageList.contains(processedLocalImage)) {
+                imageList.add(0, processedLocalImage);
                 dishDto.setLocalImages(objectMapper.writeValueAsString(imageList));
             }
         } catch (Exception e) {
-            log.warn("解析 localImages 失败: {}", localImages, e);
+            log.warn("解析 localImages 失败: {}", processedLocalImages, e);
             // 如果解析失败，将主图作为唯一图片
             try {
                 List<String> imageList = new ArrayList<>();
-                imageList.add(localImage);
+                imageList.add(processedLocalImage);
                 dishDto.setLocalImages(objectMapper.writeValueAsString(imageList));
             } catch (Exception ex) {
                 log.error("转换图片列表失败", ex);
@@ -381,26 +532,28 @@ public class DishController {
         }
         
         // 其他图片，使用与主图相同的转换逻辑
-        // 优先使用本地图片路径
         if (fileStorageProperties.isLocal()) {
-            // 使用本地存储 URL 前缀
+            // 本地存储模式：使用本地存储 URL 前缀
             try {
                 String urlPrefix = localStorageProperties.getUrlPrefix();
                 if (!urlPrefix.endsWith("/")) {
                     urlPrefix += "/";
                 }
-                return urlPrefix + imagePath;
+                // 移除imagePath开头的斜杠
+                String key = imagePath.startsWith("/") ? imagePath.substring(1) : imagePath;
+                return urlPrefix + key;
             } catch (Exception e) {
-                log.warn("获取本地存储 URL 前缀失败", e);
-                return imagePath;
+                log.warn("转换本地图片URL失败: {}", imagePath, e);
+                return DEFAULT_IMAGE;
             }
         } else {
-            // 如果使用 OSS，尝试生成预签名 URL
+            // OSS存储模式：转换为预签名URL
             try {
-                return ossService.generatePresignedUrl(imagePath);
+                String presignedUrl = ossService.generatePresignedUrl(imagePath);
+                return presignedUrl;
             } catch (Exception e) {
-                log.warn("生成预签名 URL 失败: {}", imagePath, e);
-                return imagePath;
+                log.warn("生成OSS预签名URL失败: {}", imagePath, e);
+                return DEFAULT_IMAGE;
             }
         }
     }

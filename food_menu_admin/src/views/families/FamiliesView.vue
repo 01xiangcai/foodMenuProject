@@ -9,10 +9,10 @@
           </div>
           <div>
             <h1>家庭管理</h1>
-            <p class="subtitle">管理系统中的所有家庭，分配邀请码</p>
+            <p class="subtitle">{{ isSuperAdmin ? '管理系统中的所有家庭，分配邀请码' : '查看和管理您的家庭信息' }}</p>
           </div>
         </div>
-        <div class="header-actions">
+        <div class="header-actions" v-if="isSuperAdmin">
           <NButton type="primary" size="large" class="primary-soft" @click="openFamilyModal()">
             <template #icon>
               <span class="btn-icon">✨</span>
@@ -68,6 +68,7 @@
           @keydown.enter="refreshFamilies"
         />
         <NSelect
+          v-if="isSuperAdmin"
           v-model:value="searchQuery.status"
           :options="statusOptions"
           placeholder="筛选状态"
@@ -126,7 +127,7 @@
           />
         </NFormItem>
         
-        <NFormItem label="状态">
+        <NFormItem label="状态" v-if="isSuperAdmin">
           <NSwitch
             v-model:value="familyModal.form.statusBool"
             size="large"
@@ -237,6 +238,7 @@ import {
   fetchFamilies,
   fetchFamilyDetail,
   updateFamily,
+  fetchProfile,
   type FamilyPayload,
   type FamilyQuery
 } from '@/api/modules';
@@ -252,6 +254,11 @@ type FamilyRecord = {
 };
 
 const message = useMessage();
+
+// 用户角色相关
+const currentUserRole = ref<number | null>(null);
+const currentUserFamilyId = ref<number | null>(null);
+const isSuperAdmin = computed(() => currentUserRole.value === 2);
 
 const families = ref<FamilyRecord[]>([]);
 const loading = ref(false);
@@ -306,7 +313,7 @@ const detailModal = reactive({
   data: null as FamilyRecord | null
 });
 
-const columns: DataTableColumns<FamilyRecord> = [
+const columns = computed<DataTableColumns<FamilyRecord>>(() => [
   {
     title: 'ID',
     key: 'id',
@@ -392,21 +399,23 @@ const columns: DataTableColumns<FamilyRecord> = [
             },
             { default: () => '编辑' }
           ),
-          h(
-            NButton,
-            {
-              size: 'small',
-              tertiary: true,
-              type: 'error',
-              onClick: () => handleDeleteFamily(row.id)
-            },
-            { default: () => '删除' }
-          )
+          ...(isSuperAdmin.value ? [
+            h(
+              NButton,
+              {
+                size: 'small',
+                tertiary: true,
+                type: 'error',
+                onClick: () => handleDeleteFamily(row.id)
+              },
+              { default: () => '删除' }
+            )
+          ] : [])
         ]
       }
     )
   }
-];
+]);
 
 const loadFamilies = async () => {
   loading.value = true;
@@ -477,13 +486,19 @@ const saveFamily = async () => {
       id: familyModal.form.id,
       name: familyModal.form.name.trim(),
       description: familyModal.form.description.trim() || undefined,
-      status: familyModal.form.statusBool ? 1 : 0
+      // 只有超级管理员可以设置状态
+      status: isSuperAdmin.value ? (familyModal.form.statusBool ? 1 : 0) : undefined
     };
     
     if (payload.id) {
       await updateFamily(payload);
       message.success('✅ 家庭信息已更新');
     } else {
+      // 非超级管理员不能创建家庭
+      if (!isSuperAdmin.value) {
+        message.error('只有超级管理员可以创建家庭');
+        return;
+      }
       await createFamily(payload);
       message.success('🎉 家庭创建成功！');
     }
@@ -534,7 +549,19 @@ const formatDate = (dateStr: string) => {
   });
 };
 
-onMounted(() => {
+// 加载当前用户信息
+const loadCurrentUser = async () => {
+  try {
+    const result = await fetchProfile();
+    currentUserRole.value = result.data?.role ?? null;
+    currentUserFamilyId.value = result.data?.familyId ?? null;
+  } catch (error) {
+    console.error('加载用户信息失败:', error);
+  }
+};
+
+onMounted(async () => {
+  await loadCurrentUser();
   loadFamilies();
 });
 </script>

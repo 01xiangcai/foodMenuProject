@@ -25,4 +25,7 @@ public class WxUserQueryDto {
 
     // 状态: 0-禁用, 1-启用
     private Integer status;
+
+    // 家庭ID（超级管理员可以筛选特定家庭）
+    private Long familyId;
 }

@@ -7,6 +7,15 @@
           <p>管理小程序首页的美食轮播图</p>
         </div>
         <div class="table-actions">
+          <NSelect
+            v-if="isSuperAdmin"
+            v-model:value="selectedFamilyId"
+            :options="familyFilterOptions"
+            placeholder="选择家庭"
+            clearable
+            style="width: 180px"
+            @update:value="handleFamilyFilterChange"
+          />
           <NButton secondary @click="loadBanners">刷新</NButton>
           <NButton class="primary-soft" type="primary" @click="openBannerModal()">新增轮播图</NButton>
         </div>
@@ -68,6 +77,13 @@
           <NFormItem label="排序号">
             <NInputNumber v-model:value="bannerModal.form.sort" :min="1" placeholder="数字越小越靠前" />
           </NFormItem>
+          <NFormItem label="所属家庭" v-if="isSuperAdmin" required>
+            <NSelect
+              v-model:value="bannerModal.form.familyId"
+              :options="familyOptions"
+              placeholder="请选择家庭"
+            />
+          </NFormItem>
           <NFormItem label="状态">
             <NSwitch v-model:value="bannerModal.form.status" :checked-value="1" :unchecked-value="0">
               <template #checked>启用</template>
@@ -87,7 +103,7 @@
 </template>
 
 <script setup lang="ts">
-import { h, onMounted, reactive, ref } from 'vue';
+import { computed, h, onMounted, reactive, ref } from 'vue';
 import {
   NButton,
   NDataTable,
@@ -97,6 +113,7 @@ import {
   NInput,
   NInputNumber,
   NModal,
+  NSelect,
   NSpace,
   NSpin,
   NSwitch,
@@ -115,6 +132,8 @@ import {
   removeBanner,
   updateBanner,
   uploadImage,
+  fetchAllFamilies,
+  fetchProfile,
   type BannerPayload
 } from '@/api/modules';
 
@@ -129,6 +148,13 @@ type BannerRecord = {
 };
 
 const message = useMessage();
+
+// 家庭相关
+const families = ref<any[]>([]);
+const currentUserRole = ref<number | null>(null);
+const currentUserFamilyId = ref<number | null>(null);
+const selectedFamilyId = ref<number | null>(null); // 家庭筛选器选中的家庭ID
+const isSuperAdmin = computed(() => currentUserRole.value === 2);
 
 const banners = ref<BannerRecord[]>([]);
 const loading = ref(false);
@@ -165,7 +191,8 @@ const bannerModal = reactive({
     description: '',
     linkUrl: '',
     sort: 1,
-    status: 1
+    status: 1,
+    familyId: null as number | null // 家庭ID（超级管理员可以设置）
   }
 });
 
@@ -236,6 +263,8 @@ const resetBannerForm = () => {
   bannerModal.form.linkUrl = '';
   bannerModal.form.sort = 1;
   bannerModal.form.status = 1;
+  // 非超级管理员默认使用自己的家庭ID
+  bannerModal.form.familyId = isSuperAdmin.value ? null : currentUserFamilyId.value;
   bannerModal.imagePreviewUrl = '';
 };
 
@@ -257,6 +286,7 @@ const openBannerModal = async (id?: number) => {
     bannerModal.form.linkUrl = banner.linkUrl || '';
     bannerModal.form.sort = banner.sort || 1;
     bannerModal.form.status = banner.status ?? 1;
+    bannerModal.form.familyId = (banner as any).familyId || null;
     // If image is a presigned URL, extract object key and set preview
     if (banner.image && banner.image.includes('?Expires=')) {
       const urlObj = new URL(banner.image);
@@ -279,6 +309,11 @@ const saveBanner = async () => {
     message.warning('请上传轮播图图片');
     return;
   }
+  // 超级管理员必须选择家庭
+  if (isSuperAdmin.value && !bannerModal.form.familyId) {
+    message.warning('请选择所属家庭');
+    return;
+  }
   bannerModal.loading = true;
   try {
     const payload: BannerPayload = {
@@ -288,7 +323,11 @@ const saveBanner = async () => {
       description: bannerModal.form.description || undefined,
       linkUrl: bannerModal.form.linkUrl || undefined,
       sort: bannerModal.form.sort || 1,
-      status: bannerModal.form.status
+      status: bannerModal.form.status,
+      // 超级管理员可以选择家庭，非超级管理员使用自己的家庭ID
+      familyId: isSuperAdmin.value 
+        ? (bannerModal.form.familyId ?? undefined)
+        : (currentUserFamilyId.value ?? undefined)
     };
     if (payload.id) {
       await updateBanner(payload);
@@ -346,7 +385,8 @@ const loadBanners = async () => {
   try {
     const result = await fetchBanners({
       page: pagination.page,
-      pageSize: pagination.pageSize
+      pageSize: pagination.pageSize,
+      familyId: isSuperAdmin.value ? (selectedFamilyId.value ?? undefined) : undefined
     });
     banners.value = result.data?.records || [];
     pagination.itemCount = result.data?.total || 0;
@@ -355,7 +395,57 @@ const loadBanners = async () => {
   }
 };
 
+// 家庭筛选器变化处理
+const handleFamilyFilterChange = () => {
+  pagination.page = 1;
+  loadBanners();
+};
+
+// 家庭筛选选项（用于筛选轮播图列表）
+const familyFilterOptions = computed(() => {
+  return [
+    { label: '全部家庭', value: null },
+    ...families.value.map(f => ({
+      label: f.name,
+      value: f.id
+    }))
+  ];
+});
+
+// 家庭选项（用于添加/编辑轮播图）
+const familyOptions = computed(() => {
+  return families.value.map(f => ({
+    label: f.name,
+    value: f.id
+  }));
+});
+
+// 加载家庭列表
+const loadFamilies = async () => {
+  try {
+    const result = await fetchAllFamilies();
+    families.value = result.data || [];
+  } catch (error) {
+    console.error('加载家庭列表失败:', error);
+  }
+};
+
+// 加载当前用户信息
+const loadCurrentUser = async () => {
+  try {
+    const result = await fetchProfile();
+    currentUserRole.value = result.data?.role ?? null;
+    currentUserFamilyId.value = result.data?.familyId ?? null;
+  } catch (error) {
+    console.error('加载用户信息失败:', error);
+  }
+};
+
 onMounted(async () => {
+  await loadCurrentUser();
+  if (isSuperAdmin.value) {
+    await loadFamilies();
+  }
   await loadBanners();
 });
 </script>

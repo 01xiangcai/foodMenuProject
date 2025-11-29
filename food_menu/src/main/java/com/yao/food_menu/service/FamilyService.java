@@ -55,4 +55,19 @@ public interface FamilyService extends IService<Family> {
      * @return 邀请码
      */
     String generateInviteCode();
+
+    /**
+     * 获取所有启用状态的家庭列表（不分页）
+     *
+     * @return 家庭列表
+     */
+    java.util.List<Family> listAllFamilies();
+
+    /**
+     * 根据ID查询家庭（带权限控制）
+     *
+     * @param id 家庭ID
+     * @return 家庭信息
+     */
+    Family getFamilyById(Long id);
 }

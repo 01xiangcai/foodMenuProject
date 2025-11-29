@@ -69,6 +69,16 @@
           style="width: 140px"
         />
 
+        <NSelect
+          v-if="isSuperAdmin"
+          v-model:value="selectedFamilyId"
+          :options="familyFilterOptions"
+          placeholder="选择家庭"
+          clearable
+          style="width: 180px"
+          @update:value="handleFamilyFilterChange"
+        />
+
         <NButton @click="handleSearch">搜索</NButton>
         <NButton @click="handleReset">重置</NButton>
         <NButton secondary @click="() => loadOrders(true)">
@@ -328,7 +338,7 @@ import {
   useDialog,
   useMessage
 } from 'naive-ui';
-import { fetchOrders, updateOrderStatus, deleteOrder } from '@/api/modules';
+import { fetchOrders, updateOrderStatus, deleteOrder, fetchAllFamilies, fetchProfile } from '@/api/modules';
 
 type OrderItemRecord = {
   id: number;
@@ -366,6 +376,12 @@ type OrderFilters = {
 
 const message = useMessage();
 const dialog = useDialog();
+
+// 家庭相关
+const families = ref<any[]>([]);
+const currentUserRole = ref<number | null>(null);
+const selectedFamilyId = ref<number | null>(null); // 家庭筛选器选中的家庭ID
+const isSuperAdmin = computed(() => currentUserRole.value === 2);
 
 const orders = ref<OrderRecord[]>([]);
 const ordersLoading = ref(false);
@@ -492,7 +508,25 @@ const handleReset = () => {
   filters.keyword = '';
   filters.dateRange = null;
   filters.status = null;
+  selectedFamilyId.value = null;
 };
+
+// 家庭筛选器变化处理
+const handleFamilyFilterChange = () => {
+  currentPage.value = 1;
+  loadOrders(true);
+};
+
+// 家庭筛选选项（用于筛选订单列表）
+const familyFilterOptions = computed(() => {
+  return [
+    { label: '全部家庭', value: null },
+    ...families.value.map(f => ({
+      label: f.name,
+      value: f.id
+    }))
+  ];
+});
 
 const loadOrders = async (reset = true) => {
   if (reset) {
@@ -504,7 +538,11 @@ const loadOrders = async (reset = true) => {
   }
   
   try {
-    const result = await fetchOrders({ page: currentPage.value, pageSize });
+    const result = await fetchOrders({ 
+      page: currentPage.value, 
+      pageSize,
+      familyId: isSuperAdmin.value ? (selectedFamilyId.value ?? undefined) : undefined
+    });
     const newOrders = result.data?.records || [];
     
     if (reset) {
@@ -586,7 +624,31 @@ const openDetail = async (id: number) => {
   }
 };
 
-onMounted(() => {
+// 加载家庭列表
+const loadFamilies = async () => {
+  try {
+    const result = await fetchAllFamilies();
+    families.value = result.data || [];
+  } catch (error) {
+    console.error('加载家庭列表失败:', error);
+  }
+};
+
+// 加载当前用户信息
+const loadCurrentUser = async () => {
+  try {
+    const result = await fetchProfile();
+    currentUserRole.value = result.data?.role ?? null;
+  } catch (error) {
+    console.error('加载用户信息失败:', error);
+  }
+};
+
+onMounted(async () => {
+  await loadCurrentUser();
+  if (isSuperAdmin.value) {
+    await loadFamilies();
+  }
   loadOrders();
 });
 </script>

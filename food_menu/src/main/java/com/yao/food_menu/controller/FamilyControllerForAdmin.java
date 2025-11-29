@@ -36,12 +36,20 @@ public class FamilyControllerForAdmin {
     }
 
     /**
-     * 创建家庭
+     * 创建家庭（仅超级管理员）
      */
     @PostMapping
-    @Operation(summary = "创建家庭")
+    @Operation(summary = "创建家庭", description = "只有超级管理员可以创建家庭")
     public Result<Family> create(@RequestBody FamilyDto familyDto) {
         log.info("创建家庭: {}", familyDto);
+        
+        // 权限控制：只有超级管理员可以创建家庭
+        Integer currentUserRole = com.yao.food_menu.common.context.FamilyContext.getUserRole();
+        boolean isSuperAdmin = (currentUserRole != null && currentUserRole == 2);
+        if (!isSuperAdmin) {
+            return Result.error("只有超级管理员可以创建家庭");
+        }
+        
         Family family = familyService.createFamily(familyDto);
         return Result.success(family);
     }
@@ -75,7 +83,7 @@ public class FamilyControllerForAdmin {
     @Operation(summary = "查询家庭详情")
     public Result<Family> getById(@PathVariable Long id) {
         log.info("查询家庭详情: {}", id);
-        Family family = familyService.getById(id);
+        Family family = familyService.getFamilyById(id);
         return Result.success(family);
     }
 
@@ -88,5 +96,16 @@ public class FamilyControllerForAdmin {
         log.info("通过邀请码查询家庭: {}", inviteCode);
         Family family = familyService.getByInviteCode(inviteCode);
         return Result.success(family);
+    }
+
+    /**
+     * 获取所有家庭列表（不分页，用于下拉选择）
+     */
+    @GetMapping("/list")
+    @Operation(summary = "获取所有家庭列表")
+    public Result<java.util.List<Family>> list() {
+        log.info("获取所有家庭列表");
+        java.util.List<Family> families = familyService.listAllFamilies();
+        return Result.success(families);
     }
 }

@@ -80,16 +80,16 @@ onMounted(() => {
 }
 
 .glass-card {
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--gradient-card);
   backdrop-filter: blur(10px);
   border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-md);
   transition: all 0.3s ease;
 
   &.hover-rise:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-lg);
   }
 }
 
@@ -100,13 +100,13 @@ onMounted(() => {
     font-size: 24px;
     font-weight: 600;
     margin: 0 0 4px 0;
-    color: #1f2937;
+    color: var(--text-primary);
   }
 
   p {
     margin: 0;
     font-size: 14px;
-    color: #6b7280;
+    color: var(--text-secondary);
   }
 }
 
@@ -117,15 +117,15 @@ onMounted(() => {
 .form-tip {
   margin-left: 12px;
   font-size: 13px;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 :deep(.primary-soft) {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--gradient-primary);
   border: none;
 
   &:hover {
-    background: linear-gradient(135deg, #5568d3 0%, #63408b 100%);
+    opacity: 0.9;
   }
 }
 </style>

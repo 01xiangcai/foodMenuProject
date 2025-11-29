@@ -79,12 +79,18 @@ public class OrdersController {
     @Operation(summary = "分页查询订单", description = "分页查询订单列表，包含订单明细，后台和小程序管理员使用")
     @GetMapping("/page")
     public Result<Page<OrdersDto>> page(int page, int pageSize,
+            @RequestParam(value = "familyId", required = false) Long familyId,
             @RequestHeader(value = "Authorization", required = false) String token) {
-        log.info("Query orders: page={}, pageSize={}", page, pageSize);
+        log.info("Query orders: page={}, pageSize={}, familyId={}", page, pageSize, familyId);
 
         try {
             Page<Orders> pageInfo = new Page<>(page, pageSize);
             LambdaQueryWrapper<Orders> queryWrapper = new LambdaQueryWrapper<>();
+
+            // 如果指定了家庭ID，按家庭筛选
+            if (familyId != null) {
+                queryWrapper.eq(Orders::getFamilyId, familyId);
+            }
 
             // 后台和小程序管理员默认查看全部订单，不按用户过滤
             queryWrapper.orderByDesc(Orders::getCreateTime);

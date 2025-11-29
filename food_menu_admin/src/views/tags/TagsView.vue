@@ -28,7 +28,7 @@
       />
     </section>
 
-    <NModal v-model:show="tagModal.show" preset="card" :mask-closable="false" style="max-width: 520px">
+    <NModal v-model:show="tagModal.show" preset="card" :mask-closable="false" style="max-width: 550px">
       <template #header>
         {{ tagModal.form.id ? '编辑标签' : '新增标签' }}
       </template>
@@ -334,16 +334,16 @@ onMounted(() => {
 }
 
 .glass-card {
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--gradient-card);
   backdrop-filter: blur(10px);
   border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-md);
   transition: all 0.3s ease;
 
   &.hover-rise:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-lg);
   }
 }
 
@@ -357,13 +357,13 @@ onMounted(() => {
     font-size: 24px;
     font-weight: 600;
     margin: 0 0 4px 0;
-    color: #1f2937;
+    color: var(--text-primary);
   }
 
   p {
     margin: 0;
     font-size: 14px;
-    color: #6b7280;
+    color: var(--text-secondary);
   }
 
   .table-actions {
@@ -388,7 +388,7 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   padding: 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--gradient-primary);
   border-radius: 12px;
   margin-bottom: 16px;
 
@@ -409,7 +409,7 @@ onMounted(() => {
   grid-template-columns: repeat(7, 1fr);
   gap: 8px;
   padding: 16px;
-  background: #f9fafb;
+  background: var(--bg-elevated);
   border-radius: 12px;
   max-height: 240px;
   overflow-y: auto;
@@ -419,16 +419,16 @@ onMounted(() => {
   }
 
   &::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: var(--border-secondary);
     border-radius: 3px;
   }
 
   &::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
+    background: var(--text-tertiary);
     border-radius: 3px;
 
     &:hover {
-      background: #a8a8a8;
+      background: var(--text-secondary);
     }
   }
 }
@@ -437,7 +437,7 @@ onMounted(() => {
   width: 48px;
   height: 48px;
   border: 2px solid transparent;
-  background: white;
+  background: var(--bg-card);
   border-radius: 10px;
   font-size: 24px;
   cursor: pointer;
@@ -448,13 +448,13 @@ onMounted(() => {
 
   &:hover {
     transform: scale(1.1);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-md);
   }
 
   &.active {
-    border-color: #667eea;
-    background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: var(--primary-color);
+    background: var(--bg-elevated);
+    box-shadow: 0 0 0 3px rgba(var(--primary-h), var(--primary-s), var(--primary-l), 0.2);
   }
 }
 
@@ -462,7 +462,7 @@ onMounted(() => {
 :deep(.n-data-table) {
   .n-data-table-th {
     font-weight: 600;
-    background: #f9fafb;
+    background: var(--bg-elevated);
   }
 
   .n-data-table-td {
@@ -471,11 +471,11 @@ onMounted(() => {
 }
 
 :deep(.primary-soft) {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--gradient-primary);
   border: none;
 
   &:hover {
-    background: linear-gradient(135deg, #5568d3 0%, #63408b 100%);
+    opacity: 0.9;
   }
 }
 </style>

@@ -189,9 +189,12 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
             queryWrapper.like(WxUser::getUsername, queryDto.getUsername());
         }
 
-        // 按状态过滤
-        if (queryDto.getStatus() != null) {
-            // 根据状态过滤用户, 请确保数据库中存在对应字段
+        // 注意：WxUser实体没有status字段，所以不进行状态过滤
+
+        // 超级管理员可以通过familyId参数筛选特定家庭的数据
+        // 非超级管理员由拦截器自动过滤，这里不需要处理
+        if (queryDto.getFamilyId() != null && com.yao.food_menu.common.context.FamilyContext.isSuperAdmin()) {
+            queryWrapper.eq(WxUser::getFamilyId, queryDto.getFamilyId());
         }
 
         // 按创建时间降序排序

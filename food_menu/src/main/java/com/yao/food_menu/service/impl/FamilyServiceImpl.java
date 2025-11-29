@@ -26,6 +26,16 @@ public class FamilyServiceImpl extends ServiceImpl<FamilyMapper, Family> impleme
 
         LambdaQueryWrapper<Family> queryWrapper = new LambdaQueryWrapper<>();
 
+        // 权限控制：非超级管理员只能查看自己的家庭
+        Integer currentUserRole = com.yao.food_menu.common.context.FamilyContext.getUserRole();
+        Long currentUserFamilyId = com.yao.food_menu.common.context.FamilyContext.getFamilyId();
+        boolean isSuperAdmin = (currentUserRole != null && currentUserRole == 2);
+        
+        if (!isSuperAdmin && currentUserFamilyId != null) {
+            // 非超级管理员只能查看自己的家庭
+            queryWrapper.eq(Family::getId, currentUserFamilyId);
+        }
+
         // 按名称模糊查询
         if (StringUtils.hasText(queryDto.getName())) {
             queryWrapper.like(Family::getName, queryDto.getName());
@@ -77,6 +87,18 @@ public class FamilyServiceImpl extends ServiceImpl<FamilyMapper, Family> impleme
             throw new RuntimeException("家庭不存在");
         }
 
+        // 权限控制
+        Integer currentUserRole = com.yao.food_menu.common.context.FamilyContext.getUserRole();
+        Long currentUserFamilyId = com.yao.food_menu.common.context.FamilyContext.getFamilyId();
+        boolean isSuperAdmin = (currentUserRole != null && currentUserRole == 2);
+        
+        // 非超级管理员只能修改自己的家庭
+        if (!isSuperAdmin) {
+            if (currentUserFamilyId == null || !family.getId().equals(currentUserFamilyId)) {
+                throw new RuntimeException("无权限修改其他家庭信息");
+            }
+        }
+
         // 复制属性（排除null值）
         if (StringUtils.hasText(familyDto.getName())) {
             family.setName(familyDto.getName());
@@ -84,8 +106,13 @@ public class FamilyServiceImpl extends ServiceImpl<FamilyMapper, Family> impleme
         if (StringUtils.hasText(familyDto.getDescription())) {
             family.setDescription(familyDto.getDescription());
         }
+        
+        // 只有超级管理员可以修改状态
         if (familyDto.getStatus() != null) {
-            family.setStatus(familyDto.getStatus());
+            if (isSuperAdmin) {
+                family.setStatus(familyDto.getStatus());
+            }
+            // 非超级管理员不允许修改状态，忽略此字段（不抛出异常，只是不更新状态）
         }
 
         this.updateById(family);
@@ -100,6 +127,14 @@ public class FamilyServiceImpl extends ServiceImpl<FamilyMapper, Family> impleme
         Family family = this.getById(id);
         if (family == null) {
             throw new RuntimeException("家庭不存在");
+        }
+
+        // 权限控制：只有超级管理员可以删除家庭
+        Integer currentUserRole = com.yao.food_menu.common.context.FamilyContext.getUserRole();
+        boolean isSuperAdmin = (currentUserRole != null && currentUserRole == 2);
+        
+        if (!isSuperAdmin) {
+            throw new RuntimeException("只有超级管理员可以删除家庭");
         }
 
         // TODO: 检查是否有关联数据，如果有则不允许删除
@@ -136,5 +171,52 @@ public class FamilyServiceImpl extends ServiceImpl<FamilyMapper, Family> impleme
         } while (getByInviteCode(code) != null);
 
         return code;
+    }
+
+    @Override
+    public java.util.List<Family> listAllFamilies() {
+        LambdaQueryWrapper<Family> queryWrapper = new LambdaQueryWrapper<>();
+        
+        // 权限控制：非超级管理员只能查看自己的家庭
+        Integer currentUserRole = com.yao.food_menu.common.context.FamilyContext.getUserRole();
+        Long currentUserFamilyId = com.yao.food_menu.common.context.FamilyContext.getFamilyId();
+        boolean isSuperAdmin = (currentUserRole != null && currentUserRole == 2);
+        
+        if (!isSuperAdmin && currentUserFamilyId != null) {
+            // 非超级管理员只能查看自己的家庭
+            queryWrapper.eq(Family::getId, currentUserFamilyId);
+        } else {
+            // 只查询启用状态的家庭（超级管理员）
+            queryWrapper.eq(Family::getStatus, 1);
+        }
+        
+        // 按名称排序
+        queryWrapper.orderByAsc(Family::getName);
+        return this.list(queryWrapper);
+    }
+
+    @Override
+    public Family getFamilyById(Long id) {
+        if (id == null) {
+            throw new RuntimeException("家庭ID不能为空");
+        }
+        
+        Family family = this.getById(id);
+        if (family == null) {
+            throw new RuntimeException("家庭不存在");
+        }
+        
+        // 权限控制：非超级管理员只能查看自己的家庭
+        Integer currentUserRole = com.yao.food_menu.common.context.FamilyContext.getUserRole();
+        Long currentUserFamilyId = com.yao.food_menu.common.context.FamilyContext.getFamilyId();
+        boolean isSuperAdmin = (currentUserRole != null && currentUserRole == 2);
+        
+        if (!isSuperAdmin) {
+            if (currentUserFamilyId == null || !family.getId().equals(currentUserFamilyId)) {
+                throw new RuntimeException("无权限查看其他家庭信息");
+            }
+        }
+        
+        return family;
     }
 }

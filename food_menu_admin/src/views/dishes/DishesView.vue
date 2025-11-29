@@ -44,10 +44,20 @@
     <section class="glass-card hover-rise dishes-card">
       <div class="table-header">
         <div class="table-actions">
+          <NSelect
+            v-if="isSuperAdmin"
+            v-model:value="selectedFamilyId"
+            :options="familyFilterOptions"
+            placeholder="选择家庭"
+            clearable
+            style="width: 180px"
+            @update:value="handleFamilyFilterChange"
+          />
           <NInput
             v-model:value="keyword"
             clearable
             placeholder="搜索菜名"
+            style="width: 200px"
             @keydown.enter.prevent="refreshDishes"
           />
           <NButton secondary @click="refreshDishes">刷新</NButton>
@@ -100,6 +110,13 @@
               placeholder="请选择分类"
             />
           </NFormItem>
+          <NFormItem label="所属家庭" v-if="isSuperAdmin" required>
+            <NSelect
+              v-model:value="dishModal.form.familyId"
+              :options="familyOptions"
+              placeholder="请选择家庭"
+            />
+          </NFormItem>
           <NFormItem label="价格 (元)" required>
             <NInputNumber v-model:value="dishModal.form.price" :min="0" :precision="2" placeholder="例如 28" />
           </NFormItem>
@@ -107,34 +124,34 @@
             <div class="multi-image-upload">
               <div class="image-list">
                 <div 
-                  v-for="(img, index) in dishModal.form.localImagesArray" 
-                  :key="index"
+                  v-for="(img, realIndex) in validImageList" 
+                  :key="`img-${realIndex}-${img.path}`"
                   class="image-item"
-                  :class="{ 'is-main': img === dishModal.form.localImage }"
+                  :class="{ 'is-main': img.path === dishModal.form.localImage }"
                 >
-                  <NImage :src="dishModal.imagePreviewUrls[index] || img" width="120" height="120" object-fit="cover" />
+                  <NImage :src="img.url" width="120" height="120" object-fit="cover" />
                   <div class="image-actions">
                     <NButton 
                       size="tiny" 
                       type="primary" 
-                      v-if="img !== dishModal.form.localImage"
-                      @click="setMainImage(img)"
+                      v-if="img.path !== dishModal.form.localImage"
+                      @click="setMainImage(img.path)"
                     >
                       设为主图
                     </NButton>
                     <NButton 
                       size="tiny" 
                       type="error" 
-                      @click="removeImage(index)"
+                      @click="removeImage(img.index)"
                     >
                       删除
                     </NButton>
                   </div>
-                  <div v-if="img === dishModal.form.localImage" class="main-badge">主图</div>
+                  <div v-if="img.path === dishModal.form.localImage" class="main-badge">主图</div>
                 </div>
                 
                 <NUpload
-                  v-if="dishModal.form.localImagesArray.length < imageLimit"
+                  v-if="validImageCount < imageLimit"
                   :custom-request="handleImageUpload"
                   :show-file-list="false"
                   accept="image/*"
@@ -144,12 +161,12 @@
                     <div class="upload-icon">+</div>
                     <div class="upload-text">上传图片</div>
                     <div class="upload-tip">
-                      {{ dishModal.form.localImagesArray.length }}/{{ imageLimit }}
+                      {{ validImageCount }}/{{ imageLimit }}
                     </div>
                   </div>
                 </NUpload>
               </div>
-              <div class="image-limit-tip" v-if="dishModal.form.localImagesArray.length >= imageLimit">
+              <div class="image-limit-tip" v-if="validImageCount >= imageLimit">
                 已达到最大上传数量（{{ imageLimit }}张）
               </div>
             </div>
@@ -306,7 +323,9 @@ import {
   updateDish,
   uploadImage,
   fetchAllDishTags,
-  fetchSystemConfig
+  fetchSystemConfig,
+  fetchAllFamilies,
+  fetchProfile
 } from '@/api/modules';
 
 type Category = {
@@ -332,6 +351,10 @@ type DishRecord = {
   image?: string;
   calories?: string;
   tags?: string;
+  localImage?: string;
+  localImages?: string;
+  localImagesArray?: string[];
+  familyId?: number;
 };
 
 type DishForm = {
@@ -352,6 +375,13 @@ const message = useMessage();
 const categories = ref<Category[]>([]);
 const selectedCategoryId = ref<number | null>(null);
 const keyword = ref('');
+
+// 家庭相关
+const families = ref<any[]>([]);
+const currentUserRole = ref<number | null>(null);
+const currentUserFamilyId = ref<number | null>(null);
+const selectedFamilyId = ref<number | null>(null); // 家庭筛选器选中的家庭ID
+const isSuperAdmin = computed(() => currentUserRole.value === 2);
 
 const dishes = ref<DishRecord[]>([]);
 const dishLoading = ref(false);
@@ -417,9 +447,29 @@ const dishModal = reactive({
     localImagesArray: [] as string[], // 图片数组，用于前端操作
     calories: '',
     tags: '',
-    tagsArray: [] as string[] // 标签数组，用于多选
+    tagsArray: [] as string[], // 标签数组，用于多选
+    familyId: null as number | null // 家庭ID（超级管理员可以设置）
   },
   imagePreviewUrls: [] as string[] // Store presigned URLs for preview
+});
+
+// 家庭选项（用于添加/编辑菜品）
+const familyOptions = computed(() => {
+  return families.value.map(f => ({
+    label: f.name,
+    value: f.id
+  }));
+});
+
+// 家庭筛选选项（用于筛选菜品列表）
+const familyFilterOptions = computed(() => {
+  return [
+    { label: '全部家庭', value: null },
+    ...families.value.map(f => ({
+      label: f.name,
+      value: f.id
+    }))
+  ];
 });
 
 const detailModal = reactive({
@@ -433,6 +483,8 @@ const columns: DataTableColumns<DishRecord> = [
     key: 'image',
     width: 80,
     render: (row) => {
+      // 后端已经将完整URL设置到localImage和image字段中（本地存储模式下）
+      // 优先使用localImage字段（后端已拼接好URL），如果没有则使用image字段
       const imageUrl = row.localImage || row.image || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YzZjRmNiIvPgogIDx0ZXh0IHg9IjUwJSIgeT0iNDUlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iODAiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPvCfjaU8L3RleHQ+CiAgPHRleHQgeD0iNTAlIiB5PSI2NSUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzljYTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5pqC5peg5Zu+54mHPC90ZXh0Pgo8L3N2Zz4=';
       return h(
         NImage,
@@ -542,6 +594,24 @@ const categoryOptions = computed(() =>
   }))
 );
 
+// 计算有效图片列表（过滤空值）
+const validImageList = computed(() => {
+  const valid: Array<{ path: string; url: string; index: number }> = [];
+  for (let i = 0; i < dishModal.form.localImagesArray.length; i++) {
+    const path = dishModal.form.localImagesArray[i];
+    const url = dishModal.imagePreviewUrls[i] || path;
+    if (path && path.trim()) {
+      valid.push({ path, url, index: i });
+    }
+  }
+  return valid;
+});
+
+// 计算有效图片数量
+const validImageCount = computed(() => {
+  return dishModal.form.localImagesArray.filter(path => path && path.trim()).length;
+});
+
 function lookupCategoryName(id: number) {
   return categories.value.find((item) => item.id === id)?.name || '未分类';
 }
@@ -605,6 +675,12 @@ const refreshDishes = () => {
   loadDishes();
 };
 
+// 家庭筛选器变化处理
+const handleFamilyFilterChange = () => {
+  pagination.page = 1;
+  loadDishes();
+};
+
 const resetDishForm = () => {
   dishModal.form.id = undefined;
   dishModal.form.name = '';
@@ -620,6 +696,8 @@ const resetDishForm = () => {
   dishModal.form.calories = '';
   dishModal.form.tags = '';
   dishModal.form.tagsArray = [];
+  // 非超级管理员默认使用自己的家庭ID
+  dishModal.form.familyId = isSuperAdmin.value ? null : currentUserFamilyId.value;
   dishModal.imagePreviewUrls = [];
 };
 
@@ -699,58 +777,116 @@ const fillDishForm = (dish: any) => {
   dishModal.form.flavorText = parseFlavorText(dish.flavors);
   dishModal.form.calories = dish.calories || '';
   dishModal.form.tags = dish.tags || '';
+  dishModal.form.familyId = dish.familyId || null;
   // 将标签字符串转换为数组
   dishModal.form.tagsArray = dish.tags ? dish.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [];
   
-  // 处理图片
+  // 处理图片：将完整 URL 转换为相对路径存储到 localImagesArray，完整 URL 存储到 imagePreviewUrls
   dishModal.form.localImage = dish.localImage || '';
   dishModal.form.localImages = dish.localImages || '';
+  dishModal.form.image = dish.image || '';
   
-  // 使用后端返回的 localImagesArray（已经转换为完整 URL 的数组）
+  let imageUrls: string[] = []; // 完整 URL 数组（用于预览）
+  let imagePaths: string[] = []; // 相对路径数组（用于保存）
+  
+  // 获取图片 URL 数组
   if (dish.localImagesArray && Array.isArray(dish.localImagesArray) && dish.localImagesArray.length > 0) {
-    dishModal.form.localImagesArray = dish.localImagesArray;
-    dishModal.imagePreviewUrls = dish.localImagesArray;
-  } else {
-    // 兼容处理：如果没有 localImagesArray，尝试解析 localImages JSON 字符串
-    let imageArray: string[] = [];
-    if (dish.localImages) {
-      try {
-        const parsed = typeof dish.localImages === 'string' 
-          ? JSON.parse(dish.localImages) 
-          : dish.localImages;
-        imageArray = Array.isArray(parsed) ? parsed : [];
-      } catch (e) {
-        console.warn('解析 localImages 失败:', e);
-        imageArray = dish.localImage ? [dish.localImage] : [];
-      }
-    } else if (dish.localImage) {
-      imageArray = [dish.localImage];
+    imageUrls = [...dish.localImagesArray];
+  } else if (dish.localImages) {
+    // 解析 localImages JSON 字符串
+    try {
+      const parsed = typeof dish.localImages === 'string' 
+        ? JSON.parse(dish.localImages) 
+        : dish.localImages;
+      imageUrls = Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.warn('解析 localImages 失败:', e);
+      imageUrls = dish.localImage ? [dish.localImage] : [];
     }
-    
-    dishModal.form.localImagesArray = imageArray;
-    // 如果后端没有转换 URL，前端使用 dish.image 的格式作为参考
-    dishModal.imagePreviewUrls = imageArray.map((imgPath: string) => {
-      if (imgPath.startsWith('http://') || imgPath.startsWith('https://')) {
-        return imgPath;
-      }
-      // 使用 dish.image 的 URL 前缀
-      if (dish.image && dish.image.startsWith('http')) {
-        try {
-          const url = new URL(dish.image);
-          const baseUrl = url.origin;
-          const basePath = url.pathname.substring(0, url.pathname.lastIndexOf('/') + 1);
-          return baseUrl + basePath + imgPath;
-        } catch (e) {
-          return imgPath;
-        }
-      }
-      return imgPath;
-    });
+  } else if (dish.localImage) {
+    imageUrls = [dish.localImage];
   }
   
-  // 处理主图
-  dishModal.form.localImage = dish.localImage || '';
-  dishModal.form.image = dish.image || '';
+  // 从完整 URL 中提取相对路径
+  const extractRelativePath = (fullUrl: string): string => {
+    if (!fullUrl) return '';
+    // 如果已经是相对路径，直接返回
+    if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://')) {
+      return fullUrl;
+    }
+    // 提取相对路径：查找 images 或 uploads 后的路径
+    try {
+      const url = new URL(fullUrl);
+      const path = url.pathname;
+      // 匹配 /images/ 或 /uploads/ 后的路径
+      const match = path.match(/\/(?:images|uploads|food-menu)\/(.+)$/);
+      if (match) {
+        return match[1];
+      }
+      // 如果没有匹配，返回路径部分（去掉开头的斜杠）
+      return path.replace(/^\//, '');
+    } catch (e) {
+      return fullUrl;
+    }
+  };
+  
+  // 转换为相对路径数组和完整 URL 数组
+  imagePaths = imageUrls.map(extractRelativePath);
+  // 过滤空值
+  imagePaths = imagePaths.filter(p => p && p.trim());
+  imageUrls = imageUrls.filter((url, idx) => imagePaths[idx] && imagePaths[idx].trim());
+  
+  dishModal.form.localImagesArray = imagePaths;
+  dishModal.imagePreviewUrls = imageUrls;
+  
+  // 处理主图：转换为相对路径
+  if (dishModal.form.localImage) {
+    dishModal.form.localImage = extractRelativePath(dishModal.form.localImage);
+  }
+  
+  // 确保主图在图片列表中，且两个数组长度一致
+  if (dishModal.form.localImage && !dishModal.form.localImagesArray.includes(dishModal.form.localImage)) {
+    // 主图不在列表中，添加到开头
+    dishModal.form.localImagesArray.unshift(dishModal.form.localImage);
+    // 生成主图的预览 URL
+    if (dish.image && dish.image.startsWith('http')) {
+      try {
+        const url = new URL(dish.image);
+        const baseUrl = url.origin;
+        const basePath = url.pathname.substring(0, url.pathname.lastIndexOf('/') + 1);
+        dishModal.imagePreviewUrls.unshift(baseUrl + basePath + dishModal.form.localImage);
+      } catch (e) {
+        dishModal.imagePreviewUrls.unshift(dishModal.form.localImage);
+      }
+    } else {
+      dishModal.imagePreviewUrls.unshift(dishModal.form.localImage);
+    }
+  } else if (dishModal.form.localImage) {
+    // 主图在列表中，确保它在第一个位置
+    const mainIndex = dishModal.form.localImagesArray.indexOf(dishModal.form.localImage);
+    if (mainIndex > 0) {
+      const mainPath = dishModal.form.localImagesArray.splice(mainIndex, 1)[0];
+      const mainUrl = dishModal.imagePreviewUrls[mainIndex] ? dishModal.imagePreviewUrls.splice(mainIndex, 1)[0] : '';
+      dishModal.form.localImagesArray.unshift(mainPath);
+      if (mainUrl) {
+        dishModal.imagePreviewUrls.unshift(mainUrl);
+      }
+    }
+  }
+  
+  // 最终确保两个数组长度一致，但不添加空值，只保留有效图片
+  const finalPaths: string[] = [];
+  const finalUrls: string[] = [];
+  for (let i = 0; i < Math.max(dishModal.form.localImagesArray.length, dishModal.imagePreviewUrls.length); i++) {
+    const path = dishModal.form.localImagesArray[i];
+    const url = dishModal.imagePreviewUrls[i];
+    if (path && path.trim()) {
+      finalPaths.push(path);
+      finalUrls.push(url || path);
+    }
+  }
+  dishModal.form.localImagesArray = finalPaths;
+  dishModal.imagePreviewUrls = finalUrls;
 };
 
 const parseFlavorText = (flavors?: DishFlavor[]) => {
@@ -778,14 +914,18 @@ const saveDish = async () => {
     message.warning('请完整填写菜品信息');
     return;
   }
-  if (dishModal.form.localImagesArray.length === 0) {
+  
+  // 过滤掉空值，只保留有效图片
+  const validImagePaths = dishModal.form.localImagesArray.filter(path => path && path.trim());
+  
+  if (validImagePaths.length === 0) {
     message.warning('请至少上传一张图片');
     return;
   }
   
   // 确保主图在图片列表中
-  if (!dishModal.form.localImage || !dishModal.form.localImagesArray.includes(dishModal.form.localImage)) {
-    dishModal.form.localImage = dishModal.form.localImagesArray[0];
+  if (!dishModal.form.localImage || !validImagePaths.includes(dishModal.form.localImage)) {
+    dishModal.form.localImage = validImagePaths[0];
   }
   
   dishModal.loading = true;
@@ -795,8 +935,8 @@ const saveDish = async () => {
       ? dishModal.form.tagsArray.join(',') 
       : null;
     
-    // 将图片数组转换为JSON字符串
-    const localImagesString = JSON.stringify(dishModal.form.localImagesArray);
+    // 将过滤后的有效图片数组转换为JSON字符串（只发送相对路径）
+    const localImagesString = JSON.stringify(validImagePaths);
     
     const payload: any = {
       id: dishModal.form.id,
@@ -810,7 +950,8 @@ const saveDish = async () => {
       localImage: dishModal.form.localImage,
       localImages: localImagesString,
       calories: dishModal.form.calories.trim() || null,
-      tags: tagsString
+      tags: tagsString,
+      familyId: dishModal.form.familyId || undefined
     };
     if (payload.id) {
       await updateDish(payload);
@@ -867,8 +1008,11 @@ const handleImageUpload = async (options: UploadCustomRequestOptions) => {
     return;
   }
 
+  // 先过滤掉空值，只统计有效图片数量
+  const validCount = dishModal.form.localImagesArray.filter(path => path && path.trim()).length;
+  
   // 检查数量限制
-  if (dishModal.form.localImagesArray.length >= imageLimit.value) {
+  if (validCount >= imageLimit.value) {
     message.warning(`最多只能上传 ${imageLimit.value} 张图片`);
     onError?.();
     return;
@@ -880,12 +1024,27 @@ const handleImageUpload = async (options: UploadCustomRequestOptions) => {
     // result.data is UploadResult: { objectKey, presignedUrl }
     const uploadResult = result.data as { objectKey: string; presignedUrl: string };
     
-    // 添加到图片数组
-    dishModal.form.localImagesArray.push(uploadResult.objectKey);
-    dishModal.imagePreviewUrls.push(uploadResult.presignedUrl);
+    // 过滤掉空值，确保数组只包含有效图片
+    const validPaths: string[] = [];
+    const validUrls: string[] = [];
+    for (let i = 0; i < Math.max(dishModal.form.localImagesArray.length, dishModal.imagePreviewUrls.length); i++) {
+      const path = dishModal.form.localImagesArray[i];
+      const url = dishModal.imagePreviewUrls[i];
+      if (path && path.trim() && url && url.trim()) {
+        validPaths.push(path);
+        validUrls.push(url);
+      }
+    }
+    
+    // 添加新上传的图片
+    validPaths.push(uploadResult.objectKey); // 相对路径
+    validUrls.push(uploadResult.presignedUrl); // 完整URL
+    
+    dishModal.form.localImagesArray = validPaths;
+    dishModal.imagePreviewUrls = validUrls;
     
     // 如果是第一张图片，自动设为主图
-    if (dishModal.form.localImagesArray.length === 1) {
+    if (validPaths.length === 1) {
       dishModal.form.localImage = uploadResult.objectKey;
     }
     
@@ -952,7 +1111,8 @@ const loadDishes = async () => {
       page: pagination.page || 1,
       pageSize: pagination.pageSize || 10,
       name: keyword.value || undefined,
-      categoryId: selectedCategoryId.value ?? undefined
+      categoryId: selectedCategoryId.value ?? undefined,
+      familyId: isSuperAdmin.value ? (selectedFamilyId.value ?? undefined) : undefined
     });
     dishes.value = result.data?.records || [];
     pagination.itemCount = result.data?.total || 0;
@@ -978,7 +1138,32 @@ const loadImageLimit = async () => {
   }
 };
 
+// 加载家庭列表
+const loadFamilies = async () => {
+  try {
+    const result = await fetchAllFamilies();
+    families.value = result.data || [];
+  } catch (error) {
+    console.error('加载家庭列表失败:', error);
+  }
+};
+
+// 加载当前用户信息
+const loadCurrentUser = async () => {
+  try {
+    const result = await fetchProfile();
+    currentUserRole.value = result.data?.role ?? null;
+    currentUserFamilyId.value = result.data?.familyId ?? null;
+  } catch (error) {
+    console.error('加载用户信息失败:', error);
+  }
+};
+
 onMounted(async () => {
+  await loadCurrentUser();
+  if (isSuperAdmin.value) {
+    await loadFamilies();
+  }
   await loadCategories();
   await loadDishes();
   await loadDishTags();
@@ -991,21 +1176,56 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: 280px 1fr;
   gap: 24px;
+  padding: 24px;
+  min-height: calc(100vh - 64px);
+}
+
+.categories-card,
+.dishes-card {
+  padding: 24px;
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   gap: 16px;
   flex-wrap: wrap;
+}
+
+.section-header h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
 }
 
 .category-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-height: calc(100vh - 300px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.category-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.category-list::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 3px;
+}
+
+.category-list::-webkit-scrollbar-thumb {
+  background: var(--text-tertiary);
+  border-radius: 3px;
+}
+
+.category-list::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
 }
 
 .category-item {
@@ -1048,16 +1268,26 @@ onMounted(async () => {
 
 .table-header {
   display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 20px;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .table-actions {
   display: flex;
   gap: 12px;
-  flex-wrap: wrap;
+  align-items: center;
+  flex-wrap: nowrap;
+  width: 100%;
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.table-actions > * {
+  flex-shrink: 0;
 }
 
 .modal-actions {
@@ -1200,6 +1430,13 @@ onMounted(async () => {
 @media (max-width: 1024px) {
   .menu-grid {
     grid-template-columns: 1fr;
+    gap: 20px;
+    padding: 20px;
+  }
+
+  .categories-card,
+  .dishes-card {
+    padding: 20px;
   }
 }
 

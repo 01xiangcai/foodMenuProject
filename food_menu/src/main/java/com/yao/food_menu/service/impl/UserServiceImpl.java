@@ -46,72 +46,72 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             User user = null;
             Integer type = resolveLoginType(loginDto);
 
-        if (type == 1) {
-            // 用户名/密码登录
-            String username = loginDto.getUsername();
-            if (username == null || username.trim().isEmpty()) {
-                throw new RuntimeException("用户名不能为空");
-            }
-            username = username.trim();
-            
-            log.info("尝试登录，用户名: {}", username);
-            
-            LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
-            queryWrapper.eq(User::getUsername, username);
-            user = this.getOne(queryWrapper);
-
-            if (user == null) {
-                log.warn("用户不存在，用户名: {}", username);
-                // 尝试直接查询数据库，绕过逻辑删除，用于调试
-                try {
-                    User debugUser = this.baseMapper.selectOne(queryWrapper);
-                    if (debugUser != null) {
-                        log.warn("找到用户但可能被逻辑删除过滤，用户ID: {}, deleted值: {}", 
-                                debugUser.getId(), debugUser.getDeleted());
-                        log.warn("提示：如果deleted字段为NULL，请执行: UPDATE user SET deleted = 0 WHERE deleted IS NULL");
-                    }
-                } catch (Exception e) {
-                    log.error("调试查询失败: {}", e.getMessage());
+            if (type == 1) {
+                // 用户名/密码登录
+                String username = loginDto.getUsername();
+                if (username == null || username.trim().isEmpty()) {
+                    throw new RuntimeException("用户名不能为空");
                 }
-                throw new RuntimeException("用户不存在");
+                username = username.trim();
+
+                log.info("尝试登录，用户名: {}", username);
+
+                LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
+                queryWrapper.eq(User::getUsername, username);
+                user = this.getOne(queryWrapper);
+
+                if (user == null) {
+                    log.warn("用户不存在，用户名: {}", username);
+                    // 尝试直接查询数据库，绕过逻辑删除，用于调试
+                    try {
+                        User debugUser = this.baseMapper.selectOne(queryWrapper);
+                        if (debugUser != null) {
+                            log.warn("找到用户但可能被逻辑删除过滤，用户ID: {}, deleted值: {}",
+                                    debugUser.getId(), debugUser.getDeleted());
+                            log.warn("提示：如果deleted字段为NULL，请执行: UPDATE user SET deleted = 0 WHERE deleted IS NULL");
+                        }
+                    } catch (Exception e) {
+                        log.error("调试查询失败: {}", e.getMessage());
+                    }
+                    throw new RuntimeException("用户不存在");
+                }
+
+                log.info("找到用户，ID: {}, 用户名: {}, 状态: {}, deleted: {}",
+                        user.getId(), user.getUsername(), user.getStatus(), user.getDeleted());
+
+                if (!passwordEncoder.matches(loginDto.getPassword(), user.getPassword())) {
+                    throw new RuntimeException("密码错误");
+                }
+
+            } else if (type == 2) {
+                // 手机号/验证码登录
+                String cachedCode = CODE_CACHE.get(loginDto.getPhone());
+                if (cachedCode == null || !cachedCode.equals(loginDto.getCode())) {
+                    throw new RuntimeException("验证码无效");
+                }
+
+                LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
+                queryWrapper.eq(User::getPhone, loginDto.getPhone());
+                user = this.getOne(queryWrapper);
+
+                // 如果用户不存在则自动注册
+                if (user == null) {
+                    user = new User();
+                    user.setPhone(loginDto.getPhone());
+                    user.setName("用户_" + loginDto.getPhone().substring(7));
+                    user.setStatus(1);
+                    this.save(user);
+                }
+
+                // 清除已使用的验证码
+                CODE_CACHE.remove(loginDto.getPhone());
+            } else {
+                throw new RuntimeException("无效的登录类型");
             }
-            
-            log.info("找到用户，ID: {}, 用户名: {}, 状态: {}, deleted: {}", 
-                    user.getId(), user.getUsername(), user.getStatus(), user.getDeleted());
 
-            if (!passwordEncoder.matches(loginDto.getPassword(), user.getPassword())) {
-                throw new RuntimeException("密码错误");
+            if (user.getStatus() == 0) {
+                throw new RuntimeException("用户已被禁用");
             }
-
-        } else if (type == 2) {
-            // 手机号/验证码登录
-            String cachedCode = CODE_CACHE.get(loginDto.getPhone());
-            if (cachedCode == null || !cachedCode.equals(loginDto.getCode())) {
-                throw new RuntimeException("验证码无效");
-            }
-
-            LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
-            queryWrapper.eq(User::getPhone, loginDto.getPhone());
-            user = this.getOne(queryWrapper);
-
-            // 如果用户不存在则自动注册
-            if (user == null) {
-                user = new User();
-                user.setPhone(loginDto.getPhone());
-                user.setName("用户_" + loginDto.getPhone().substring(7));
-                user.setStatus(1);
-                this.save(user);
-            }
-
-            // 清除已使用的验证码
-            CODE_CACHE.remove(loginDto.getPhone());
-        } else {
-            throw new RuntimeException("无效的登录类型");
-        }
-
-        if (user.getStatus() == 0) {
-            throw new RuntimeException("用户已被禁用");
-        }
 
             // 生成JWT token（包含familyId和role信息）
             return JwtUtil.generateToken(
@@ -172,6 +172,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         // Exact match
         queryWrapper.eq(queryDto.getStatus() != null, User::getStatus, queryDto.getStatus());
 
+        // 超级管理员可以通过familyId参数筛选特定家庭的数据
+        // 非超级管理员由拦截器自动过滤，这里不需要处理
+        if (queryDto.getFamilyId() != null && com.yao.food_menu.common.context.FamilyContext.isSuperAdmin()) {
+            queryWrapper.eq(User::getFamilyId, queryDto.getFamilyId());
+        }
+
         // Order by create time desc
         queryWrapper.orderByDesc(User::getCreateTime);
 
@@ -202,6 +208,28 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             user.setStatus(1); // 默认启用
         }
 
+        // 处理家庭ID和角色
+        // 获取当前用户角色
+        Integer currentUserRole = com.yao.food_menu.common.context.FamilyContext.getUserRole();
+        boolean isSuperAdmin = currentUserRole != null && currentUserRole == 2;
+
+        if (isSuperAdmin) {
+            // 超级管理员可以设置familyId和role
+            if (userDto.getFamilyId() != null) {
+                user.setFamilyId(userDto.getFamilyId());
+            }
+            if (userDto.getRole() != null) {
+                user.setRole(userDto.getRole());
+            } else {
+                user.setRole(0); // 默认为普通管理员
+            }
+        } else {
+            // 非超级管理员创建的用户自动使用创建者的familyId
+            Long currentFamilyId = com.yao.food_menu.common.context.FamilyContext.getFamilyId();
+            user.setFamilyId(currentFamilyId);
+            user.setRole(0); // 默认为普通管理员
+        }
+
         this.save(user);
     }
 
@@ -213,6 +241,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             throw new RuntimeException("用户不存在");
         }
 
+        // 获取当前用户角色
+        Integer currentUserRole = com.yao.food_menu.common.context.FamilyContext.getUserRole();
+        boolean isSuperAdmin = currentUserRole != null && currentUserRole == 2;
+
         // 更新允许的字段
         if (StringUtils.hasText(userDto.getName())) {
             user.setName(userDto.getName());
@@ -222,6 +254,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
         if (userDto.getStatus() != null) {
             user.setStatus(userDto.getStatus());
+        }
+
+        // 只有超级管理员可以修改familyId和role
+        if (isSuperAdmin) {
+            if (userDto.getFamilyId() != null) {
+                user.setFamilyId(userDto.getFamilyId());
+            }
+            if (userDto.getRole() != null) {
+                user.setRole(userDto.getRole());
+            }
         }
 
         this.updateById(user);

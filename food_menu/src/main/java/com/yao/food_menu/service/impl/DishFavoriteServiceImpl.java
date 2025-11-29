@@ -43,6 +43,12 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
     @Autowired
     private OssService ossService;
 
+    @Autowired
+    private com.yao.food_menu.common.config.FileStorageProperties fileStorageProperties;
+
+    @Autowired
+    private com.yao.food_menu.common.config.LocalStorageProperties localStorageProperties;
+
     @Override
     @Transactional
     public boolean addFavorite(Long userId, Long dishId) {
@@ -220,26 +226,61 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
     }
 
     /**
-     * Convert stored OSS object key to presigned URL so frontend can正确显示图片.
+     * 处理菜品图片URL，根据存储方式转换为完整URL
+     * 与 DishController 中的 convertImageToPresignedUrl 方法逻辑一致
      */
     private void enrichDishImage(DishDto dishDto) {
         if (dishDto == null) {
             return;
         }
-        String image = dishDto.getImage();
-        if (!StringUtils.hasText(image)) {
-            dishDto.setImage(DEFAULT_DISH_IMAGE);
-            return;
-        }
-        if (image.startsWith("http://") || image.startsWith("https://")) {
-            return;
-        }
-        try {
-            String presignedUrl = ossService.generatePresignedUrl(image);
-            dishDto.setImage(presignedUrl);
-        } catch (Exception e) {
-            log.warn("生成收藏菜品图片URL失败: {}", image, e);
-            dishDto.setImage(DEFAULT_DISH_IMAGE);
+
+        // 根据存储方式处理图片URL
+        if (fileStorageProperties.isLocal()) {
+            // 本地存储模式：将localImage拼接URL后设置到image字段（供前端使用）
+            // 同时将拼接好的URL也设置到localImage字段（覆盖相对路径）
+            if (StringUtils.hasText(dishDto.getLocalImage())) {
+                String localImage = dishDto.getLocalImage();
+                // 如果localImage已经是完整URL（以http://或https://开头），直接使用，不要拼接
+                if (localImage.startsWith("http://") || localImage.startsWith("https://")) {
+                    // 已经是完整URL，直接使用
+                    dishDto.setImage(localImage);
+                    // localImage字段保持原样（已经是完整URL）
+                } else {
+                    // 如果是相对路径，需要拼接URL前缀
+                    String urlPrefix = localStorageProperties.getUrlPrefix();
+                    if (!urlPrefix.endsWith("/")) {
+                        urlPrefix += "/";
+                    }
+                    // 移除localImage开头的斜杠
+                    String localPath = localImage.startsWith("/") 
+                        ? localImage.substring(1) 
+                        : localImage;
+                    String fullUrl = urlPrefix + localPath;
+                    // 将完整URL设置到image字段，供前端使用
+                    dishDto.setImage(fullUrl);
+                    // 同时将完整URL设置到localImage字段（前端优先使用localImage）
+                    dishDto.setLocalImage(fullUrl);
+                }
+            }
+            // 本地存储模式下，如果image字段存在但不是完整URL，忽略它（可能是旧数据）
+        } else {
+            // OSS存储模式：使用image字段（OSS object key），转换为预签名URL
+            String image = dishDto.getImage();
+            if (!StringUtils.hasText(image)) {
+                dishDto.setImage(DEFAULT_DISH_IMAGE);
+                return;
+            }
+            // If image is not a full URL (doesn't start with http:// or https://),
+            // treat it as OSS object key and convert to presigned URL
+            if (!image.startsWith("http://") && !image.startsWith("https://")) {
+                try {
+                    String presignedUrl = ossService.generatePresignedUrl(image);
+                    dishDto.setImage(presignedUrl);
+                } catch (Exception e) {
+                    log.warn("生成收藏菜品图片URL失败: {}", image, e);
+                    dishDto.setImage(DEFAULT_DISH_IMAGE);
+                }
+            }
         }
     }
 }

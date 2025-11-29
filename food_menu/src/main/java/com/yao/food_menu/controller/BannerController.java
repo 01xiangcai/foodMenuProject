@@ -44,9 +44,17 @@ public class BannerController {
 
     @Operation(summary = "分页查询轮播图", description = "分页查询轮播图列表")
     @GetMapping("/page")
-    public Result<Page<Banner>> page(int page, int pageSize) {
+    public Result<Page<Banner>> page(int page, int pageSize,
+            @RequestParam(value = "familyId", required = false) Long familyId) {
+        log.info("Query banners: page={}, pageSize={}, familyId={}", page, pageSize, familyId);
         Page<Banner> pageInfo = new Page<>(page, pageSize);
         LambdaQueryWrapper<Banner> queryWrapper = new LambdaQueryWrapper<>();
+        
+        // 如果指定了家庭ID，按家庭筛选
+        if (familyId != null) {
+            queryWrapper.eq(Banner::getFamilyId, familyId);
+        }
+        
         queryWrapper.orderByAsc(Banner::getSort).orderByDesc(Banner::getUpdateTime);
         bannerService.page(pageInfo, queryWrapper);
         // Convert OSS object keys to presigned URLs

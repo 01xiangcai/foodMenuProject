@@ -31,6 +31,7 @@ export type DishPayload = {
   code?: string;
   calories?: string;
   tags?: string;
+  familyId?: number; // 家庭ID（超级管理员可以设置）
 };
 
 export type DishQuery = {
@@ -38,11 +39,13 @@ export type DishQuery = {
   pageSize: number;
   name?: string;
   categoryId?: number | null;
+  familyId?: number | null; // 家庭ID（超级管理员可以筛选特定家庭）
 };
 
 export type OrdersQuery = {
   page: number;
   pageSize: number;
+  familyId?: number | null; // 家庭ID（超级管理员可以筛选特定家庭）
 };
 
 export type BannerPayload = {
@@ -53,11 +56,13 @@ export type BannerPayload = {
   linkUrl?: string;
   sort?: number;
   status: number;
+  familyId?: number; // 家庭ID（超级管理员可以设置）
 };
 
 export type BannerQuery = {
   page: number;
   pageSize: number;
+  familyId?: number | null; // 家庭ID（超级管理员可以筛选特定家庭）
 };
 
 export type UserQuery = {
@@ -68,6 +73,7 @@ export type UserQuery = {
   name?: string;
   type?: number;
   status?: number;
+  familyId?: number | null; // 家庭ID（超级管理员可以筛选特定家庭）
 };
 
 export type UserPayload = {
@@ -79,6 +85,8 @@ export type UserPayload = {
   avatar?: string;
   type?: number;
   status?: number;
+  familyId?: number; // 家庭ID（超级管理员可以设置）
+  role?: number; // 角色: 0-普通管理员, 1-家庭管理员, 2-超级管理员
 };
 
 export type WxUserQuery = {
@@ -88,6 +96,7 @@ export type WxUserQuery = {
   phone?: string;
   nickname?: string;
   status?: number;
+  familyId?: number | null; // 家庭ID（超级管理员可以筛选特定家庭）
 };
 
 export type WxUserPayload = {
@@ -205,6 +214,7 @@ export type FamilyPayload = {
 };
 
 export const fetchFamilies = (params: FamilyQuery) => http.get('/admin/family/page', { params });
+export const fetchAllFamilies = () => http.get('/admin/family/list'); // 获取所有家庭列表（不分页）
 export const fetchFamilyDetail = (id: number) => http.get(`/admin/family/${id}`);
 export const fetchFamilyByInviteCode = (code: string) => http.get(`/admin/family/invite/${code}`);
 export const createFamily = (data: FamilyPayload) => http.post('/admin/family', data);
