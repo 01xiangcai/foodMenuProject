@@ -87,8 +87,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             throw new RuntimeException("用户已被禁用");
         }
 
-        // 生成JWT token
-        return JwtUtil.generateToken(user.getId(), user.getUsername() != null ? user.getUsername() : user.getPhone());
+        // 生成JWT token（包含familyId和role信息）
+        return JwtUtil.generateToken(
+                user.getId(),
+                user.getUsername() != null ? user.getUsername() : user.getPhone(),
+                user.getFamilyId(),
+                user.getRole());
     }
 
     /**

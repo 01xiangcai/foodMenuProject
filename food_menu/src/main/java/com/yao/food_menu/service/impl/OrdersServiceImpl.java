@@ -1,6 +1,7 @@
 package com.yao.food_menu.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.yao.food_menu.common.context.FamilyContext;
 import com.yao.food_menu.dto.OrdersDto;
 import com.yao.food_menu.entity.Dish;
 import com.yao.food_menu.entity.OrderItem;
@@ -46,6 +47,14 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
             throw new RuntimeException("订单明细不能为空");
         }
 
+        // 自动设置familyId
+        if (ordersDto.getFamilyId() == null) {
+            Long familyId = FamilyContext.getFamilyId();
+            if (familyId != null) {
+                ordersDto.setFamilyId(familyId);
+            }
+        }
+
         // Generate order number
         String orderNumber = generateOrderNumber();
         ordersDto.setOrderNumber(orderNumber);
@@ -78,8 +87,10 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
 
         // Save order items
         Long orderId = ordersDto.getId();
+        Long familyId = ordersDto.getFamilyId();
         for (OrderItem item : orderItems) {
             item.setOrderId(orderId);
+            item.setFamilyId(familyId);
         }
         orderItemService.saveBatch(orderItems);
 

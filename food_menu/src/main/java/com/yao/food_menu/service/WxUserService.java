@@ -65,4 +65,12 @@ public interface WxUserService extends IService<WxUser> {
      * 判断是否为管理员(小程序端)
      */
     boolean isAdmin(Long userId);
+
+    /**
+     * 更新用户的家庭ID
+     *
+     * @param userId   用户ID
+     * @param familyId 家庭ID
+     */
+    void updateUserFamily(Long userId, Long familyId);
 }

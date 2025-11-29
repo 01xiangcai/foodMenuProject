@@ -205,8 +205,8 @@ public class OrdersController {
 
             return Result.success(dtoPage);
         } catch (Exception e) {
-            log.error("Query my orders failed: {}", e.getMessage());
-            return Result.error("Query failed");
+            log.error("Query my orders failed", e);
+            return Result.error("Query failed: " + e.toString());
         }
     }
 

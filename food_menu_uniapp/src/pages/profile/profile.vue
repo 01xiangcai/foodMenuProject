@@ -18,6 +18,18 @@
 
     <!-- 功能菜单 -->
     <view class="menu-section glass-card">
+      <view class="menu-item" v-if="familyInfo" @tap="goToFamilyInfo">
+        <text class="icon">🏠</text>
+        <text class="label">我的家庭</text>
+        <text class="family-name">{{ familyInfo.name }}</text>
+        <text class="arrow">→</text>
+      </view>
+      <view class="menu-item" v-else @tap="goToJoinFamily">
+        <text class="icon">🏠</text>
+        <text class="label">加入家庭</text>
+        <text class="badge">新功能</text>
+        <text class="arrow">→</text>
+      </view>
       <view class="menu-item" @tap="goToOrders">
         <text class="icon">📋</text>
         <text class="label">我的订单</text>
@@ -164,7 +176,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getWxUserInfo } from '@/api/index'
+import { getWxUserInfo, getCurrentFamily } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 
 const userInfo = ref({
@@ -173,6 +185,9 @@ const userInfo = ref({
   avatar: 'https://dummyimage.com/200x200/6366f1/ffffff&text=User',
   role: 0
 })
+
+// 家庭信息
+const familyInfo = ref(null)
 
 // 使用主题store
 const { currentTheme, themeConfig, toggleTheme, loadTheme } = useTheme()
@@ -239,6 +254,41 @@ const loadUserInfo = async () => {
   } catch (error) {
     console.error('获取用户信息失败:', error)
   }
+}
+
+// 加载家庭信息
+const loadFamilyInfo = async () => {
+  const token = uni.getStorageSync('fm_token')
+  if (!token) {
+    return
+  }
+  
+  try {
+    const res = await getCurrentFamily()
+    if (res.data) {
+      familyInfo.value = res.data
+    }
+  } catch (error) {
+    console.error('获取家庭信息失败:', error)
+  }
+}
+
+// 跳转到加入家庭页面
+const goToJoinFamily = () => {
+  if (!checkLogin()) return
+  uni.navigateTo({
+    url: '/pages/family/join'
+  })
+}
+
+// 查看家庭信息
+const goToFamilyInfo = () => {
+  if (!checkLogin()) return
+  uni.showModal({
+    title: familyInfo.value?.name || '家庭信息',
+    content: `邀请码：${familyInfo.value?.inviteCode || ''}\n${familyInfo.value?.description || '暂无描述'}`,
+    showCancel: false
+  })
 }
 
 // 用户卡片点击
@@ -458,6 +508,7 @@ const logout = () => {
 
 onShow(() => {
   loadUserInfo()
+  loadFamilyInfo()
 })
 
 onMounted(() => {
@@ -577,6 +628,26 @@ onMounted(() => {
     font-size: 28rpx;
     color: v-bind('themeConfig.textPrimary');
     transition: color 0.3s ease;
+  }
+  
+  .family-name {
+    font-size: 24rpx;
+    color: v-bind('themeConfig.primaryColor');
+    margin-right: 10rpx;
+    font-weight: 600;
+    padding: 4rpx 12rpx;
+    background: v-bind('themeConfig.primaryColor + "1a"');
+    border-radius: 6rpx;
+  }
+  
+  .badge {
+    font-size: 20rpx;
+    color: #fff;
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    padding: 4rpx 12rpx;
+    border-radius: 20rpx;
+    margin-right: 10rpx;
+    font-weight: 600;
   }
   
   .theme-value {

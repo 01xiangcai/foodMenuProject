@@ -9,6 +9,7 @@ import UsersView from '@/views/users/UsersView.vue';
 import MigrationView from '@/views/migration/MigrationView.vue';
 import TagsView from '@/views/tags/TagsView.vue';
 import SettingsView from '@/views/settings/SettingsView.vue';
+import FamiliesView from '@/views/families/FamiliesView.vue';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -65,6 +66,12 @@ const routes: RouteRecordRaw[] = [
         name: 'tags',
         component: TagsView,
         meta: { title: '标签管理' }
+      },
+      {
+        path: 'families',
+        name: 'families',
+        component: FamiliesView,
+        meta: { title: '家庭管理' }
       },
       {
         path: 'settings',

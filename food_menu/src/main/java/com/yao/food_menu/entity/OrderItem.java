@@ -25,6 +25,9 @@ public class OrderItem implements Serializable {
     // Order id
     private Long orderId;
 
+    // Family id
+    private Long familyId;
+
     // Dish id
     private Long dishId;
 

@@ -34,6 +34,12 @@ public class User implements Serializable {
     // 头像
     private String avatar;
 
+    // 家庭ID
+    private Long familyId;
+
+    // 角色: 0-普通管理员, 1-家庭管理员, 2-超级管理员
+    private Integer role;
+
     // 状态: 0-禁用, 1-正常
     private Integer status;
 

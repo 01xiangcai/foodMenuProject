@@ -4,32 +4,34 @@ import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * 分类实体类
+ * 家庭实体类
  */
 @Data
-public class Category implements Serializable {
+@TableName("family")
+public class Family implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    // 类型: 1-菜品分类, 2-套餐分类
-    private Integer type;
-
-    // 分类名称
+    // 家庭名称
     private String name;
 
-    // 家庭ID
-    private Long familyId;
+    // 家庭描述
+    private String description;
 
-    // 排序
-    private Integer sort;
+    // 邀请码
+    private String inviteCode;
+
+    // 状态: 0-禁用, 1-正常
+    private Integer status;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

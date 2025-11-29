@@ -57,6 +57,9 @@ public class Dish implements Serializable {
     // 标签
     private String tags;
 
+    // 家庭ID
+    private Long familyId;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 

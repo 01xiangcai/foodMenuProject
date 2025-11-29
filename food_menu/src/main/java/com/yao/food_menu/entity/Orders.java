@@ -28,6 +28,9 @@ public class Orders implements Serializable {
     // 用户ID
     private Long userId;
 
+    // 家庭ID
+    private Long familyId;
+
     // 总金额
     private BigDecimal totalAmount;
 

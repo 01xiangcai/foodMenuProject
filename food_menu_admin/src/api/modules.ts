@@ -189,3 +189,25 @@ export const fetchSystemConfig = (key: string) => http.get(`/systemConfig/${key}
 export const updateSystemConfig = (data: { configKey: string; configValue: string }) => http.put('/systemConfig', data);
 export const fetchSystemConfigs = () => http.get('/systemConfig/list');
 
+// 家庭管理
+export type FamilyQuery = {
+  page: number;
+  pageSize: number;
+  name?: string;
+  status?: number;
+};
+
+export type FamilyPayload = {
+  id?: number;
+  name: string;
+  description?: string;
+  status: number;
+};
+
+export const fetchFamilies = (params: FamilyQuery) => http.get('/admin/family/page', { params });
+export const fetchFamilyDetail = (id: number) => http.get(`/admin/family/${id}`);
+export const fetchFamilyByInviteCode = (code: string) => http.get(`/admin/family/invite/${code}`);
+export const createFamily = (data: FamilyPayload) => http.post('/admin/family', data);
+export const updateFamily = (data: FamilyPayload) => http.put('/admin/family', data);
+export const deleteFamily = (id: number) => http.delete(`/admin/family/${id}`);
+

@@ -294,3 +294,24 @@ export const getTagList = (type) => {
         data: type ? { type } : {}
     })
 }
+
+/**
+ * 通过邀请码加入家庭
+ * @param {String} inviteCode 邀请码
+ */
+export const joinFamily = (inviteCode) => {
+    return request({
+        url: `/uniapp/family/join/${inviteCode}`,
+        method: 'POST'
+    })
+}
+
+/**
+ * 获取当前用户的家庭信息
+ */
+export const getCurrentFamily = () => {
+    return request({
+        url: '/uniapp/family/current',
+        method: 'GET'
+    })
+}

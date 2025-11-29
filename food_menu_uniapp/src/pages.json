@@ -72,6 +72,12 @@
             "style": {
                 "navigationBarTitleText": "订单管理"
             }
+        },
+        {
+            "path": "pages/family/join",
+            "style": {
+                "navigationBarTitleText": "加入家庭"
+            }
         }
     ],
     "globalStyle": {

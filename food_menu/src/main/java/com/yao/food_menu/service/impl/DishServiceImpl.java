@@ -2,6 +2,7 @@ package com.yao.food_menu.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.yao.food_menu.common.context.FamilyContext;
 import com.yao.food_menu.dto.DishDto;
 import com.yao.food_menu.entity.Dish;
 import com.yao.food_menu.entity.DishFlavor;
@@ -31,6 +32,14 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
      */
     @Transactional
     public void saveWithFlavor(DishDto dishDto) {
+        // 自动设置familyId
+        if (dishDto.getFamilyId() == null) {
+            Long familyId = FamilyContext.getFamilyId();
+            if (familyId != null) {
+                dishDto.setFamilyId(familyId);
+            }
+        }
+
         // 保存菜品基本信息
         this.save(dishDto);
 

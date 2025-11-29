@@ -26,9 +26,24 @@ public class JwtUtil {
      * Generate JWT token
      */
     public static String generateToken(Long userId, String username) {
+        return generateToken(userId, username, null, null);
+    }
+
+    /**
+     * Generate JWT token with family and role info
+     */
+    public static String generateToken(Long userId, String username, Long familyId, Integer role) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
         claims.put("username", username);
+
+        if (familyId != null) {
+            claims.put("familyId", familyId);
+        }
+
+        if (role != null) {
+            claims.put("role", role);
+        }
 
         return Jwts.builder()
                 .setClaims(claims)
@@ -64,6 +79,22 @@ public class JwtUtil {
     public static String getUsername(String token) {
         Claims claims = parseToken(token);
         return claims.getSubject();
+    }
+
+    /**
+     * Get family ID from token
+     */
+    public static Long getFamilyId(String token) {
+        Claims claims = parseToken(token);
+        return claims.get("familyId", Long.class);
+    }
+
+    /**
+     * Get user role from token
+     */
+    public static Integer getRole(String token) {
+        Claims claims = parseToken(token);
+        return claims.get("role", Integer.class);
     }
 
     /**
