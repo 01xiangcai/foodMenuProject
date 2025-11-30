@@ -1,6 +1,7 @@
 package com.yao.food_menu.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.yao.food_menu.common.context.FamilyContext;
 import com.yao.food_menu.dto.DishDto;
@@ -81,8 +82,37 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
     @Override
     @Transactional
     public void updateWithFlavor(DishDto dishDto) {
-        // 更新菜品基本信息
-        this.updateById(dishDto);
+        log.info("开始更新菜品 - ID: {}, 主图(localImage): {}", dishDto.getId(), dishDto.getLocalImage());
+        
+        // 先查询数据库中现有的菜品信息
+        Dish existingDish = this.getById(dishDto.getId());
+        if (existingDish == null) {
+            throw new RuntimeException("菜品不存在");
+        }
+        
+        log.info("更新前数据库中的主图: {}", existingDish.getLocalImage());
+        
+        // 将 DishDto 的属性复制到 Dish 实体（确保所有字段都被复制）
+        BeanUtils.copyProperties(dishDto, existingDish);
+        
+        // 明确设置主图字段，确保被更新
+        existingDish.setLocalImage(dishDto.getLocalImage());
+        
+        log.info("准备更新 - 主图(localImage): {}, 图片列表(localImages): {}", 
+                 existingDish.getLocalImage(), existingDish.getLocalImages());
+        
+        // 更新菜品基本信息（使用实体对象，确保所有字段都被更新）
+        boolean updateResult = this.updateById(existingDish);
+        log.info("updateById 执行结果: {}", updateResult);
+        
+        // 使用 UpdateWrapper 明确更新 localImage 和 localImages 字段，确保一定会更新
+        LambdaUpdateWrapper<Dish> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(Dish::getId, dishDto.getId())
+                     .set(Dish::getLocalImage, dishDto.getLocalImage())
+                     .set(Dish::getLocalImages, dishDto.getLocalImages());
+        this.update(updateWrapper);
+        
+        log.info("菜品基本信息更新完成 - ID: {}, 主图(localImage): {}", dishDto.getId(), dishDto.getLocalImage());
 
         // 清除当前口味
         LambdaQueryWrapper<DishFlavor> queryWrapper = new LambdaQueryWrapper<>();
@@ -91,13 +121,20 @@ public class DishServiceImpl extends ServiceImpl<DishMapper, Dish> implements Di
 
         // 添加新口味
         List<DishFlavor> flavors = dishDto.getFlavors();
-        flavors = flavors.stream().map((item) -> {
-            item.setId(null); // 清除id，让数据库自动生成新的id
-            item.setDishId(dishDto.getId());
-            return item;
-        }).collect(Collectors.toList());
+        if (flavors != null && !flavors.isEmpty()) {
+            flavors = flavors.stream().map((item) -> {
+                item.setId(null); // 清除id，让数据库自动生成新的id
+                item.setDishId(dishDto.getId());
+                return item;
+            }).collect(Collectors.toList());
 
-        dishFlavorService.saveBatch(flavors);
+            dishFlavorService.saveBatch(flavors);
+        }
+        
+        // 验证更新后的数据
+        Dish updatedDish = this.getById(dishDto.getId());
+        log.info("更新后数据库中的主图: {}", updatedDish != null ? updatedDish.getLocalImage() : "null");
+        log.info("菜品更新完成 - ID: {}, 主图(localImage): {}", dishDto.getId(), dishDto.getLocalImage());
     }
 
     @Override

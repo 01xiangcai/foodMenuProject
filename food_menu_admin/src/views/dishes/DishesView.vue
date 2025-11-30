@@ -923,10 +923,27 @@ const saveDish = async () => {
     return;
   }
   
-  // 确保主图在图片列表中
+  // 确保主图在图片列表中，且主图在第一个位置
   if (!dishModal.form.localImage || !validImagePaths.includes(dishModal.form.localImage)) {
+    // 如果主图不在列表中，设置第一张为主图
     dishModal.form.localImage = validImagePaths[0];
+  } else {
+    // 如果主图在列表中，将其移动到第一个位置
+    const mainIndex = validImagePaths.indexOf(dishModal.form.localImage);
+    if (mainIndex > 0) {
+      validImagePaths.splice(mainIndex, 1);
+      validImagePaths.unshift(dishModal.form.localImage);
+      // 同时更新预览URL数组的顺序
+      const mainUrl = dishModal.imagePreviewUrls[mainIndex];
+      if (mainUrl) {
+        dishModal.imagePreviewUrls.splice(mainIndex, 1);
+        dishModal.imagePreviewUrls.unshift(mainUrl);
+      }
+    }
   }
+  
+  // 更新表单中的图片数组
+  dishModal.form.localImagesArray = validImagePaths;
   
   dishModal.loading = true;
   try {
@@ -1060,7 +1077,31 @@ const handleImageUpload = async (options: UploadCustomRequestOptions) => {
 
 // 设置主图
 const setMainImage = (imagePath: string) => {
+  // 确保主图路径在图片列表中
+  if (!dishModal.form.localImagesArray.includes(imagePath)) {
+    // 如果不在列表中，可能需要从预览URL中查找对应的路径
+    const index = dishModal.imagePreviewUrls.findIndex((url: string, idx: number) => {
+      return dishModal.form.localImagesArray[idx] === imagePath || url === imagePath;
+    });
+    if (index >= 0 && index < dishModal.form.localImagesArray.length) {
+      imagePath = dishModal.form.localImagesArray[index];
+    }
+  }
+  
+  // 设置主图
   dishModal.form.localImage = imagePath;
+  
+  // 将主图移动到第一个位置
+  const mainIndex = dishModal.form.localImagesArray.indexOf(imagePath);
+  if (mainIndex > 0) {
+    const mainPath = dishModal.form.localImagesArray.splice(mainIndex, 1)[0];
+    const mainUrl = dishModal.imagePreviewUrls[mainIndex] ? dishModal.imagePreviewUrls.splice(mainIndex, 1)[0] : '';
+    dishModal.form.localImagesArray.unshift(mainPath);
+    if (mainUrl) {
+      dishModal.imagePreviewUrls.unshift(mainUrl);
+    }
+  }
+  
   message.success('已设置为主图');
 };
 
