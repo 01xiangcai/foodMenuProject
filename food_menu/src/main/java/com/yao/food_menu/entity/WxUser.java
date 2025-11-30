@@ -55,6 +55,9 @@ public class WxUser implements Serializable {
     // 角色: 0-普通用户, 1-管理员
     private Integer role;
 
+    // 状态: 0-禁用, 1-正常
+    private Integer status;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 

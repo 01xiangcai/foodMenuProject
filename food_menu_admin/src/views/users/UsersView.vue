@@ -2,10 +2,7 @@
   <div class="users-container">
     <section class="glass-card hover-rise">
       <div class="table-header">
-        <div>
-          <h2>👥 用户管理</h2>
-          <p>管理员和小程序用户的统一管理</p>
-        </div>
+        <h2>👥 用户管理</h2>
         <div class="table-actions">
           <NSelect
             v-if="isSuperAdmin"
@@ -801,17 +798,19 @@ onMounted(async () => {
 
 .table-header {
   display: flex;
-  justify-content: space-between;
-  gap: 16px;
+  align-items: center;
+  gap: 20px;
   flex-wrap: wrap;
+  margin-top: 24px;
   margin-bottom: 24px;
 }
 
 .table-header h2 {
   font-size: 24px;
   font-weight: 700;
-  margin: 0 0 4px 0;
+  margin: 0;
   color: var(--text-primary);
+  white-space: nowrap;
 }
 
 .table-header p {

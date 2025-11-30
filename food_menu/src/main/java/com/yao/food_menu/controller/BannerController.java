@@ -3,6 +3,8 @@ package com.yao.food_menu.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yao.food_menu.common.Result;
+import com.yao.food_menu.common.config.FileStorageProperties;
+import com.yao.food_menu.common.config.LocalStorageProperties;
 import com.yao.food_menu.entity.Banner;
 import com.yao.food_menu.service.BannerService;
 import com.yao.food_menu.service.OssService;
@@ -28,7 +30,7 @@ public class BannerController {
     private OssService ossService;
 
     @Autowired
-    private com.yao.food_menu.common.config.FileStorageProperties fileStorageProperties;
+    private FileStorageProperties fileStorageProperties;
 
     private static final String DEFAULT_IMAGE = "https://dummyimage.com/800x400/0f172a/ffffff&text=banner";
 
@@ -125,7 +127,7 @@ public class BannerController {
     }
 
     @Autowired
-    private com.yao.food_menu.common.config.LocalStorageProperties localStorageProperties;
+    private LocalStorageProperties localStorageProperties;
 
     /**
      * Convert OSS object key to presigned URL for Banner entity

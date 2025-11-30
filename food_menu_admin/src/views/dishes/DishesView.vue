@@ -99,28 +99,28 @@
         {{ dishModal.form.id ? '编辑菜品' : '新增菜品' }}
       </template>
       <NSpin :show="dishModal.fetching">
-        <NForm :model="dishModal.form" label-placement="left" label-width="80" @submit.prevent>
-          <NFormItem label="菜品名称" required>
+        <NForm ref="dishFormRef" :model="dishModal.form" :rules="dishFormRules" label-placement="left" label-width="80" @submit.prevent="saveDish">
+          <NFormItem label="菜品名称" path="name" required>
             <NInput v-model:value="dishModal.form.name" placeholder="番茄炒蛋" />
           </NFormItem>
-          <NFormItem label="所属分类" required>
+          <NFormItem label="所属分类" path="categoryId" required>
             <NSelect
               v-model:value="dishModal.form.categoryId"
               :options="categoryOptions"
               placeholder="请选择分类"
             />
           </NFormItem>
-          <NFormItem label="所属家庭" v-if="isSuperAdmin" required>
+          <NFormItem label="所属家庭" v-if="isSuperAdmin" path="familyId" required>
             <NSelect
               v-model:value="dishModal.form.familyId"
               :options="familyOptions"
               placeholder="请选择家庭"
             />
           </NFormItem>
-          <NFormItem label="价格 (元)" required>
+          <NFormItem label="价格 (元)" path="price" required>
             <NInputNumber v-model:value="dishModal.form.price" :min="0" :precision="2" placeholder="例如 28" />
           </NFormItem>
-          <NFormItem label="菜品图片" required>
+          <NFormItem label="菜品图片" path="localImagesArray" required>
             <div class="multi-image-upload">
               <div class="image-list">
                 <div 
@@ -142,12 +142,13 @@
                     <NButton 
                       size="tiny" 
                       type="error" 
-                      @click="removeImage(img.index)"
+                      @click="removeImage(realIndex)"
                     >
                       删除
                     </NButton>
                   </div>
                   <div v-if="img.path === dishModal.form.localImage" class="main-badge">主图</div>
+                  <div v-if="img.isPending" class="pending-badge">待上传</div>
                 </div>
                 
                 <NUpload
@@ -222,12 +223,13 @@
       <div v-if="detailModal.data" class="dish-detail">
         <div class="detail-image-wrapper">
           <NCarousel 
-            v-if="getDetailImages().length > 1"
-            :show-dots="true"
-            :show-arrow="true"
-            :autoplay="true"
+            v-if="getDetailImages().length > 0"
+            :show-dots="getDetailImages().length > 1"
+            :show-arrow="getDetailImages().length > 1"
+            :autoplay="getDetailImages().length > 1"
             :interval="3000"
             :duration="500"
+            :loop="getDetailImages().length > 1"
             style="width: 100%; height: 200px;"
           >
             <img
@@ -237,11 +239,6 @@
               class="detail-image"
             />
           </NCarousel>
-          <img
-            v-else
-            :src="getDetailImages()[0] || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YzZjRmNiIvPgogIDx0ZXh0IHg9IjUwJSIgeT0iNDUlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iODAiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPvCfjaU8L3RleHQ+CiAgPHRleHQgeD0iNTAlIiB5PSI2NSUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzljYTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5pqC5peg5Zu+54mHPC90ZXh0Pgo8L3N2Zz4='"
-            class="detail-image"
-          />
           <div class="detail-price">¥{{ Number(detailModal.data.price).toFixed(2) }}</div>
         </div>
         
@@ -372,6 +369,65 @@ type DishForm = {
 
 const message = useMessage();
 
+// 表单引用
+const dishFormRef = ref<InstanceType<typeof NForm> | null>(null);
+
+// 表单校验规则（动态计算，根据是否为超级管理员）
+const dishFormRules = computed(() => ({
+  name: {
+    required: true,
+    message: '请输入菜品名称',
+    trigger: ['blur', 'input']
+  },
+  categoryId: {
+    required: true,
+    type: 'number',
+    message: '请选择所属分类',
+    trigger: ['blur', 'change']
+  },
+  ...(isSuperAdmin.value ? {
+    familyId: {
+      required: true,
+      type: 'number',
+      message: '请选择所属家庭',
+      trigger: ['blur', 'change']
+    }
+  } : {}),
+  price: {
+    required: true,
+    type: 'number',
+    message: '请输入价格',
+    trigger: ['blur', 'input'],
+    validator: (rule: any, value: number | null) => {
+      if (value === null || value === undefined) {
+        return new Error('请输入价格');
+      }
+      if (value < 0) {
+        return new Error('价格不能小于0');
+      }
+      return true;
+    }
+  },
+  localImagesArray: {
+    required: true,
+    type: 'array',
+    message: '请至少上传一张图片',
+    trigger: ['blur'],
+    validator: (rule: any, value: string[]) => {
+      // 检查已上传的图片
+      const validImages = value?.filter(path => path && path.trim()) || [];
+      // 检查待上传的图片
+      const pendingCount = dishModal.pendingFiles.length;
+      // 总图片数量
+      const totalCount = validImages.length + pendingCount;
+      if (totalCount === 0) {
+        return new Error('请至少上传一张图片');
+      }
+      return true;
+    }
+  }
+}));
+
 const categories = ref<Category[]>([]);
 const selectedCategoryId = ref<number | null>(null);
 const keyword = ref('');
@@ -450,7 +506,8 @@ const dishModal = reactive({
     tagsArray: [] as string[], // 标签数组，用于多选
     familyId: null as number | null // 家庭ID（超级管理员可以设置）
   },
-  imagePreviewUrls: [] as string[] // Store presigned URLs for preview
+  imagePreviewUrls: [] as string[], // Store presigned URLs for preview
+  pendingFiles: [] as Array<{ file: File; previewUrl: string; index: number }> // 待上传的文件列表
 });
 
 // 家庭选项（用于添加/编辑菜品）
@@ -594,22 +651,37 @@ const categoryOptions = computed(() =>
   }))
 );
 
-// 计算有效图片列表（过滤空值）
+// 计算有效图片列表（过滤空值，包括待上传的图片）
 const validImageList = computed(() => {
-  const valid: Array<{ path: string; url: string; index: number }> = [];
+  const valid: Array<{ path: string; url: string; index: number; isPending?: boolean }> = [];
+  
+  // 先添加已上传的图片
   for (let i = 0; i < dishModal.form.localImagesArray.length; i++) {
     const path = dishModal.form.localImagesArray[i];
     const url = dishModal.imagePreviewUrls[i] || path;
     if (path && path.trim()) {
-      valid.push({ path, url, index: i });
+      valid.push({ path, url, index: i, isPending: false });
     }
   }
+  
+  // 再添加待上传的图片（使用临时路径标识）
+  dishModal.pendingFiles.forEach((pending, idx) => {
+    const tempPath = `pending_${pending.index}`;
+    valid.push({ 
+      path: tempPath, 
+      url: pending.previewUrl, 
+      index: dishModal.form.localImagesArray.length + idx,
+      isPending: true 
+    });
+  });
+  
   return valid;
 });
 
-// 计算有效图片数量
+// 计算有效图片数量（包括待上传的）
 const validImageCount = computed(() => {
-  return dishModal.form.localImagesArray.filter(path => path && path.trim()).length;
+  const uploadedCount = dishModal.form.localImagesArray.filter(path => path && path.trim()).length;
+  return uploadedCount + dishModal.pendingFiles.length;
 });
 
 function lookupCategoryName(id: number) {
@@ -699,12 +771,15 @@ const resetDishForm = () => {
   // 非超级管理员默认使用自己的家庭ID
   dishModal.form.familyId = isSuperAdmin.value ? null : currentUserFamilyId.value;
   dishModal.imagePreviewUrls = [];
+  dishModal.pendingFiles = []; // 清空待上传文件
 };
 
 const openDishModal = async (id?: number) => {
   dishModal.show = true;
   dishModal.fetching = Boolean(id);
   resetDishForm();
+  // 清除表单校验状态
+  dishFormRef.value?.restoreValidation();
   if (!id) {
     dishModal.fetching = false;
     return;
@@ -910,43 +985,98 @@ const buildFlavorPayload = (text: string): DishFlavor[] => {
 };
 
 const saveDish = async () => {
-  if (!dishModal.form.name.trim() || !dishModal.form.categoryId || dishModal.form.price === null) {
-    message.warning('请完整填写菜品信息');
+  // 表单校验
+  try {
+    await dishFormRef.value?.validate();
+  } catch (errors) {
+    // 校验失败，显示第一个错误信息
+    const firstError = Object.values(errors as any)[0] as any;
+    if (firstError && firstError[0]?.message) {
+      message.warning(firstError[0].message);
+    } else {
+      message.warning('请完整填写菜品信息');
+    }
     return;
   }
   
-  // 过滤掉空值，只保留有效图片
-  const validImagePaths = dishModal.form.localImagesArray.filter(path => path && path.trim());
-  
-  if (validImagePaths.length === 0) {
+  // 检查是否有图片（包括待上传的）
+  const totalImageCount = validImageCount.value;
+  if (totalImageCount === 0) {
     message.warning('请至少上传一张图片');
     return;
   }
   
-  // 确保主图在图片列表中，且主图在第一个位置
-  if (!dishModal.form.localImage || !validImagePaths.includes(dishModal.form.localImage)) {
-    // 如果主图不在列表中，设置第一张为主图
-    dishModal.form.localImage = validImagePaths[0];
-  } else {
-    // 如果主图在列表中，将其移动到第一个位置
-    const mainIndex = validImagePaths.indexOf(dishModal.form.localImage);
-    if (mainIndex > 0) {
-      validImagePaths.splice(mainIndex, 1);
-      validImagePaths.unshift(dishModal.form.localImage);
-      // 同时更新预览URL数组的顺序
-      const mainUrl = dishModal.imagePreviewUrls[mainIndex];
-      if (mainUrl) {
-        dishModal.imagePreviewUrls.splice(mainIndex, 1);
-        dishModal.imagePreviewUrls.unshift(mainUrl);
-      }
-    }
-  }
-  
-  // 更新表单中的图片数组
-  dishModal.form.localImagesArray = validImagePaths;
-  
   dishModal.loading = true;
   try {
+    // 先上传所有待上传的图片
+    if (dishModal.pendingFiles.length > 0) {
+      message.info('正在上传图片...');
+      const uploadPromises = dishModal.pendingFiles.map(async (pending) => {
+        try {
+          const result = await uploadImage(pending.file);
+          const uploadResult = result.data as { objectKey: string; presignedUrl: string };
+          return {
+            objectKey: uploadResult.objectKey,
+            presignedUrl: uploadResult.presignedUrl,
+            originalPendingIndex: pending.index
+          };
+        } catch (error) {
+          throw new Error(`图片上传失败: ${(error as Error).message}`);
+        }
+      });
+      
+      const uploadResults = await Promise.all(uploadPromises);
+      
+      // 将上传结果添加到已上传列表
+      uploadResults.forEach((result) => {
+        dishModal.form.localImagesArray.push(result.objectKey);
+        dishModal.imagePreviewUrls.push(result.presignedUrl);
+      });
+      
+      // 清空待上传列表
+      dishModal.pendingFiles = [];
+      
+      // 如果主图是待上传的，更新为主图路径
+      if (dishModal.form.localImage.startsWith('pending_')) {
+        const pendingIndex = parseInt(dishModal.form.localImage.replace('pending_', ''));
+        if (pendingIndex >= 0 && pendingIndex < uploadResults.length) {
+          dishModal.form.localImage = uploadResults[pendingIndex].objectKey;
+        } else if (dishModal.form.localImagesArray.length > 0) {
+          dishModal.form.localImage = dishModal.form.localImagesArray[0];
+        }
+      }
+    }
+    
+    // 过滤掉空值，只保留有效图片
+    const validImagePaths = dishModal.form.localImagesArray.filter(path => path && path.trim());
+    
+    if (validImagePaths.length === 0) {
+      message.warning('请至少上传一张图片');
+      return;
+    }
+    
+    // 确保主图在图片列表中，且主图在第一个位置
+    if (!dishModal.form.localImage || !validImagePaths.includes(dishModal.form.localImage)) {
+      // 如果主图不在列表中，设置第一张为主图
+      dishModal.form.localImage = validImagePaths[0];
+    } else {
+      // 如果主图在列表中，将其移动到第一个位置
+      const mainIndex = validImagePaths.indexOf(dishModal.form.localImage);
+      if (mainIndex > 0) {
+        validImagePaths.splice(mainIndex, 1);
+        validImagePaths.unshift(dishModal.form.localImage);
+        // 同时更新预览URL数组的顺序
+        const mainUrl = dishModal.imagePreviewUrls[mainIndex];
+        if (mainUrl) {
+          dishModal.imagePreviewUrls.splice(mainIndex, 1);
+          dishModal.imagePreviewUrls.unshift(mainUrl);
+        }
+      }
+    }
+    
+    // 更新表单中的图片数组
+    dishModal.form.localImagesArray = validImagePaths;
+    
     // 将标签数组转换为字符串
     const tagsString = dishModal.form.tagsArray.length > 0 
       ? dishModal.form.tagsArray.join(',') 
@@ -979,6 +1109,8 @@ const saveDish = async () => {
     }
     dishModal.show = false;
     await loadDishes();
+  } catch (error: any) {
+    message.error(error.message || '保存失败');
   } finally {
     dishModal.loading = false;
   }
@@ -1025,58 +1157,71 @@ const handleImageUpload = async (options: UploadCustomRequestOptions) => {
     return;
   }
 
-  // 先过滤掉空值，只统计有效图片数量
-  const validCount = dishModal.form.localImagesArray.filter(path => path && path.trim()).length;
-  
-  // 检查数量限制
-  if (validCount >= imageLimit.value) {
+  // 检查数量限制（包括已上传和待上传的）
+  if (validImageCount.value >= imageLimit.value) {
     message.warning(`最多只能上传 ${imageLimit.value} 张图片`);
     onError?.();
     return;
   }
 
-  imageUploading.value = true;
-  try {
-    const result = await uploadImage(file.file as File);
-    // result.data is UploadResult: { objectKey, presignedUrl }
-    const uploadResult = result.data as { objectKey: string; presignedUrl: string };
-    
-    // 过滤掉空值，确保数组只包含有效图片
-    const validPaths: string[] = [];
-    const validUrls: string[] = [];
-    for (let i = 0; i < Math.max(dishModal.form.localImagesArray.length, dishModal.imagePreviewUrls.length); i++) {
-      const path = dishModal.form.localImagesArray[i];
-      const url = dishModal.imagePreviewUrls[i];
-      if (path && path.trim() && url && url.trim()) {
-        validPaths.push(path);
-        validUrls.push(url);
-      }
-    }
-    
-    // 添加新上传的图片
-    validPaths.push(uploadResult.objectKey); // 相对路径
-    validUrls.push(uploadResult.presignedUrl); // 完整URL
-    
-    dishModal.form.localImagesArray = validPaths;
-    dishModal.imagePreviewUrls = validUrls;
-    
-    // 如果是第一张图片，自动设为主图
-    if (validPaths.length === 1) {
-      dishModal.form.localImage = uploadResult.objectKey;
-    }
-    
-    message.success('图片上传成功');
-    onFinish?.();
-  } catch (error) {
-    message.error((error as Error).message);
+  // 验证文件类型
+  const fileType = file.file.type;
+  if (!fileType.startsWith('image/')) {
+    message.warning('请上传图片文件');
     onError?.();
-  } finally {
-    imageUploading.value = false;
+    return;
   }
+
+  // 验证文件大小（10MB）
+  const maxSize = 10 * 1024 * 1024;
+  if (file.file.size > maxSize) {
+    message.warning('图片大小不能超过10MB');
+    onError?.();
+    return;
+  }
+
+  // 使用 FileReader 进行本地预览
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const previewUrl = e.target?.result as string;
+    const pendingIndex = dishModal.pendingFiles.length;
+    
+    // 添加到待上传列表
+    dishModal.pendingFiles.push({
+      file: file.file as File,
+      previewUrl,
+      index: pendingIndex
+    });
+    
+    // 如果是第一张图片，自动设为主图（使用临时标识）
+    if (validImageCount.value === 1) {
+      dishModal.form.localImage = `pending_${pendingIndex}`;
+    }
+    
+    message.success('图片已添加，保存时将上传');
+    onFinish?.();
+  };
+  
+  reader.onerror = () => {
+    message.error('图片预览失败');
+    onError?.();
+  };
+  
+  reader.readAsDataURL(file.file as File);
 };
 
 // 设置主图
 const setMainImage = (imagePath: string) => {
+  // 检查是否是待上传的图片
+  if (imagePath.startsWith('pending_')) {
+    const pendingIndex = parseInt(imagePath.replace('pending_', ''));
+    if (pendingIndex >= 0 && pendingIndex < dishModal.pendingFiles.length) {
+      dishModal.form.localImage = imagePath;
+      message.success('已设置为主图');
+      return;
+    }
+  }
+  
   // 确保主图路径在图片列表中
   if (!dishModal.form.localImagesArray.includes(imagePath)) {
     // 如果不在列表中，可能需要从预览URL中查找对应的路径
@@ -1107,16 +1252,41 @@ const setMainImage = (imagePath: string) => {
 
 // 删除图片
 const removeImage = (index: number) => {
-  const removed = dishModal.form.localImagesArray[index];
-  dishModal.form.localImagesArray.splice(index, 1);
-  dishModal.imagePreviewUrls.splice(index, 1);
+  // 检查是否是待上传的图片
+  const validList = validImageList.value;
+  const targetItem = validList[index];
   
-  // 如果删除的是主图，自动设置第一张为主图
-  if (removed === dishModal.form.localImage) {
-    if (dishModal.form.localImagesArray.length > 0) {
-      dishModal.form.localImage = dishModal.form.localImagesArray[0];
-    } else {
-      dishModal.form.localImage = '';
+  if (targetItem.isPending) {
+    // 删除待上传的图片
+    const pendingIndex = parseInt(targetItem.path.replace('pending_', ''));
+    dishModal.pendingFiles.splice(pendingIndex, 1);
+    
+    // 重新索引待上传文件
+    dishModal.pendingFiles.forEach((pending, idx) => {
+      pending.index = idx;
+    });
+    
+    // 如果删除的是主图，重新设置主图
+    if (targetItem.path === dishModal.form.localImage) {
+      if (validImageList.value.length > 0) {
+        dishModal.form.localImage = validImageList.value[0].path;
+      } else {
+        dishModal.form.localImage = '';
+      }
+    }
+  } else {
+    // 删除已上传的图片
+    const removed = dishModal.form.localImagesArray[targetItem.index];
+    dishModal.form.localImagesArray.splice(targetItem.index, 1);
+    dishModal.imagePreviewUrls.splice(targetItem.index, 1);
+    
+    // 如果删除的是主图，自动设置第一张为主图
+    if (removed === dishModal.form.localImage) {
+      if (validImageList.value.length > 0) {
+        dishModal.form.localImage = validImageList.value[0].path;
+      } else {
+        dishModal.form.localImage = '';
+      }
     }
   }
   
@@ -1411,6 +1581,18 @@ onMounted(async () => {
   top: 4px;
   right: 4px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.pending-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   color: white;
   padding: 2px 8px;
   border-radius: 4px;

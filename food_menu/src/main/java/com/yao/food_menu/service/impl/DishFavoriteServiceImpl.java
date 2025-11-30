@@ -145,10 +145,11 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
                 .map(DishFavorite::getDishId)
                 .collect(Collectors.toList());
 
-        // Get dishes
+        // Get dishes (只查询在售且未删除的菜品)
         LambdaQueryWrapper<Dish> dishQuery = new LambdaQueryWrapper<>();
         dishQuery.in(Dish::getId, dishIds)
-                .eq(Dish::getDeleted, 0);
+                .eq(Dish::getDeleted, 0)
+                .eq(Dish::getStatus, 1); // 只显示在售的菜品
         
         List<Dish> dishes = dishService.list(dishQuery);
 
@@ -191,10 +192,11 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
                 .map(DishFavorite::getDishId)
                 .collect(Collectors.toList());
 
-        // Get dishes
+        // Get dishes (只查询在售且未删除的菜品)
         LambdaQueryWrapper<Dish> dishQuery = new LambdaQueryWrapper<>();
         dishQuery.in(Dish::getId, dishIds)
-                .eq(Dish::getDeleted, 0);
+                .eq(Dish::getDeleted, 0)
+                .eq(Dish::getStatus, 1); // 只显示在售的菜品
         
         List<Dish> dishes = dishService.list(dishQuery);
 

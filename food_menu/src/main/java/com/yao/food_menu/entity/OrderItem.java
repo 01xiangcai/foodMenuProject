@@ -54,4 +54,8 @@ public class OrderItem implements Serializable {
     // 逻辑删除: 0-未删除, 1-已删除
     @TableLogic(value = "0", delval = "1")
     private Integer deleted;
+
+    // 菜品状态（临时字段，不持久化）：0-停售, 1-在售
+    @TableField(exist = false)
+    private Integer dishStatus;
 }

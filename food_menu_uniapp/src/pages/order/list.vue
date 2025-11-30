@@ -23,7 +23,13 @@
 
           <!-- 订单商品列表 -->
           <view class="order-items">
-            <view class="order-item" v-for="item in order.items" :key="item.id" @tap.stop="navigateToDishDetail(item.dishId)">
+            <!-- 只显示前3个或者全部(如果已展开) -->
+            <view 
+              class="order-item" 
+              v-for="item in getDisplayItems(order)" 
+              :key="item.id"
+              @tap.stop="navigateToDishDetail(item.dishId, item.dishStatus)"
+            >
               <!-- 如果有图片URL就显示图片，否则显示占位符 -->
               <image v-if="item.image || item.localImage" class="item-image" :src="getDishImage(item)" mode="aspectFill" @error="handleImageError" />
               <view v-else class="item-placeholder">
@@ -34,6 +40,16 @@
                 <text class="item-quantity">x{{ item.quantity }}</text>
               </view>
               <text class="item-price">¥{{ item.price }}</text>
+            </view>
+            
+            <!-- 展开/收起按钮 -->
+            <view 
+              class="expand-btn" 
+              v-if="order.items && order.items.length > 3"
+              @tap.stop="toggleExpand(order)"
+            >
+              <text>{{ order.expanded ? '收起' : `展开剩余${order.items.length - 3}个菜品` }}</text>
+              <text class="arrow" :class="{ up: order.expanded }">▼</text>
             </view>
           </view>
 
@@ -125,6 +141,18 @@ const getStatusClass = (status) => {
   return classMap[status] || ''
 }
 
+// 获取显示的菜品列表
+const getDisplayItems = (order) => {
+  if (!order.items) return []
+  if (order.expanded) return order.items
+  return order.items.slice(0, 3)
+}
+
+// 切换展开/收起状态
+const toggleExpand = (order) => {
+  order.expanded = !order.expanded
+}
+
 // 加载订单列表
 const loadOrders = async (reset = false) => {
   if (loading.value || noMore.value) return
@@ -157,13 +185,15 @@ const loadOrders = async (reset = false) => {
     // 映射后端数据到前端格式
     const mappedList = list.map(order => ({
       ...order,
+      expanded: false, // 默认收起
       items: (order.orderItems || []).map(item => ({
         id: item.id,
         dishId: item.dishId,
         name: item.dishName,
         image: item.dishImage,
         price: item.price,
-        quantity: item.quantity
+        quantity: item.quantity,
+        dishStatus: item.dishStatus !== undefined && item.dishStatus !== null ? item.dishStatus : 0 // 如果后端没有返回状态，默认认为已下架（更安全）
       }))
     }))
     
@@ -277,8 +307,20 @@ const goToMenu = () => {
 }
 
 // 跳转到菜品详情
-const navigateToDishDetail = (dishId) => {
+const navigateToDishDetail = (dishId, dishStatus) => {
   if (!dishId) return
+  
+  // 检查菜品状态，只有明确是在售状态（status === 1）才允许查看详情
+  // 如果状态是undefined、null、0或其他值，都阻止查看
+  if (dishStatus !== 1) {
+    uni.showToast({
+      title: '该菜品已下架',
+      icon: 'none',
+      duration: 2000
+    })
+    return
+  }
+  
   uni.navigateTo({ 
     url: `/pages/detail/detail?id=${dishId}` 
   })
@@ -459,6 +501,30 @@ onShow(() => {
   color: v-bind('themeConfig.errorColor');
   font-weight: 700;
   transition: color 0.3s ease;
+}
+
+.expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20rpx 0;
+  font-size: 24rpx;
+  color: v-bind('themeConfig.textSecondary');
+  transition: color 0.3s ease;
+  
+  .arrow {
+    margin-left: 8rpx;
+    font-size: 20rpx;
+    transition: transform 0.3s ease;
+    
+    &.up {
+      transform: rotate(180deg);
+    }
+  }
+  
+  &:active {
+    opacity: 0.7;
+  }
 }
 
 .order-footer {

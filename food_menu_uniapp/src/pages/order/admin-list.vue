@@ -38,7 +38,7 @@
               class="order-item" 
               v-for="item in getDisplayItems(order)" 
               :key="item.id"
-              @tap.stop="navigateToDishDetail(item.dishId)"
+              @tap.stop="navigateToDishDetail(item.dishId, item.dishStatus)"
             >
               <image v-if="item.image || item.localImage" class="item-image" :src="getDishImage(item)" mode="aspectFill" lazy-load @error="handleImageError" />
               <view v-else class="item-placeholder">
@@ -208,7 +208,8 @@ const loadOrders = async (reset = false) => {
         name: item.dishName,
         image: item.dishImage,
         price: item.price,
-        quantity: item.quantity
+        quantity: item.quantity,
+        dishStatus: item.dishStatus !== undefined && item.dishStatus !== null ? item.dishStatus : 0 // 如果后端没有返回状态，默认认为已下架（更安全）
       }))
     }))
     
@@ -296,8 +297,20 @@ const handleImageError = (e) => {
 }
 
 // 跳转到菜品详情
-const navigateToDishDetail = (dishId) => {
+const navigateToDishDetail = (dishId, dishStatus) => {
   if (!dishId) return
+  
+  // 检查菜品状态，只有明确是在售状态（status === 1）才允许查看详情
+  // 如果状态是undefined、null、0或其他值，都阻止查看
+  if (dishStatus !== 1) {
+    uni.showToast({
+      title: '该菜品已下架',
+      icon: 'none',
+      duration: 2000
+    })
+    return
+  }
+  
   uni.navigateTo({ 
     url: `/pages/detail/detail?id=${dishId}` 
   })

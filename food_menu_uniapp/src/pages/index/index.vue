@@ -123,7 +123,10 @@ const loadFeaturedDishes = async () => {
   try {
     const res = await getTopDishes()
     if (res.data) {
-      featuredDishes.value = res.data.map(item => {
+      // 过滤掉已下架的菜品（只显示在售的，status === 1）
+      const availableDishes = res.data.filter(item => item.status === 1)
+      
+      featuredDishes.value = availableDishes.map(item => {
         return {
           id: item.id,
           title: item.name,

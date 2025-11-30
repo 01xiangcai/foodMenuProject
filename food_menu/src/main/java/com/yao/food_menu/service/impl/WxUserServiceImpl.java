@@ -75,6 +75,7 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
                 user.setNickname("用户_" + loginDto.getPhone().substring(7));
                 // 默认角色为普通用户
                 user.setRole(0);
+                user.setStatus(1); // 默认状态为启用
                 this.save(user);
             }
 
@@ -156,6 +157,7 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
         // 默认角色为普通用户
         user.setRole(0);
         user.setGender(0); // 未知性别
+        user.setStatus(1); // 默认状态为启用
 
         this.save(user);
     }
@@ -189,7 +191,10 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
             queryWrapper.like(WxUser::getUsername, queryDto.getUsername());
         }
 
-        // 注意：WxUser实体没有status字段，所以不进行状态过滤
+        // 按状态筛选
+        if (queryDto.getStatus() != null) {
+            queryWrapper.eq(WxUser::getStatus, queryDto.getStatus());
+        }
 
         // 超级管理员可以通过familyId参数筛选特定家庭的数据
         // 非超级管理员由拦截器自动过滤，这里不需要处理
@@ -223,6 +228,9 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
         if (wxUser.getRole() != null) {
             existingUser.setRole(wxUser.getRole());
         }
+        if (wxUser.getStatus() != null) {
+            existingUser.setStatus(wxUser.getStatus());
+        }
 
         this.updateById(existingUser);
     }
@@ -234,7 +242,7 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
             throw new RuntimeException("用户不存在");
         }
 
-        // 目前WxUser实体已不包含状态字段,如需启用/禁用请在数据库及实体中补充实现
+        user.setStatus(status);
         this.updateById(user);
     }
 

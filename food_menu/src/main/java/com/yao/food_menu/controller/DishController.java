@@ -52,12 +52,101 @@ public class DishController {
     @Operation(summary = "添加菜品", description = "添加菜品及其口味信息")
     @PostMapping
     public Result<String> save(@RequestBody DishDto dishDto) {
-        log.info(dishDto.toString());
+        log.info("新增菜品请求: {}", dishDto);
+        
+        // 参数校验
+        Result<String> validateResult = validateDishDto(dishDto);
+        if (validateResult != null) {
+            return validateResult;
+        }
+        
         ensureImage(dishDto);
         handleImageFields(dishDto);
         validateMainImageInList(dishDto);
         dishService.saveWithFlavor(dishDto);
         return Result.success("Dish added successfully");
+    }
+    
+    /**
+     * 校验菜品DTO参数
+     * @param dishDto 菜品DTO
+     * @return 如果校验失败返回错误结果，否则返回null
+     */
+    private Result<String> validateDishDto(DishDto dishDto) {
+        // 校验菜品名称
+        if (dishDto.getName() == null || dishDto.getName().trim().isEmpty()) {
+            return Result.error("菜品名称不能为空");
+        }
+        if (dishDto.getName().trim().length() > 50) {
+            return Result.error("菜品名称长度不能超过50个字符");
+        }
+        
+        // 校验分类ID
+        if (dishDto.getCategoryId() == null) {
+            return Result.error("所属分类不能为空");
+        }
+        // 验证分类是否存在
+        Category category = categoryService.getById(dishDto.getCategoryId());
+        if (category == null) {
+            return Result.error("所选分类不存在");
+        }
+        
+        // 校验价格
+        if (dishDto.getPrice() == null) {
+            return Result.error("价格不能为空");
+        }
+        if (dishDto.getPrice().compareTo(java.math.BigDecimal.ZERO) < 0) {
+            return Result.error("价格不能小于0");
+        }
+        if (dishDto.getPrice().compareTo(new java.math.BigDecimal("99999.99")) > 0) {
+            return Result.error("价格不能超过99999.99");
+        }
+        
+        // 校验图片（本地存储模式）
+        if (fileStorageProperties.isLocal()) {
+            // 校验主图
+            if (dishDto.getLocalImage() == null || dishDto.getLocalImage().trim().isEmpty()) {
+                // 如果没有主图，检查图片列表
+                if (dishDto.getLocalImages() == null || dishDto.getLocalImages().trim().isEmpty()) {
+                    return Result.error("请至少上传一张图片");
+                }
+                // 解析图片列表
+                try {
+                    List<String> imageList = objectMapper.readValue(dishDto.getLocalImages(), new TypeReference<List<String>>() {});
+                    List<String> validImages = imageList.stream()
+                            .filter(img -> img != null && !img.trim().isEmpty())
+                            .collect(Collectors.toList());
+                    if (validImages.isEmpty()) {
+                        return Result.error("请至少上传一张图片");
+                    }
+                } catch (Exception e) {
+                    log.warn("解析图片列表失败: {}", dishDto.getLocalImages(), e);
+                    return Result.error("图片列表格式错误");
+                }
+            }
+        } else {
+            // OSS存储模式：校验image字段
+            if (dishDto.getImage() == null || dishDto.getImage().trim().isEmpty()) {
+                return Result.error("请至少上传一张图片");
+            }
+        }
+        
+        // 校验描述长度（可选字段）
+        if (dishDto.getDescription() != null && dishDto.getDescription().length() > 500) {
+            return Result.error("家庭备注长度不能超过500个字符");
+        }
+        
+        // 校验卡路里格式（可选字段）
+        if (dishDto.getCalories() != null && dishDto.getCalories().trim().length() > 50) {
+            return Result.error("卡路里信息长度不能超过50个字符");
+        }
+        
+        // 校验标签长度（可选字段）
+        if (dishDto.getTags() != null && dishDto.getTags().length() > 200) {
+            return Result.error("标签长度不能超过200个字符");
+        }
+        
+        return null; // 校验通过
     }
 
     @Operation(summary = "分页查询菜品", description = "分页查询菜品列表,支持按名称模糊查询")

@@ -8,6 +8,8 @@ import com.yao.food_menu.dto.OrdersDto;
 import com.yao.food_menu.entity.OrderItem;
 import com.yao.food_menu.entity.Orders;
 import com.yao.food_menu.entity.WxUser;
+import com.yao.food_menu.entity.Dish;
+import com.yao.food_menu.service.DishService;
 import com.yao.food_menu.service.OrderItemService;
 import com.yao.food_menu.service.OrdersService;
 import com.yao.food_menu.service.OssService;
@@ -45,6 +47,15 @@ public class OrdersController {
 
     @Autowired
     private OssService ossService;
+
+    @Autowired
+    private DishService dishService;
+
+    @Autowired
+    private com.yao.food_menu.common.config.FileStorageProperties fileStorageProperties;
+
+    @Autowired
+    private com.yao.food_menu.common.config.LocalStorageProperties localStorageProperties;
 
     /**
      * Submit order
@@ -507,6 +518,8 @@ public class OrdersController {
      * to the client.
      * This prevents frontend issues such as expired OSS URLs or missing domain
      * prefixes.
+     * Also checks dish status to prevent viewing details of discontinued dishes.
+     * Priority: Use latest image from dish table, fallback to order item's stored image.
      */
     private void enrichOrderItemImages(List<OrderItem> orderItems) {
         if (orderItems == null || orderItems.isEmpty()) {
@@ -516,19 +529,86 @@ public class OrdersController {
             if (item == null) {
                 continue;
             }
-            String image = item.getDishImage();
-            if (!StringUtils.hasText(image)) {
+            
+            String imageToUse = null; // 最终使用的图片路径或URL
+            
+            // 优先从菜品表中查询最新图片
+            if (item.getDishId() != null) {
+                Dish dish = dishService.getById(item.getDishId());
+                if (dish != null) {
+                    // 设置菜品状态：1-在售, 0-停售
+                    item.setDishStatus(dish.getStatus() != null ? dish.getStatus() : 0);
+                    
+                    // 优先使用菜品表中的最新图片
+                    if (fileStorageProperties.isLocal()) {
+                        // 本地存储模式：优先使用 localImage
+                        if (StringUtils.hasText(dish.getLocalImage())) {
+                            imageToUse = dish.getLocalImage();
+                        } else if (StringUtils.hasText(dish.getImage())) {
+                            imageToUse = dish.getImage();
+                        }
+                    } else {
+                        // OSS存储模式：使用 image 字段
+                        if (StringUtils.hasText(dish.getImage())) {
+                            imageToUse = dish.getImage();
+                        }
+                    }
+                } else {
+                    // 菜品不存在，标记为已下架
+                    item.setDishStatus(0);
+                }
+            } else {
+                item.setDishStatus(0);
+            }
+            
+            // 如果菜品表中没有图片，使用订单项中存储的图片作为兜底
+            if (!StringUtils.hasText(imageToUse)) {
+                imageToUse = item.getDishImage();
+            }
+            
+            // 如果还是没有图片，使用默认图片
+            if (!StringUtils.hasText(imageToUse)) {
                 item.setDishImage(DEFAULT_DISH_IMAGE);
                 continue;
             }
-            if (!image.startsWith("http://") && !image.startsWith("https://")) {
-                try {
-                    String presignedUrl = ossService.generatePresignedUrl(image);
-                    item.setDishImage(presignedUrl);
-                } catch (Exception e) {
-                    log.warn("Failed to generate presigned URL for order item image: {}", image, e);
-                    item.setDishImage(DEFAULT_DISH_IMAGE);
-                }
+            
+            // 处理图片URL：转换为完整URL或预签名URL
+            String finalImageUrl = processImageUrl(imageToUse);
+            item.setDishImage(finalImageUrl);
+        }
+    }
+    
+    /**
+     * 处理图片URL，根据存储方式转换为完整URL或预签名URL
+     * 与 DishController 中的逻辑保持一致
+     */
+    private String processImageUrl(String image) {
+        if (!StringUtils.hasText(image)) {
+            return DEFAULT_DISH_IMAGE;
+        }
+        
+        // 如果已经是完整URL，直接返回
+        if (image.startsWith("http://") || image.startsWith("https://")) {
+            return image;
+        }
+        
+        // 根据存储方式处理
+        if (fileStorageProperties.isLocal()) {
+            // 本地存储模式：拼接URL前缀
+            String urlPrefix = localStorageProperties.getUrlPrefix();
+            if (!urlPrefix.endsWith("/")) {
+                urlPrefix += "/";
+            }
+            // 移除image开头的斜杠
+            String localPath = image.startsWith("/") ? image.substring(1) : image;
+            return urlPrefix + localPath;
+        } else {
+            // OSS存储模式：转换为预签名URL
+            try {
+                return ossService.generatePresignedUrl(image);
+            } catch (Exception e) {
+                log.warn("Failed to generate presigned URL for order item image: {}", image, e);
+                return DEFAULT_DISH_IMAGE;
             }
         }
     }

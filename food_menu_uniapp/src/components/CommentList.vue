@@ -49,9 +49,9 @@
                 <text class="reply-text">
                   <text class="reply-author">{{ reply.authorName || '家庭成员' }}</text>
                   <text class="reply-to">
-                    @{{ getReplyToName(comment, reply) }}
+                    ▶    {{ getReplyToName(comment, reply) }}
                   </text>
-                  <text class="reply-message">: {{ reply.content }}</text>
+                  <text class="reply-message"> ：{{ reply.content }}</text>
                 </text>
                 
                 <!-- 时间和回复按钮 -->

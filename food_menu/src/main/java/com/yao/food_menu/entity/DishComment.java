@@ -35,8 +35,10 @@ public class DishComment implements Serializable {
 
     // 作者头像URL
     private String avatarUrl;
-    // 被回复人昵称
+    // 被回复人昵称（保留用于历史记录，查询时优先使用实时数据）
     private String replyToName;
+    // 被回复人用户ID（用于实时获取最新用户信息）
+    private Long replyToUserId;
     // 评论内容
     private String content;
 

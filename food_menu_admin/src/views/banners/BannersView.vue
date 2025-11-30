@@ -2,10 +2,7 @@
   <div class="banners-view">
     <section class="glass-card hover-rise">
       <div class="table-header">
-        <div>
-          <h2>轮播图管理</h2>
-          <p>管理小程序首页的美食轮播图</p>
-        </div>
+        <h2>轮播图管理</h2>
         <div class="table-actions">
           <NSelect
             v-if="isSuperAdmin"
@@ -457,16 +454,19 @@ onMounted(async () => {
 
 .table-header {
   display: flex;
-  justify-content: space-between;
-  gap: 16px;
+  align-items: center;
+  gap: 20px;
   flex-wrap: wrap;
-  margin-bottom: 20px;
+  margin-top: 24px;
+  margin-bottom: 24px;
 }
 
 .table-header h2 {
-  margin: 0 0 4px 0;
-  font-size: 20px;
-  font-weight: 600;
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
 }
 
 .table-header p {
@@ -479,6 +479,7 @@ onMounted(async () => {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .modal-actions {

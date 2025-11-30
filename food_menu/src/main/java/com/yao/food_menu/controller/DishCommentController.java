@@ -96,6 +96,19 @@ public class DishCommentController {
                 }
             }
 
+            // 如果是回复评论，需要设置被回复人的用户ID
+            if (comment.getParentId() != null && comment.getReplyToUserId() == null) {
+                // 根据 parentId 查找被回复的评论，获取其作者的用户ID
+                DishComment parentComment = dishCommentService.getById(comment.getParentId());
+                if (parentComment != null && parentComment.getWxUserId() != null) {
+                    comment.setReplyToUserId(parentComment.getWxUserId());
+                    // 如果前端没有传递 replyToName，从父评论获取
+                    if (!StringUtils.hasText(comment.getReplyToName())) {
+                        comment.setReplyToName(parentComment.getAuthorName());
+                    }
+                }
+            }
+
             dishCommentService.save(comment);
             return Result.success("评论发表成功");
         } catch (Exception e) {
