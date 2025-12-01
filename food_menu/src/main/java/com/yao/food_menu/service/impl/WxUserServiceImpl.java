@@ -44,13 +44,32 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
             Integer type = resolveLoginType(loginDto);
 
         if (type == 1) {
-            // 用户名/密码登录
+            // 用户名/手机号+密码登录
+            String loginInput = loginDto.getUsername();
+            if (!StringUtils.hasText(loginInput)) {
+                throw new RuntimeException("请输入用户名或手机号");
+            }
+
+            // 判断输入的是手机号还是用户名（手机号是11位数字）
+            boolean isPhone = loginInput.matches("^1[3-9]\\d{9}$");
+            
             LambdaQueryWrapper<WxUser> queryWrapper = new LambdaQueryWrapper<>();
-            queryWrapper.eq(WxUser::getUsername, loginDto.getUsername());
+            if (isPhone) {
+                // 按手机号查询
+                queryWrapper.eq(WxUser::getPhone, loginInput);
+            } else {
+                // 按用户名查询
+                queryWrapper.eq(WxUser::getUsername, loginInput);
+            }
             user = this.getOne(queryWrapper);
 
             if (user == null) {
                 throw new RuntimeException("用户不存在");
+            }
+
+            // 检查用户是否有密码（手机号注册的用户可能没有密码）
+            if (user.getPassword() == null || user.getPassword().isEmpty()) {
+                throw new RuntimeException("该账号未设置密码，请使用验证码登录");
             }
 
             if (!passwordEncoder.matches(loginDto.getPassword(), user.getPassword())) {
@@ -220,6 +239,18 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
             existingUser.setNickname(wxUser.getNickname());
         }
         if (StringUtils.hasText(wxUser.getPhone())) {
+            // 检查手机号是否已被其他用户使用（需要跳过数据隔离，因为手机号是全局唯一的）
+            com.yao.food_menu.common.context.FamilyContext.setQueryCurrentUser(true);
+            try {
+                LambdaQueryWrapper<WxUser> phoneWrapper = new LambdaQueryWrapper<>();
+                phoneWrapper.eq(WxUser::getPhone, wxUser.getPhone());
+                phoneWrapper.ne(WxUser::getId, wxUser.getId()); // 排除当前用户
+                if (this.count(phoneWrapper) > 0) {
+                    throw new RuntimeException("手机号已被其他用户使用");
+                }
+            } finally {
+                com.yao.food_menu.common.context.FamilyContext.setQueryCurrentUser(false);
+            }
             existingUser.setPhone(wxUser.getPhone());
         }
         if (wxUser.getGender() != null) {

@@ -18,11 +18,11 @@
 
         <view class="form">
           <view class="form-item">
-            <text class="label" :style="{ color: themeConfig.textPrimary }">用户名</text>
+            <text class="label" :style="{ color: themeConfig.textPrimary }">用户名/手机号</text>
             <input 
               class="input" 
               v-model="username"
-              placeholder="请输入用户名"
+              placeholder="请输入用户名或手机号"
               placeholder-class="placeholder"
               :style="{ background: themeConfig.inputBg, border: `1px solid ${themeConfig.inputBorder}`, color: themeConfig.textPrimary }"
             />
@@ -101,7 +101,7 @@ onMounted(() => {
 const handleLogin = async () => {
   if (!username.value) {
     uni.showToast({
-      title: '请输入用户名',
+      title: '请输入用户名或手机号',
       icon: 'none'
     })
     return
@@ -118,7 +118,8 @@ const handleLogin = async () => {
   try {
     const res = await wxLogin({
       username: username.value,
-      password: password.value
+      password: password.value,
+      type: 1 // 用户名/手机号+密码登录
     })
 
     console.log('登录响应:', res)

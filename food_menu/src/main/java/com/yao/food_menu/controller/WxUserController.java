@@ -264,6 +264,19 @@ public class WxUserController {
                 handleAvatarFields(user);
             }
             if (StringUtils.hasText(updateUserDto.getPhone())) {
+                // 检查手机号是否已被其他用户使用（需要跳过数据隔离，因为手机号是全局唯一的）
+                com.yao.food_menu.common.context.FamilyContext.setQueryCurrentUser(true);
+                try {
+                    com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<WxUser> phoneWrapper = 
+                        new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+                    phoneWrapper.eq(WxUser::getPhone, updateUserDto.getPhone());
+                    phoneWrapper.ne(WxUser::getId, userId); // 排除当前用户
+                    if (wxUserService.count(phoneWrapper) > 0) {
+                        return Result.error("手机号已被其他用户使用");
+                    }
+                } finally {
+                    com.yao.food_menu.common.context.FamilyContext.setQueryCurrentUser(false);
+                }
                 user.setPhone(updateUserDto.getPhone());
             }
             // 更新性别字段
@@ -274,8 +287,15 @@ public class WxUserController {
             wxUserService.updateById(user);
             return Result.success("更新成功");
         } catch (Exception e) {
-            log.error("更新用户信息失败: {}", e.getMessage());
-            return Result.error("更新失败: " + e.getMessage());
+            log.error("更新用户信息失败: {}", e.getMessage(), e);
+            // 如果错误信息已经包含友好的提示（如"手机号已被其他用户使用"），直接返回
+            String errorMsg = e.getMessage();
+            if (errorMsg != null && (errorMsg.contains("手机号已被其他用户使用") || 
+                errorMsg.contains("用户不存在"))) {
+                return Result.error(errorMsg);
+            }
+            // 其他错误返回通用提示
+            return Result.error("更新失败，请稍后重试");
         }
     }
 

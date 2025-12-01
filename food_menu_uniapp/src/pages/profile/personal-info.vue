@@ -401,9 +401,31 @@ const saveChanges = async () => {
   } catch (error) {
     console.error('保存失败:', error)
     uni.hideLoading()
+    
+    // 提取错误信息
+    let errorMessage = '保存失败'
+    if (error && error.message) {
+      errorMessage = error.message
+      // 如果错误信息包含"更新失败:"前缀，提取后面的具体信息
+      if (errorMessage.includes('更新失败:')) {
+        const parts = errorMessage.split('更新失败:')
+        if (parts.length > 1) {
+          // 提取具体错误信息，去除换行和多余空格
+          errorMessage = parts[1].trim().replace(/\r\n/g, ' ').replace(/\s+/g, ' ')
+          // 如果包含数据库错误信息，提取更友好的提示
+          if (errorMessage.includes('Duplicate entry')) {
+            errorMessage = '手机号已被其他用户使用'
+          } else if (errorMessage.includes('手机号已被其他用户使用')) {
+            errorMessage = '手机号已被其他用户使用'
+          }
+        }
+      }
+    }
+    
     uni.showToast({
-      title: '保存失败',
-      icon: 'none'
+      title: errorMessage,
+      icon: 'none',
+      duration: 3000
     })
   }
 }

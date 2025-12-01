@@ -44,11 +44,8 @@ export const request = (options = {}) => {
                     if (res.data && res.data.code === 1) {
                         resolve(res.data)
                     } else if (res.data && res.data.code === 0) {
-                        // 业务错误
-                        uni.showToast({
-                            title: res.data.msg || '请求失败',
-                            icon: 'none'
-                        })
+                        // 业务错误 - 不在这里显示toast，让调用方自己处理
+                        // 这样调用方可以根据需要自定义错误提示
                         reject(new Error(res.data.msg || '请求失败'))
                     } else {
                         resolve(res.data)
