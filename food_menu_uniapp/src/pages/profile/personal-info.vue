@@ -1,0 +1,807 @@
+<template>
+  <view class="page">
+    <!-- 头部渐变背景 + 头像 -->
+    <view class="header-section">
+      <view class="avatar-container" @tap="chooseAvatar">
+        <image class="avatar" :src="userInfo.avatar" mode="aspectFill" />
+        <view class="avatar-ring"></view>
+        <view class="camera-badge">
+          <text class="camera-icon">📷</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 基本信息卡片 -->
+    <view class="info-card glass-card">
+      <view class="card-title">基本信息</view>
+      
+      <view class="info-row" @tap="editField('nickname')">
+        <text class="label">昵称</text>
+        <view class="value-container">
+          <input 
+            v-if="editingField === 'nickname'"
+            class="input-field"
+            v-model="formData.nickname"
+            :focus="editingField === 'nickname'"
+            @input="onFieldInput('nickname')"
+            @blur="saveField('nickname')"
+          />
+          <text v-else class="value">{{ formData.nickname || userInfo.nickname || '未设置' }}</text>
+          <text v-if="editingField !== 'nickname'" class="edit-icon">✏️</text>
+        </view>
+      </view>
+
+      <view class="info-row readonly">
+        <text class="label">用户名</text>
+        <text class="value readonly-value">{{ userInfo.username || '未设置' }}</text>
+      </view>
+
+      <view class="info-row" @tap="editField('phone')">
+        <text class="label">手机号</text>
+        <view class="value-container">
+          <input 
+            v-if="editingField === 'phone'"
+            class="input-field"
+            v-model="formData.phone"
+            type="number"
+            :focus="editingField === 'phone'"
+            @input="onFieldInput('phone')"
+            @blur="saveField('phone')"
+          />
+          <text v-else class="value">{{ formData.phone || userInfo.phone || '未设置' }}</text>
+          <text v-if="editingField !== 'phone'" class="edit-icon">✏️</text>
+        </view>
+      </view>
+
+      <view class="info-row" @tap="showGenderSelector">
+        <text class="label">性别</text>
+        <view class="value-container">
+          <text class="value">{{ genderText }}</text>
+          <text class="arrow">›</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 账户信息卡片 -->
+    <view class="info-card glass-card">
+      <view class="card-title">账户信息</view>
+      
+      <view class="info-row readonly">
+        <text class="label">所属家庭</text>
+        <view class="value-container">
+          <text v-if="familyInfo" class="value family-badge">
+            🏠 {{ familyInfo.name }}
+          </text>
+          <text v-else class="value readonly-value">未加入家庭</text>
+        </view>
+      </view>
+
+      <view class="info-row readonly">
+        <text class="label">角色</text>
+        <view class="role-badge" :class="{ admin: userInfo.role === 1 }">
+          <text>{{ userInfo.role === 1 ? '管理员' : '普通用户' }}</text>
+        </view>
+      </view>
+
+      <view class="info-row readonly">
+        <text class="label">注册时间</text>
+        <text class="value readonly-value">{{ formatDate(userInfo.createTime) }}</text>
+      </view>
+    </view>
+
+    <!-- 底部操作按钮 -->
+    <view class="action-buttons" v-if="hasChanges">
+      <view class="cancel-btn" @tap="cancelChanges">
+        <text>取消</text>
+      </view>
+      <view class="save-btn" @tap="saveChanges">
+        <text>保存</text>
+      </view>
+    </view>
+
+    <!-- 性别选择器弹窗 -->
+    <view class="gender-mask" v-if="showGenderPicker" @tap="closeGenderPicker"></view>
+    <view class="gender-selector" :class="{ show: showGenderPicker }">
+      <view class="selector-header">
+        <text class="title">选择性别</text>
+        <view class="close-btn" @tap="closeGenderPicker">
+          <text>✕</text>
+        </view>
+      </view>
+      <view class="gender-options">
+        <view 
+          v-for="(option, index) in genderOptionsData" 
+          :key="index"
+          class="gender-option"
+          :class="{ active: formData.gender === index }"
+          @tap="selectGender(index)"
+        >
+          <text class="option-icon">{{ option.icon }}</text>
+          <text class="option-label">{{ option.label }}</text>
+          <view class="check-icon" v-if="formData.gender === index">
+            <text>✓</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { getWxUserInfo, getCurrentFamily } from '@/api/index'
+import { useTheme } from '@/stores/theme'
+
+// 使用主题
+const { themeConfig } = useTheme()
+
+// 用户信息
+const userInfo = ref({
+  nickname: '',
+  username: '',
+  phone: '',
+  gender: 0,
+  avatar: 'https://dummyimage.com/200x200/6366f1/ffffff&text=User',
+  role: 0,
+  createTime: null
+})
+
+// 家庭信息
+const familyInfo = ref(null)
+
+// 表单数据
+const formData = ref({
+  nickname: '',
+  phone: '',
+  gender: 0,
+  avatar: ''
+})
+
+// 编辑状态
+const editingField = ref('')
+const hasChanges = ref(false)
+
+// 性别选择器
+const showGenderPicker = ref(false)
+const genderOptions = ['未知', '男', '女']
+const genderOptionsData = [
+  { icon: '❓', label: '未知' },
+  { icon: '♂️', label: '男' },
+  { icon: '♀️', label: '女' }
+]
+const genderIndex = computed(() => formData.value.gender || userInfo.value.gender || 0)
+const genderText = computed(() => {
+  const currentGender = formData.value.gender !== undefined ? formData.value.gender : (userInfo.value.gender || 0)
+  return `${genderOptionsData[currentGender].icon} ${genderOptionsData[currentGender].label}`
+})
+
+// 加载用户信息
+const loadUserInfo = async () => {
+  const token = uni.getStorageSync('fm_token')
+  if (!token) {
+    uni.showToast({
+      title: '请先登录',
+      icon: 'none'
+    })
+    setTimeout(() => {
+      uni.navigateBack()
+    }, 1500)
+    return
+  }
+
+  try {
+    const res = await getWxUserInfo()
+    if (res.data) {
+      userInfo.value = res.data
+      // 初始化表单数据
+      formData.value = {
+        nickname: res.data.nickname || '',
+        phone: res.data.phone || '',
+        gender: res.data.gender || 0,
+        avatar: res.data.avatar || ''
+      }
+    }
+  } catch (error) {
+    console.error('获取用户信息失败:', error)
+    uni.showToast({
+      title: '获取用户信息失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 加载家庭信息
+const loadFamilyInfo = async () => {
+  try {
+    const res = await getCurrentFamily()
+    if (res.data) {
+      familyInfo.value = res.data
+    }
+  } catch (error) {
+    console.error('获取家庭信息失败:', error)
+  }
+}
+
+// 编辑字段
+const editField = (field) => {
+  if (field === 'nickname' || field === 'phone') {
+    editingField.value = field
+  }
+}
+
+// 字段输入时检测变化
+const onFieldInput = (field) => {
+  // 实时检查是否有变化
+  if (formData.value[field] !== userInfo.value[field]) {
+    hasChanges.value = true
+  } else {
+    // 检查所有字段是否都没有变化
+    const noChanges = 
+      formData.value.nickname === userInfo.value.nickname &&
+      formData.value.phone === userInfo.value.phone &&
+      formData.value.gender === userInfo.value.gender &&
+      formData.value.avatar === userInfo.value.avatar
+    hasChanges.value = !noChanges
+  }
+}
+
+// 保存字段
+const saveField = (field) => {
+  editingField.value = ''
+  // 最后检查一次是否有变化
+  if (formData.value[field] !== userInfo.value[field]) {
+    hasChanges.value = true
+  }
+}
+
+// 显示性别选择器
+const showGenderSelector = () => {
+  showGenderPicker.value = true
+}
+
+// 关闭性别选择器
+const closeGenderPicker = () => {
+  showGenderPicker.value = false
+}
+
+// 选择性别
+const selectGender = (index) => {
+  formData.value.gender = index
+  if (index !== userInfo.value.gender) {
+    hasChanges.value = true
+  }
+  // 延迟关闭，让用户看到选中效果
+  setTimeout(() => {
+    showGenderPicker.value = false
+  }, 300)
+}
+
+// 选择头像
+const chooseAvatar = () => {
+  uni.chooseImage({
+    count: 1,
+    sizeType: ['compressed'],
+    sourceType: ['album', 'camera'],
+    success: async (res) => {
+      const tempFilePath = res.tempFilePaths[0]
+      
+      uni.showLoading({
+        title: '上传中...',
+        mask: true
+      })
+
+      try {
+        const { uploadFile } = await import('@/api/index')
+        const uploadRes = await uploadFile(tempFilePath)
+        
+        if (uploadRes.data) {
+          formData.value.avatar = uploadRes.data.objectKey
+          hasChanges.value = true
+          
+          // 立即更新显示
+          userInfo.value.avatar = tempFilePath
+          
+          uni.hideLoading()
+          uni.showToast({
+            title: '头像已选择',
+            icon: 'success'
+          })
+        }
+      } catch (error) {
+        console.error('上传头像失败:', error)
+        uni.hideLoading()
+        
+        const errorMessage = error.message || '头像上传失败'
+        if (errorMessage.includes('上限') || errorMessage.includes('次数')) {
+          uni.showModal({
+            title: '提示',
+            content: errorMessage,
+            showCancel: false,
+            confirmText: '知道了'
+          })
+        } else {
+          uni.showToast({
+            title: errorMessage,
+            icon: 'none'
+          })
+        }
+      }
+    }
+  })
+}
+
+// 取消更改
+const cancelChanges = () => {
+  // 恢复原始数据
+  formData.value = {
+    nickname: userInfo.value.nickname || '',
+    phone: userInfo.value.phone || '',
+    gender: userInfo.value.gender || 0,
+    avatar: userInfo.value.avatar || ''
+  }
+  hasChanges.value = false
+  editingField.value = ''
+}
+
+// 保存更改
+const saveChanges = async () => {
+  if (!formData.value.nickname) {
+    uni.showToast({
+      title: '请输入昵称',
+      icon: 'none'
+    })
+    return
+  }
+
+  // 验证手机号格式
+  if (formData.value.phone) {
+    const phoneRegex = /^1[3-9]\d{9}$/
+    if (!phoneRegex.test(formData.value.phone)) {
+      uni.showToast({
+        title: '请输入正确的手机号',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+  }
+
+  uni.showLoading({
+    title: '保存中...',
+    mask: true
+  })
+
+  try {
+    const { updateWxUserInfo } = await import('@/api/index')
+    const updateData = {
+      nickname: formData.value.nickname,
+      phone: formData.value.phone,
+      gender: formData.value.gender
+    }
+
+    if (formData.value.avatar && formData.value.avatar !== userInfo.value.avatar) {
+      updateData.avatar = formData.value.avatar
+    }
+
+    await updateWxUserInfo(updateData)
+
+    uni.hideLoading()
+    uni.showToast({
+      title: '保存成功',
+      icon: 'success',
+      duration: 1500
+    })
+
+    hasChanges.value = false
+    
+    // 刷新用户信息
+    setTimeout(() => {
+      loadUserInfo()
+    }, 500)
+  } catch (error) {
+    console.error('保存失败:', error)
+    uni.hideLoading()
+    uni.showToast({
+      title: '保存失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 格式化日期
+const formatDate = (dateString) => {
+  if (!dateString) return '未知'
+  const date = new Date(dateString)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+onMounted(() => {
+  loadUserInfo()
+  loadFamilyInfo()
+})
+</script>
+
+<style lang="scss" scoped>
+.page {
+  min-height: 100vh;
+  background-color: v-bind('themeConfig.bgPrimary');
+  padding-bottom: 120rpx;
+  transition: background-color 0.3s ease;
+}
+
+// 头部区域
+.header-section {
+  height: 400rpx;
+  background: v-bind('themeConfig.primaryGradient');
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+    animation: pulse 3s ease-in-out infinite;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+.avatar-container {
+  position: relative;
+  z-index: 1;
+}
+
+.avatar {
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: 50%;
+  border: 6rpx solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.avatar-ring {
+  position: absolute;
+  top: -10rpx;
+  left: -10rpx;
+  right: -10rpx;
+  bottom: -10rpx;
+  border-radius: 50%;
+  border: 3rpx solid v-bind('themeConfig.primaryColor');
+  opacity: 0.6;
+  animation: breathe 2s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+}
+
+.camera-badge {
+  position: absolute;
+  bottom: 10rpx;
+  right: 10rpx;
+  width: 60rpx;
+  height: 60rpx;
+  background: v-bind('themeConfig.primaryColor');
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  
+  .camera-icon {
+    font-size: 32rpx;
+  }
+}
+
+// 信息卡片
+.info-card {
+  margin: 20rpx;
+  padding: 30rpx;
+  background: v-bind('themeConfig.cardBg');
+  backdrop-filter: blur(10px);
+  border: 1px solid v-bind('themeConfig.cardBorder');
+  border-radius: 16rpx;
+  box-shadow: v-bind('themeConfig.shadowLight');
+  transition: all 0.3s ease;
+}
+
+.card-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: v-bind('themeConfig.textPrimary');
+  margin-bottom: 24rpx;
+  padding-bottom: 16rpx;
+  border-bottom: 2rpx solid v-bind('themeConfig.borderColor');
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid v-bind('themeConfig.borderColor');
+  transition: background 0.2s ease;
+  
+  &:last-child {
+    border-bottom: none;
+  }
+  
+  &:not(.readonly):active {
+    background: v-bind('themeConfig.inputBg');
+  }
+  
+  .label {
+    font-size: 28rpx;
+    color: v-bind('themeConfig.textSecondary');
+    flex-shrink: 0;
+  }
+  
+  .value-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12rpx;
+  }
+  
+  .value {
+    font-size: 28rpx;
+    color: v-bind('themeConfig.textPrimary');
+    text-align: right;
+  }
+  
+  .readonly-value {
+    color: v-bind('themeConfig.textSecondary');
+  }
+  
+  .input-field {
+    flex: 1;
+    text-align: right;
+    font-size: 28rpx;
+    color: v-bind('themeConfig.primaryColor');
+    background: transparent;
+    border: none;
+    outline: none;
+  }
+  
+  .edit-icon {
+    font-size: 24rpx;
+    opacity: 0.6;
+  }
+  
+  .arrow {
+    font-size: 28rpx;
+    color: v-bind('themeConfig.textSecondary');
+  }
+  
+  .family-badge {
+    color: v-bind('themeConfig.primaryColor');
+    font-weight: 600;
+  }
+}
+
+.role-badge {
+  padding: 8rpx 20rpx;
+  background: v-bind('themeConfig.inputBg');
+  border: 1px solid v-bind('themeConfig.borderColor');
+  border-radius: 20rpx;
+  
+  text {
+    font-size: 24rpx;
+    color: v-bind('themeConfig.textSecondary');
+  }
+  
+  &.admin {
+    background: v-bind('themeConfig.primaryColor + "1a"');
+    border-color: v-bind('themeConfig.primaryColor + "4d"');
+    
+    text {
+      color: v-bind('themeConfig.primaryColor');
+      font-weight: 600;
+    }
+  }
+}
+
+// 操作按钮
+.action-buttons {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20rpx;
+  background: v-bind('themeConfig.bgPrimary');
+  border-top: 1px solid v-bind('themeConfig.borderColor');
+  display: flex;
+  gap: 20rpx;
+  z-index: 100;
+}
+
+.cancel-btn,
+.save-btn {
+  flex: 1;
+  height: 88rpx;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  
+  text {
+    font-size: 32rpx;
+    font-weight: 600;
+  }
+  
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+.cancel-btn {
+  background: v-bind('themeConfig.inputBg');
+  border: 1px solid v-bind('themeConfig.borderColor');
+  
+  text {
+    color: v-bind('themeConfig.textSecondary');
+  }
+}
+
+.save-btn {
+  background: v-bind('themeConfig.primaryGradient');
+  box-shadow: 0 4px 16px v-bind('themeConfig.primaryColor + "40"');
+  
+  text {
+    color: #ffffff;
+  }
+}
+
+// 玻璃拟态效果
+.glass-card {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+// 性别选择器
+.gender-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.gender-selector {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: v-bind('themeConfig.cardBg');
+  border-radius: 32rpx 32rpx 0 0;
+  z-index: 1000;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  
+  &.show {
+    transform: translateY(0);
+  }
+}
+
+.selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 40rpx;
+  border-bottom: 1px solid v-bind('themeConfig.borderColor');
+  
+  .title {
+    font-size: 36rpx;
+    font-weight: 700;
+    color: v-bind('themeConfig.textPrimary');
+  }
+  
+  .close-btn {
+    width: 60rpx;
+    height: 60rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    &:active {
+      opacity: 0.6;
+    }
+    
+    text {
+      font-size: 40rpx;
+      color: v-bind('themeConfig.textSecondary');
+    }
+  }
+}
+
+.gender-options {
+  padding: 20rpx;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.gender-option {
+  display: flex;
+  align-items: center;
+  padding: 32rpx 30rpx;
+  margin-bottom: 16rpx;
+  background: v-bind('themeConfig.inputBg');
+  border: 2rpx solid v-bind('themeConfig.borderColor');
+  border-radius: 20rpx;
+  transition: all 0.3s ease;
+  position: relative;
+  
+  &:active {
+    transform: scale(0.98);
+  }
+  
+  &.active {
+    background: v-bind('themeConfig.primaryColor + "1a"');
+    border-color: v-bind('themeConfig.primaryColor');
+  }
+  
+  .option-icon {
+    font-size: 48rpx;
+    margin-right: 24rpx;
+  }
+  
+  .option-label {
+    flex: 1;
+    font-size: 32rpx;
+    color: v-bind('themeConfig.textPrimary');
+    font-weight: 500;
+  }
+  
+  .check-icon {
+    width: 48rpx;
+    height: 48rpx;
+    background: v-bind('themeConfig.primaryColor');
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    text {
+      font-size: 28rpx;
+      color: #ffffff;
+      font-weight: bold;
+    }
+  }
+}
+</style>

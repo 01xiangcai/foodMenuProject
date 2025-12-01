@@ -323,7 +323,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, onMounted, reactive, ref } from 'vue';
+import { computed, h, onMounted, reactive, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import {
   NButton,
   NDatePicker,
@@ -379,6 +380,7 @@ type OrderFilters = {
 
 const message = useMessage();
 const dialog = useDialog();
+const route = useRoute();
 
 // 家庭相关
 const families = ref<any[]>([]);
@@ -624,6 +626,28 @@ const openDetail = async (id: number) => {
   if (order) {
     detailModal.data = order;
     detailModal.show = true;
+  } else {
+    // 如果订单不在当前列表中，尝试通过订单号查找
+    // 先加载订单，然后筛选
+    await loadOrders(true);
+    const foundOrder = orders.value.find((o) => o.id === id);
+    if (foundOrder) {
+      detailModal.data = foundOrder;
+      detailModal.show = true;
+    }
+  }
+};
+
+// 处理从订单流跳转过来的订单
+const handleOrderFromStream = async (orderId: number) => {
+  // 先加载订单
+  await loadOrders(true);
+  // 查找并打开详情
+  await openDetail(orderId);
+  // 设置筛选条件，只显示该订单
+  const order = orders.value.find((o) => o.id === orderId);
+  if (order) {
+    filters.keyword = order.orderNumber;
   }
 };
 
@@ -652,7 +676,27 @@ onMounted(async () => {
   if (isSuperAdmin.value) {
     await loadFamilies();
   }
-  loadOrders();
+  await loadOrders();
+  
+  // 检查是否有从订单流跳转过来的订单ID
+  const orderId = route.query.orderId;
+  if (orderId) {
+    const id = parseInt(orderId as string, 10);
+    if (!isNaN(id)) {
+      // 等待订单加载完成后，筛选并打开详情
+      await handleOrderFromStream(id);
+    }
+  }
+});
+
+// 监听路由变化，处理订单ID参数
+watch(() => route.query.orderId, async (newOrderId) => {
+  if (newOrderId) {
+    const id = parseInt(newOrderId as string, 10);
+    if (!isNaN(id)) {
+      await handleOrderFromStream(id);
+    }
+  }
 });
 </script>
 

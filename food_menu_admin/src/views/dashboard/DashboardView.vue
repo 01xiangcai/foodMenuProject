@@ -118,12 +118,31 @@ const dishOption = computed(() => {
     xAxis: {
       type: 'category' as const,
       data: labels,
-      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.4)' } }
+      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.4)' } },
+      axisLabel: {
+        show: true,
+        color: 'rgba(0,0,0,0.65)',
+        fontSize: 12,
+        rotate: labels.length > 6 ? 15 : 0,
+        interval: 0
+      }
     },
     yAxis: {
       type: 'value' as const,
       axisLine: { show: false },
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } }
+      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
+      axisLabel: {
+        show: true,
+        color: 'rgba(0,0,0,0.65)',
+        fontSize: 11,
+        margin: 8,
+        formatter: (value: number) => {
+          // 如果是整数才显示，避免小数标签过多
+          return Number.isInteger(value) ? value.toString() : '';
+        }
+      },
+      minInterval: 1, // 最小间隔为1，避免显示过多标签
+      splitNumber: 5 // 最多显示5个刻度
     },
     series: [
       {
@@ -136,7 +155,22 @@ const dishOption = computed(() => {
         areaStyle: {
           color: 'rgba(20, 184, 255, 0.2)'
         },
-        data
+        data,
+        label: {
+          show: true,
+          position: 'top',
+          color: '#14b8ff',
+          fontSize: 12,
+          fontWeight: 'bold',
+          formatter: (params: any) => {
+            return params.value !== null && params.value !== undefined ? params.value : '';
+          }
+        },
+        symbol: 'circle',
+        symbolSize: 6,
+        itemStyle: {
+          color: '#14b8ff'
+        }
       },
       {
         type: 'bar' as const,
@@ -148,6 +182,9 @@ const dishOption = computed(() => {
             { offset: 0, color: '#a855f7' },
             { offset: 1, color: 'rgba(168, 85, 247, 0.2)' }
           ])
+        },
+        label: {
+          show: false
         }
       }
     ]

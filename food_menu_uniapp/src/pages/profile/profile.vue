@@ -8,8 +8,9 @@
         <text class="phone" v-if="isLoggedIn">{{ userInfo.phone || '' }}</text>
         <text class="phone" v-else>点击登录</text>
       </view>
-      <view v-if="isLoggedIn" class="edit-btn" @tap.stop="editProfile">
-        <text>编辑</text>
+      <view v-if="isLoggedIn" class="info-icon-btn" @tap.stop="goToPersonalInfo">
+        <text class="icon">👤</text>
+        <text class="label">个人信息</text>
       </view>
       <view v-else class="login-btn" @tap.stop="goToLogin">
         <text>登录</text>
@@ -299,6 +300,13 @@ const handleUserCardClick = () => {
 }
 
 // 跳转登录
+// 跳转到个人信息页面
+const goToPersonalInfo = () => {
+  uni.navigateTo({
+    url: '/pages/profile/personal-info'
+  })
+}
+
 const goToLogin = () => {
   uni.navigateTo({
     url: '/pages/login/login'
@@ -572,15 +580,58 @@ onMounted(() => {
   border: 1px solid v-bind('themeConfig.primaryColor + "4d"');
   border-radius: 30rpx;
   transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
   
   &:active {
     transform: scale(0.95);
   }
   
+  .label,
   text {
     font-size: 26rpx;
     color: v-bind('themeConfig.primaryColor');
     transition: color 0.3s ease;
+  }
+  
+  .arrow {
+    font-size: 32rpx;
+    font-weight: bold;
+    color: v-bind('themeConfig.primaryColor');
+    transition: transform 0.3s ease;
+  }
+}
+
+.info-icon-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4rpx;
+  transition: all 0.3s ease;
+  
+  &:active {
+    transform: scale(0.95);
+    opacity: 0.7;
+  }
+
+  .icon {
+    width: 56rpx;
+    height: 56rpx;
+    background: v-bind('themeConfig.inputBg');
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28rpx;
+    line-height: 1;
+  }
+  
+  .label {
+    font-size: 20rpx;
+    color: v-bind('themeConfig.textTertiary');
+    line-height: 1;
+    white-space: nowrap;
   }
 }
 

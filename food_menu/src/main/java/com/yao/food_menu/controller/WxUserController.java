@@ -266,6 +266,10 @@ public class WxUserController {
             if (StringUtils.hasText(updateUserDto.getPhone())) {
                 user.setPhone(updateUserDto.getPhone());
             }
+            // 更新性别字段
+            if (updateUserDto.getGender() != null) {
+                user.setGender(updateUserDto.getGender());
+            }
 
             wxUserService.updateById(user);
             return Result.success("更新成功");
