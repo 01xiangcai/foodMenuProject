@@ -38,6 +38,15 @@ public class Orders implements Serializable {
     // 订单状态: 0-待处理, 1-准备中, 2-配送中, 3-已完成, 4-已取消
     private Integer status;
 
+    // 接单时间
+    private LocalDateTime acceptTime;
+
+    // 配送时间
+    private LocalDateTime deliveryTime;
+
+    // 完成时间
+    private LocalDateTime completeTime;
+
     // 备注
     private String remark;
 

@@ -107,6 +107,20 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
 
         Integer oldStatus = orders.getStatus();
         orders.setStatus(status);
+        
+        // 根据状态记录对应的时间
+        LocalDateTime now = LocalDateTime.now();
+        if (status == 1 && oldStatus != 1) {
+            // 接单
+            orders.setAcceptTime(now);
+        } else if (status == 2 && oldStatus != 2) {
+            // 开始配送
+            orders.setDeliveryTime(now);
+        } else if (status == 3 && oldStatus != 3) {
+            // 订单完成
+            orders.setCompleteTime(now);
+        }
+        
         this.updateById(orders);
 
         log.info("Order status updated: {} -> {}", id, status);

@@ -304,9 +304,9 @@
             <h3 class="section-title">⏱️ 操作记录</h3>
             <NTimeline>
               <NTimelineItem type="success" title="订单创建" :time="formatTime(detailModal.data.createTime)" />
-              <NTimelineItem v-if="detailModal.data.status >= 1" type="info" title="商家接单" />
-              <NTimelineItem v-if="detailModal.data.status >= 2" type="warning" title="开始配送" />
-              <NTimelineItem v-if="detailModal.data.status === 3" type="success" title="订单完成" />
+              <NTimelineItem v-if="detailModal.data.status >= 1" type="info" title="商家接单" :time="formatTime(detailModal.data.acceptTime)" />
+              <NTimelineItem v-if="detailModal.data.status >= 2" type="warning" title="开始配送" :time="formatTime(detailModal.data.deliveryTime)" />
+              <NTimelineItem v-if="detailModal.data.status === 3" type="success" title="订单完成" :time="formatTime(detailModal.data.completeTime)" />
               <NTimelineItem v-if="detailModal.data.status === 4" type="error" title="订单取消" />
             </NTimeline>
           </div>
@@ -361,6 +361,9 @@ type OrderRecord = {
   remark?: string;
   createTime: string;
   updateTime: string;
+  acceptTime?: string;
+  deliveryTime?: string;
+  completeTime?: string;
   orderItems: OrderItemRecord[];
   // User information
   userNickname?: string;
