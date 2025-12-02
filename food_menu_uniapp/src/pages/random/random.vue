@@ -77,66 +77,85 @@
         <text class="filter-text">{{ filterVisible ? '收起筛选' : '展开筛选' }}</text>
       </view>
       
-      <!-- 随机动画区域 -->
-      <view class="random-area" v-if="!currentDish || animating">
-        <view class="card-container" :class="{ animating: animating }">
-          <view class="card" v-for="i in 5" :key="i" :style="getCardStyle(i)">
-            <view class="card-back">
-              <text class="card-icon" :class="{ rotating: animating }">🎲</text>
-              <text class="card-text">随机点餐</text>
-            </view>
+    <!-- 随机动画区域 -->
+    <view class="random-area" v-if="!currentDish || animating">
+      <view class="cube-container">
+        <view class="cube" :class="{ spinning: animating }">
+          <view class="face front">
+            <text class="face-icon">🍜</text>
+          </view>
+          <view class="face back">
+            <text class="face-icon">�</text>
+          </view>
+          <view class="face right">
+            <text class="face-icon">🍱</text>
+          </view>
+          <view class="face left">
+            <text class="face-icon">🍔</text>
+          </view>
+          <view class="face top">
+            <text class="face-icon">🥘</text>
+          </view>
+          <view class="face bottom">
+            <text class="face-icon">�</text>
           </view>
         </view>
-        <text class="hint-text" v-if="!animating">点击下方按钮开始随机</text>
+        <!-- 底部光环 -->
+        <view class="glow-ring" :class="{ pulsing: animating }"></view>
+      </view>
+      <text class="hint-text" v-if="!animating">点击下方看看今天吃什么呀</text>
+    </view>
+    
+    <!-- 结果展示区 -->
+    <view class="result-area" v-if="currentDish && !animating">
+      <view class="dish-card">
+        <image class="dish-image" :src="getDishImage(currentDish)" mode="aspectFill" />
+        <view class="dish-info">
+          <text class="dish-name">{{ currentDish.name }}</text>
+          <view class="dish-tags" v-if="currentDish.tags">
+            <view class="tag" v-for="(tag, index) in parseTags(currentDish.tags)" :key="index">
+              <text>{{ tag }}</text>
+            </view>
+          </view>
+          <text class="dish-desc">{{ currentDish.description || '暂无描述' }}</text>
+          <view class="dish-price">
+            <text class="price-symbol">¥</text>
+            <text class="price-value">{{ currentDish.price }}</text>
+            <text class="price-unit">/份</text>
+          </view>
+        </view>
       </view>
       
-      <!-- 结果展示区 -->
-      <view class="result-area" v-if="currentDish && !animating">
-        <view class="dish-card">
-          <image class="dish-image" :src="getDishImage(currentDish)" mode="aspectFill" />
-          <view class="dish-info">
-            <text class="dish-name">{{ currentDish.name }}</text>
-            <view class="dish-tags" v-if="currentDish.tags">
-              <view class="tag" v-for="(tag, index) in parseTags(currentDish.tags)" :key="index">
-                <text>{{ tag }}</text>
-              </view>
-            </view>
-            <text class="dish-desc">{{ currentDish.description || '暂无描述' }}</text>
-            <view class="dish-price">
-              <text class="price-symbol">¥</text>
-              <text class="price-value">{{ currentDish.price }}</text>
-              <text class="price-unit">/份</text>
-            </view>
-          </view>
+      <!-- 操作按钮 -->
+      <view class="action-buttons">
+        <view class="action-btn secondary" @tap="goToDetail">
+          <text>查看详情</text>
         </view>
-        
-        <!-- 操作按钮 -->
-        <view class="action-buttons">
-          <view class="action-btn secondary" @tap="goToDetail">
-            <text>查看详情</text>
-          </view>
-          <view class="action-btn primary" @tap="addToCart">
-            <text>加入购物车</text>
-          </view>
+        <view class="action-btn primary" @tap="addToCart">
+          <text>加入购物车</text>
         </view>
-      </view>
-      
-      <!-- 随机按钮 -->
-      <view class="random-button" @tap="startRandom" :class="{ disabled: loading, loading: loading }">
-        <text class="button-icon">🎲</text>
-        <text class="button-text">{{ loading ? '随机中...' : (currentDish ? '再来一次' : '开始随机') }}</text>
       </view>
     </view>
+    
+    <!-- 随机按钮 -->
+    <view class="random-button" @tap="startRandom" :class="{ disabled: loading, loading: loading }">
+      <text class="button-icon">🎲</text>
+      <text class="button-text">{{ loading ? '正在挑选...' : (currentDish ? '再来一次' : '随机挑选') }}</text>
+    </view>
   </view>
+</view>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { getRandomDish, getRandomDishWithFilter, getRandomFilterOptions } from '@/api/index'
 import { useCartStore } from '@/stores/cart'
+import { useTheme } from '@/stores/theme'
 import { getDishImage } from '@/utils/image'
 
 const cartStore = useCartStore()
+const { themeConfig, loadTheme } = useTheme()
 
 // 状态
 const loading = ref(false)
@@ -186,6 +205,7 @@ const startRandom = async () => {
   
   loading.value = true
   animating.value = true
+  currentDish.value = null // 清除当前结果以显示动画
   
   try {
     // 构建筛选条件
@@ -202,37 +222,34 @@ const startRandom = async () => {
       ? await getRandomDishWithFilter(filterData)
       : await getRandomDish()
     
-    if (res.data) {
-      // 延迟显示结果(等待动画)
-      setTimeout(() => {
+    // 确保动画至少播放1.5秒
+    setTimeout(() => {
+      if (res.data) {
         currentDish.value = res.data
-        animating.value = false
-        
-        // 添加到排除列表
         addToExcludeList(res.data.id)
-        
         uni.showToast({
-          title: '随机成功!',
+          title: '挑选成功!',
           icon: 'success',
           duration: 1500
         })
-      }, 2000)
-    } else {
+      } else {
+        uni.showToast({
+          title: res.msg || '没有符合条件的菜品',
+          icon: 'none'
+        })
+      }
       animating.value = false
-      uni.showToast({
-        title: res.msg || '没有符合条件的菜品',
-        icon: 'none'
-      })
-    }
+      loading.value = false
+    }, 1500)
+    
   } catch (error) {
     animating.value = false
+    loading.value = false
     console.error('随机失败:', error)
     uni.showToast({
       title: '随机失败,请重试',
       icon: 'none'
     })
-  } finally {
-    loading.value = false
   }
 }
 
@@ -314,20 +331,6 @@ const parseTags = (tags) => {
   return typeof tags === 'string' ? tags.split(/[,，]/).filter(Boolean) : []
 }
 
-// 卡片样式
-const getCardStyle = (index) => {
-  if (!animating.value) {
-    return {
-      transform: `translateX(${(index - 3) * 20}rpx) scale(${1 - Math.abs(index - 3) * 0.1})`,
-      opacity: 1 - Math.abs(index - 3) * 0.2,
-      zIndex: 5 - Math.abs(index - 3)
-    }
-  }
-  return {
-    animation: `cardFlip 0.5s ease ${index * 0.1}s`
-  }
-}
-
 // 加入购物车
 const addToCart = () => {
   if (!currentDish.value) return
@@ -348,27 +351,33 @@ const goToDetail = () => {
   })
 }
 
+onShow(() => {
+  loadTheme()
+})
+
 onMounted(() => {
   loadFilterOptions()
   loadExcludeList()
 })
+
 </script>
 
 <style lang="scss" scoped>
 .page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  background-color: v-bind('themeConfig.bgPrimary');
   padding: 20rpx;
+  transition: background-color 0.3s ease;
 }
 
 /* 筛选面板 */
 .filter-section {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(20px);
+  background: v-bind('themeConfig.cardBg');
   border-radius: 24rpx;
   padding: 30rpx;
   margin-bottom: 20rpx;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid v-bind('themeConfig.borderColor');
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 }
 
 .filter-header {
@@ -381,7 +390,7 @@ onMounted(() => {
 .filter-title {
   font-size: 32rpx;
   font-weight: 700;
-  color: #fff;
+  color: v-bind('themeConfig.textPrimary');
 }
 
 .filter-actions {
@@ -398,8 +407,8 @@ onMounted(() => {
 }
 
 .reset-btn {
-  color: #94a3b8;
-  background: rgba(148, 163, 184, 0.1);
+  color: v-bind('themeConfig.textSecondary');
+  background: v-bind('themeConfig.bgTertiary');
 }
 
 .confirm-btn {
@@ -414,7 +423,7 @@ onMounted(() => {
 .filter-label {
   display: block;
   font-size: 28rpx;
-  color: #cbd5e1;
+  color: v-bind('themeConfig.textSecondary');
   margin-bottom: 16rpx;
   font-weight: 600;
 }
@@ -437,7 +446,7 @@ onMounted(() => {
 }
 
 .price-separator {
-  color: #64748b;
+  color: v-bind('themeConfig.textSecondary');
   font-size: 24rpx;
 }
 
@@ -453,9 +462,9 @@ onMounted(() => {
   padding: 12rpx 24rpx;
   border-radius: 20rpx;
   font-size: 26rpx;
-  color: #cbd5e1;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: v-bind('themeConfig.textSecondary');
+  background: v-bind('themeConfig.bgTertiary');
+  border: 1px solid v-bind('themeConfig.borderColor');
   transition: all 0.3s;
   
   &.active {
@@ -476,11 +485,11 @@ onMounted(() => {
   justify-content: center;
   gap: 12rpx;
   padding: 20rpx;
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(20px);
+  background: v-bind('themeConfig.cardBg');
   border-radius: 24rpx;
   margin-bottom: 30rpx;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid v-bind('themeConfig.borderColor');
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 }
 
 .filter-icon {
@@ -489,7 +498,7 @@ onMounted(() => {
 
 .filter-text {
   font-size: 28rpx;
-  color: #cbd5e1;
+  color: v-bind('themeConfig.textSecondary');
   font-weight: 600;
 }
 
@@ -501,88 +510,123 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   margin-bottom: 30rpx;
+  perspective: 1000px; /* 3D透视 */
 }
 
-.card-container {
+.cube-container {
   position: relative;
-  width: 100%;
-  height: 500rpx;
+  width: 240rpx;
+  height: 240rpx;
   display: flex;
   align-items: center;
   justify-content: center;
+  transform-style: preserve-3d;
 }
 
-.card {
-  position: absolute;
-  width: 280rpx;
-  height: 400rpx;
-  background: linear-gradient(135deg, #1e293b, #334155);
-  border-radius: 24rpx;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  border: 2px solid rgba(20, 184, 255, 0.3);
-  transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.card-back {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20rpx;
-}
-
-.card-icon {
-  font-size: 100rpx;
-  filter: drop-shadow(0 0 20rpx rgba(20, 184, 255, 0.5));
-  transition: transform 0.3s;
+.cube {
+  position: relative;
+  width: 160rpx;
+  height: 160rpx;
+  transform-style: preserve-3d;
+  transform: rotateX(-20deg) rotateY(-20deg);
+  transition: transform 0.5s ease;
   
-  &.rotating {
-    animation: diceRotate 0.6s linear infinite;
+  &.spinning {
+    animation: spinCube 0.6s linear infinite;
   }
 }
 
-.card-text {
-  font-size: 32rpx;
-  color: #14b8ff;
-  font-weight: 700;
-  text-shadow: 0 0 20rpx rgba(20, 184, 255, 0.5);
+.face {
+  position: absolute;
+  width: 160rpx;
+  height: 160rpx;
+  background: v-bind('themeConfig.cardBg');
+  border: 2px solid v-bind('themeConfig.primaryColor');
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 30rpx v-bind('`rgba(${themeConfig.primaryColor === "#14b8ff" ? "20, 184, 255" : "255, 107, 107"}, 0.3)`') inset;
+  backdrop-filter: blur(4px);
+  border-radius: 12rpx;
+  
+  /* 每个面的定位 */
+  &.front  { transform: translateZ(80rpx); }
+  &.back   { transform: rotateY(180deg) translateZ(80rpx); }
+  &.right  { transform: rotateY(90deg) translateZ(80rpx); }
+  &.left   { transform: rotateY(-90deg) translateZ(80rpx); }
+  &.top    { transform: rotateX(90deg) translateZ(80rpx); }
+  &.bottom { transform: rotateX(-90deg) translateZ(80rpx); }
 }
 
-.card-container.animating .card {
-  animation: cardFlip 0.6s ease-in-out;
+.face-icon {
+  font-size: 60rpx;
+  filter: drop-shadow(0 0 10rpx v-bind('`rgba(${themeConfig.primaryColor === "#14b8ff" ? "20, 184, 255" : "255, 107, 107"}, 0.6)`'));
+  animation: pulseIcon 2s infinite ease-in-out;
 }
 
-@keyframes cardFlip {
-  0%, 100% {
-    transform: rotateY(0deg) scale(1);
+/* 底部光环 */
+.glow-ring {
+  position: absolute;
+  bottom: -60rpx;
+  width: 200rpx;
+  height: 60rpx;
+  background: v-bind('`radial-gradient(ellipse at center, ${themeConfig.primaryColor === "#14b8ff" ? "rgba(20, 184, 255, 0.6)" : "rgba(255, 107, 107, 0.6)"} 0%, transparent 70%)`');
+  transform: rotateX(70deg);
+  opacity: 0.6;
+  transition: all 0.3s;
+  
+  &.pulsing {
+    animation: pulseRing 1s infinite alternate;
   }
-  50% {
-    transform: rotateY(180deg) scale(1.1);
-  }
+}
+
+@keyframes spinCube {
+  0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+  100% { transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg); }
+}
+
+@keyframes pulseRing {
+  0% { transform: rotateX(70deg) scale(1); opacity: 0.6; }
+  100% { transform: rotateX(70deg) scale(1.5); opacity: 0.9; }
+}
+
+@keyframes pulseIcon {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.8; }
 }
 
 .hint-text {
-  margin-top: 40rpx;
+  margin-top: 80rpx;
   font-size: 28rpx;
-  color: #64748b;
+  color: v-bind('themeConfig.textSecondary');
   text-align: center;
+  text-shadow: 0 0 10rpx v-bind('`rgba(${themeConfig.primaryColor === "#14b8ff" ? "20, 184, 255" : "255, 107, 107"}, 0.3)`');
+  animation: fadeInOut 2s infinite;
+}
+
+@keyframes fadeInOut {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
 }
 
 /* 结果展示区 */
 .result-area {
   margin-bottom: 30rpx;
+  animation: slideUp 0.5s ease-out;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(40rpx); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .dish-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(20px);
+  background: v-bind('themeConfig.cardBg');
   border-radius: 24rpx;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid v-bind('themeConfig.borderColor');
   margin-bottom: 20rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 }
 
 .dish-image {
@@ -597,7 +641,7 @@ onMounted(() => {
 .dish-name {
   font-size: 36rpx;
   font-weight: 700;
-  color: #fff;
+  color: v-bind('themeConfig.textPrimary');
   margin-bottom: 16rpx;
   display: block;
 }
@@ -607,7 +651,6 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: 12rpx;
   margin-bottom: 16rpx;
-  display: block;
 }
 
 .tag {
@@ -621,7 +664,7 @@ onMounted(() => {
 
 .dish-desc {
   font-size: 26rpx;
-  color: #94a3b8;
+  color: v-bind('themeConfig.textSecondary');
   line-height: 1.6;
   margin-bottom: 20rpx;
   display: block;
@@ -647,7 +690,7 @@ onMounted(() => {
 
 .price-unit {
   font-size: 24rpx;
-  color: #94a3b8;
+  color: v-bind('themeConfig.textSecondary');
 }
 
 /* 操作按钮 */
@@ -671,9 +714,9 @@ onMounted(() => {
   }
   
   &.secondary {
-    background: rgba(255, 255, 255, 0.05);
-    color: #cbd5e1;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: v-bind('themeConfig.bgTertiary');
+    color: v-bind('themeConfig.textPrimary');
+    border: 1px solid v-bind('themeConfig.borderColor');
   }
   
   &:active {
@@ -698,7 +741,7 @@ onMounted(() => {
   }
   
   &.disabled {
-    opacity: 0.6;
+    opacity: 0.8;
     pointer-events: none;
   }
   
@@ -719,32 +762,16 @@ onMounted(() => {
   text-shadow: 0 2px 10rpx rgba(0, 0, 0, 0.3);
 }
 
-/* 骰子旋转动画 */
-@keyframes diceRotate {
-  0% {
-    transform: rotate(0deg) scale(1);
-  }
-  25% {
-    transform: rotate(90deg) scale(1.1);
-  }
-  50% {
-    transform: rotate(180deg) scale(1);
-  }
-  75% {
-    transform: rotate(270deg) scale(1.1);
-  }
-  100% {
-    transform: rotate(360deg) scale(1);
-  }
-}
-
 /* 按钮脉冲动画 */
 @keyframes buttonPulse {
   0%, 100% {
     box-shadow: 0 20px 60px rgba(245, 158, 11, 0.4);
+    transform: scale(1);
   }
   50% {
     box-shadow: 0 20px 80px rgba(245, 158, 11, 0.6);
+    transform: scale(1.02);
   }
 }
 </style>
+```
