@@ -20,6 +20,11 @@
           <text>✕</text>
         </view>
       </view>
+      
+      <!-- 随机点餐按钮 -->
+      <view class="random-btn" @tap="goToRandom">
+        <text class="random-icon">🎲</text>
+      </view>
     </view>
     
     <!-- 内容区域 -->
@@ -458,6 +463,14 @@ const getTagIcon = (tag) => {
   return tagIconMap.value[tag] || '🔸'
 }
 
+// 跳转到随机点餐页面
+const goToRandom = () => {
+  uni.navigateTo({
+    url: '/pages/random/random'
+  })
+}
+
+
 import { onShow } from '@dcloudio/uni-app'
 
 onShow(() => {
@@ -481,6 +494,9 @@ onShow(() => {
 
 /* 搜索框样式 */
 .search-bar {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
   padding: 20rpx;
   background: v-bind('themeConfig.cardBg');
   border-bottom: 1px solid v-bind('themeConfig.borderColor');
@@ -490,6 +506,7 @@ onShow(() => {
 .search-input-wrapper {
   position: relative;
   display: flex;
+  flex: 1;
   align-items: center;
   background: v-bind('themeConfig.inputBg');
   border-radius: 50rpx;
@@ -541,6 +558,29 @@ onShow(() => {
     transform: scale(0.9);
   }
 }
+
+/* 随机点餐按钮 */
+.random-btn {
+  width: 80rpx;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  border-radius: 50%;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.3);
+  transition: all 0.3s ease;
+  
+  &:active {
+    transform: scale(0.9);
+  }
+}
+
+.random-icon {
+  font-size: 40rpx;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
 
 .page-content {
   display: flex;

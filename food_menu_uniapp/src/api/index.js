@@ -318,12 +318,45 @@ export const joinFamily = (inviteCode) => {
     })
 }
 
+
 /**
  * 获取当前用户的家庭信息
  */
 export const getCurrentFamily = () => {
     return request({
         url: '/uniapp/family/current',
+        method: 'GET'
+    })
+}
+
+/**
+ * 快速随机推荐菜品
+ */
+export const getRandomDish = () => {
+    return request({
+        url: '/uniapp/random-dish/quick',
+        method: 'GET'
+    })
+}
+
+/**
+ * 条件筛选随机推荐
+ * @param {Object} filter 筛选条件 { priceMin, priceMax, categoryIds, tags, excludeIds }
+ */
+export const getRandomDishWithFilter = (filter) => {
+    return request({
+        url: '/uniapp/random-dish/filter',
+        method: 'POST',
+        data: filter
+    })
+}
+
+/**
+ * 获取随机筛选选项
+ */
+export const getRandomFilterOptions = () => {
+    return request({
+        url: '/uniapp/random-dish/filter-options',
         method: 'GET'
     })
 }

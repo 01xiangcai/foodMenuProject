@@ -91,6 +91,12 @@
             "style": {
                 "navigationBarTitleText": "加入家庭"
             }
+        },
+        {
+            "path": "pages/random/random",
+            "style": {
+                "navigationBarTitleText": "随机点餐"
+            }
         }
     ],
     "globalStyle": {
