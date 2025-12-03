@@ -30,7 +30,17 @@
           <label>密码</label>
           <div class="input-wrapper">
             <i class="i-tabler-lock input-icon" />
-            <input v-model="password" type="password" placeholder="请输入密码" required />
+            <input 
+              v-model="password" 
+              :type="showPassword ? 'text' : 'password'" 
+              placeholder="请输入密码" 
+              required 
+            />
+            <i 
+              class="password-toggle"
+              :class="showPassword ? 'i-tabler-eye' : 'i-tabler-eye-off'"
+              @click="showPassword = !showPassword"
+            />
           </div>
         </div>
         
@@ -61,6 +71,7 @@ import { useMessage } from 'naive-ui';
 const userStore = useUserStore();
 const username = ref('admin');
 const password = ref('123456');
+const showPassword = ref(false);
 const router = useRouter();
 const message = useMessage();
 
@@ -204,11 +215,26 @@ const handleLogin = async () => {
   color: var(--text-tertiary);
   font-size: 18px;
   transition: color 0.3s;
+  pointer-events: none;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 16px;
+  color: var(--text-tertiary);
+  font-size: 18px;
+  cursor: pointer;
+  transition: color 0.3s;
+  z-index: 2;
+}
+
+.password-toggle:hover {
+  color: var(--text-primary);
 }
 
 input {
   width: 100%;
-  padding: 12px 16px 12px 44px;
+  padding: 12px 44px 12px 44px; /* 右侧留出空间给眼睛图标 */
   border-radius: 12px;
   border: 1px solid var(--border-primary);
   background: var(--bg-body);
