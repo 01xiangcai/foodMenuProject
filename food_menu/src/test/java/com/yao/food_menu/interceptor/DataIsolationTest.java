@@ -5,6 +5,7 @@ import com.yao.food_menu.common.util.JwtUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -14,6 +15,9 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @SpringBootTest
 public class DataIsolationTest {
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @BeforeEach
     public void setUp() {
@@ -28,17 +32,17 @@ public class DataIsolationTest {
     @Test
     public void testJwtTokenGeneration() {
         // 生成包含familyId和role的Token
-        String token = JwtUtil.generateToken(1L, "admin", 1L, 2);
+        String token = jwtUtil.generateToken(1L, "admin", 1L, 2);
 
         // 验证
         assertNotNull(token);
         assertTrue(token.length() > 0);
 
         // 解析Token
-        Long userId = JwtUtil.getUserId(token);
-        String username = JwtUtil.getUsername(token);
-        Long familyId = JwtUtil.getFamilyId(token);
-        Integer role = JwtUtil.getRole(token);
+        Long userId = jwtUtil.getUserId(token);
+        String username = jwtUtil.getUsername(token);
+        Long familyId = jwtUtil.getFamilyId(token);
+        Integer role = jwtUtil.getRole(token);
 
         assertEquals(1L, userId);
         assertEquals("admin", username);
@@ -52,14 +56,14 @@ public class DataIsolationTest {
     @Test
     public void testJwtTokenWithoutFamilyId() {
         // 生成不包含familyId的Token（向后兼容）
-        String token = JwtUtil.generateToken(1L, "admin");
+        String token = jwtUtil.generateToken(1L, "admin");
 
         // 验证
         assertNotNull(token);
 
-        Long userId = JwtUtil.getUserId(token);
-        Long familyId = JwtUtil.getFamilyId(token);
-        Integer role = JwtUtil.getRole(token);
+        Long userId = jwtUtil.getUserId(token);
+        Long familyId = jwtUtil.getFamilyId(token);
+        Integer role = jwtUtil.getRole(token);
 
         assertEquals(1L, userId);
         assertNull(familyId);

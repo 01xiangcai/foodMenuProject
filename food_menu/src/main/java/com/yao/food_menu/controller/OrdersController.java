@@ -64,6 +64,8 @@ public class OrdersController {
      * Submit order
      */
     @Operation(summary = "提交订单", description = "提交订单,自动生成订单号并计算总金额")
+    @com.yao.food_menu.common.annotation.RateLimiter(qps = 3, timeout = 500, message = "订单提交过于频繁，请稍后再试", limitType = com.yao.food_menu.common.annotation.RateLimiter.LimitType.USER)
+    @com.yao.food_menu.common.annotation.PreventDuplicateSubmit(interval = 3000, message = "订单已提交")
     @PostMapping("/submit")
     public Result<Long> submit(@RequestBody OrdersDto ordersDto, @RequestHeader("Authorization") String token) {
         log.info("Submit order: {}", ordersDto);
@@ -408,7 +410,7 @@ public class OrdersController {
                     token = token.substring(7);
                 }
                 try {
-                    userId = JwtUtil.getUserId(token);
+                    userId = jwtUtil.getUserId(token);
                     // 小程序端管理员
                     if (wxUserService.isAdmin(userId)) {
                         isAdmin = true;
@@ -472,7 +474,7 @@ public class OrdersController {
                     token = token.substring(7);
                 }
                 try {
-                    userId = JwtUtil.getUserId(token);
+                    userId = jwtUtil.getUserId(token);
                     if (wxUserService.isAdmin(userId)) {
                         isAdmin = true;
                     }

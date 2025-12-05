@@ -32,6 +32,7 @@ public class UserController {
      * 发送验证码
      */
     @Operation(summary = "发送验证码", description = "向指定手机号发送验证码(测试环境固定为1234)")
+    @com.yao.food_menu.common.annotation.RateLimiter(qps = 1, timeout = 100, message = "验证码发送过于频繁，请稍后再试", limitType = com.yao.food_menu.common.annotation.RateLimiter.LimitType.IP)
     @PostMapping("/sendcode")
     public Result<String> sendCode(@RequestParam String phone) {
         log.info("发送验证码到手机: {}", phone);
@@ -48,6 +49,7 @@ public class UserController {
      * 用户登录
      */
     @Operation(summary = "用户登录", description = "支持用户名/密码登录(type=1)和手机号/验证码登录(type=2)")
+    @com.yao.food_menu.common.annotation.RateLimiter(qps = 5, timeout = 500, message = "登录请求过于频繁，请稍后再试", limitType = com.yao.food_menu.common.annotation.RateLimiter.LimitType.IP)
     @PostMapping("/login")
     public Result<String> login(@RequestBody LoginDto loginDto) {
         log.info("用户登录: {}", loginDto);

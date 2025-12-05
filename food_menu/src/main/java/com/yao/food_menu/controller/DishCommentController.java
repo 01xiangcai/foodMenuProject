@@ -68,6 +68,8 @@ public class DishCommentController {
     }
 
     @Operation(summary = "新增评论", description = "新增菜品评论或回复")
+    @com.yao.food_menu.common.annotation.RateLimiter(qps = 5, timeout = 500, message = "评论发表过于频繁，请稍后再试", limitType = com.yao.food_menu.common.annotation.RateLimiter.LimitType.USER)
+    @com.yao.food_menu.common.annotation.PreventDuplicateSubmit(interval = 2000, message = "评论已提交")
     @PostMapping
     public Result<String> create(@RequestBody DishComment comment,
             @RequestHeader(value = "Authorization", required = false) String token) {
