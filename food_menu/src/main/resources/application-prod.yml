@@ -8,7 +8,9 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/food_menu?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: root
-    password: fTAwMDizF8ExjTGH
+    # 生产环境使用加密密码，启动时通过环境变量JASYPT_ENCRYPTOR_PASSWORD传入解密密钥
+    # 使用JasyptEncryptorTest生成加密值，然后替换为: ENC(加密后的密码)
+    password: ENC(fTAwMDizF8ExjTGH)  # 请替换为实际加密后的值
     hikari:
       # 连接池名称
       pool-name: FoodMenuHikariPool
@@ -58,12 +60,28 @@ springdoc:
   swagger-ui:
     enabled: false
 
+# JWT配置（生产环境）
+jwt:
+  # 生产环境JWT密钥，使用加密配置
+  # 使用JasyptEncryptorTest生成加密值
+  secret: ENC(YourJWTSecretKeyEncrypted)  # 请替换为实际加密后的值
+  expiration-time: 604800000
 
+# Jasypt加密配置（生产环境）
+# 必须通过环境变量或启动参数传入加密密钥
+# export JASYPT_ENCRYPTOR_PASSWORD=FoodMenuSecretKey2024!@#
+# 或: java -jar -Djasypt.encryptor.password=FoodMenuSecretKey2024!@# app.jar
+jasypt:
+  encryptor:
+    algorithm: PBEWithMD5AndDES
+
+# Aliyun OSS Configuration（生产环境）
 aliyun:
   oss:
     endpoint: https://food-menu-yao.oss-cn-shenzhen.aliyuncs.com
-    access-key-id: LTAI5tMRyKmbt7EZRgXjJRTk
-    access-key-secret: ueDZl8rmIIl4aVWzC7vM751eCZv0nf
+    # 生产环境使用加密配置
+    access-key-id: ENC(LTAI5tMRyKmbt7EZRgXjJRTk)  # 请替换为实际加密后的值
+    access-key-secret: ENC(ueDZl8rmIIl4aVWzC7vM751eCZv0nf)  # 请替换为实际加密后的值
     bucket-name: food-menu-yao
     folder: food-menu/
     avatar-folder: avatars/

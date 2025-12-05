@@ -5,6 +5,7 @@ import com.yao.food_menu.common.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -16,6 +17,9 @@ import org.springframework.web.servlet.HandlerInterceptor;
 @Slf4j
 @Component
 public class JwtTokenInterceptor implements HandlerInterceptor {
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
@@ -30,11 +34,11 @@ public class JwtTokenInterceptor implements HandlerInterceptor {
         if (StringUtils.hasText(token)) {
             try {
                 // 验证token
-                if (JwtUtil.validateToken(token)) {
+                if (jwtUtil.validateToken(token)) {
                     // 提取用户信息
-                    Long userId = JwtUtil.getUserId(token);
-                    Long familyId = JwtUtil.getFamilyId(token);
-                    Integer role = JwtUtil.getRole(token);
+                    Long userId = jwtUtil.getUserId(token);
+                    Long familyId = jwtUtil.getFamilyId(token);
+                    Integer role = jwtUtil.getRole(token);
 
                     // 设置到上下文
                     FamilyContext.setUserId(userId);

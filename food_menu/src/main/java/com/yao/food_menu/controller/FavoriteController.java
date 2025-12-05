@@ -27,6 +27,9 @@ public class FavoriteController {
     @Autowired
     private DishFavoriteService dishFavoriteService;
 
+    @Autowired
+    private JwtUtil jwtUtil;
+
     /**
      * Add favorite
      */
@@ -40,7 +43,7 @@ public class FavoriteController {
             if (token.startsWith("Bearer ")) {
                 token = token.substring(7);
             }
-            Long userId = JwtUtil.getUserId(token);
+            Long userId = jwtUtil.getUserId(token);
             
             Long dishId = request.get("dishId");
             if (dishId == null) {
@@ -72,7 +75,7 @@ public class FavoriteController {
             if (token.startsWith("Bearer ")) {
                 token = token.substring(7);
             }
-            Long userId = JwtUtil.getUserId(token);
+            Long userId = jwtUtil.getUserId(token);
             
             boolean result = dishFavoriteService.removeFavorite(userId, dishId);
             if (result) {
@@ -99,7 +102,7 @@ public class FavoriteController {
             if (token.startsWith("Bearer ")) {
                 token = token.substring(7);
             }
-            Long userId = JwtUtil.getUserId(token);
+            Long userId = jwtUtil.getUserId(token);
             
             boolean isFavorite = dishFavoriteService.isFavorite(userId, dishId);
             return Result.success(isFavorite);
@@ -122,7 +125,7 @@ public class FavoriteController {
             if (token.startsWith("Bearer ")) {
                 token = token.substring(7);
             }
-            Long userId = JwtUtil.getUserId(token);
+            Long userId = jwtUtil.getUserId(token);
             
             List<Long> dishIds = request.get("dishIds");
             if (dishIds == null || dishIds.isEmpty()) {
@@ -150,7 +153,7 @@ public class FavoriteController {
             if (token.startsWith("Bearer ")) {
                 token = token.substring(7);
             }
-            Long userId = JwtUtil.getUserId(token);
+            Long userId = jwtUtil.getUserId(token);
             
             List<DishDto> favorites = dishFavoriteService.getFavoriteDishes(userId);
             return Result.success(favorites);
@@ -176,7 +179,7 @@ public class FavoriteController {
             if (token.startsWith("Bearer ")) {
                 token = token.substring(7);
             }
-            Long userId = JwtUtil.getUserId(token);
+            Long userId = jwtUtil.getUserId(token);
             
             Page<DishDto> favoritePage = dishFavoriteService.getFavoriteDishesPage(userId, page, pageSize);
             return Result.success(favoritePage);

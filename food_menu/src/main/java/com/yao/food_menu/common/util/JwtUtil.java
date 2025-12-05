@@ -1,38 +1,56 @@
 package com.yao.food_menu.common.util;
 
+import com.yao.food_menu.common.config.JwtProperties;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
+import jakarta.annotation.PostConstruct;
 import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * JWT Token utility
+ * JWT Token工具类
+ * 从配置文件读取密钥，支持敏感信息加密
  */
+@Component
 public class JwtUtil {
 
-    // Secret key for JWT (should be stored in configuration in production)
-    private static final String SECRET = "YourSecretKeyForJWTTokenGenerationMustBeLongEnough";
-    private static final Key KEY = Keys.hmacShaKeyFor(SECRET.getBytes());
+    @Autowired
+    private JwtProperties jwtProperties;
 
-    // Token expiration time: 7 days
-    private static final long EXPIRATION_TIME = 7 * 24 * 60 * 60 * 1000;
+    private Key key;
+    private long expirationTime;
 
     /**
-     * Generate JWT token
+     * 初始化密钥
      */
-    public static String generateToken(Long userId, String username) {
+    @PostConstruct
+    public void init() {
+        String secret = jwtProperties.getSecret();
+        if (secret == null || secret.length() < 32) {
+            throw new IllegalArgumentException("JWT密钥长度不能小于32个字符，请在配置文件中设置jwt.secret");
+        }
+        this.key = Keys.hmacShaKeyFor(secret.getBytes());
+        this.expirationTime = jwtProperties.getExpirationTime();
+    }
+
+    /**
+     * 生成JWT token
+     */
+    public String generateToken(Long userId, String username) {
         return generateToken(userId, username, null, null);
     }
 
     /**
-     * Generate JWT token with family and role info
+     * 生成JWT token（包含家庭和角色信息）
      */
-    public static String generateToken(Long userId, String username, Long familyId, Integer role) {
+    public String generateToken(Long userId, String username, Long familyId, Integer role) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
         claims.put("username", username);
@@ -49,58 +67,58 @@ public class JwtUtil {
                 .setClaims(claims)
                 .setSubject(username)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
-                .signWith(KEY, SignatureAlgorithm.HS256)
+                .setExpiration(new Date(System.currentTimeMillis() + expirationTime))
+                .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
 
     /**
-     * Parse JWT token
+     * 解析JWT token
      */
-    public static Claims parseToken(String token) {
+    public Claims parseToken(String token) {
         return Jwts.parserBuilder()
-                .setSigningKey(KEY)
+                .setSigningKey(key)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
     }
 
     /**
-     * Get user ID from token
+     * 从token中获取用户ID
      */
-    public static Long getUserId(String token) {
+    public Long getUserId(String token) {
         Claims claims = parseToken(token);
         return claims.get("userId", Long.class);
     }
 
     /**
-     * Get username from token
+     * 从token中获取用户名
      */
-    public static String getUsername(String token) {
+    public String getUsername(String token) {
         Claims claims = parseToken(token);
         return claims.getSubject();
     }
 
     /**
-     * Get family ID from token
+     * 从token中获取家庭ID
      */
-    public static Long getFamilyId(String token) {
+    public Long getFamilyId(String token) {
         Claims claims = parseToken(token);
         return claims.get("familyId", Long.class);
     }
 
     /**
-     * Get user role from token
+     * 从token中获取角色
      */
-    public static Integer getRole(String token) {
+    public Integer getRole(String token) {
         Claims claims = parseToken(token);
         return claims.get("role", Integer.class);
     }
 
     /**
-     * Validate token
+     * 验证token是否有效
      */
-    public static boolean validateToken(String token) {
+    public boolean validateToken(String token) {
         try {
             Claims claims = parseToken(token);
             return claims.getExpiration().after(new Date());

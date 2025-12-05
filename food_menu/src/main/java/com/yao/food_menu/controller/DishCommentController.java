@@ -32,6 +32,9 @@ public class DishCommentController {
     @Autowired
     private OssService ossService;
 
+    @Autowired
+    private JwtUtil jwtUtil;
+
     @Operation(summary = "查询菜品评论", description = "查询指定菜品的评论及回复")
     @GetMapping("/{dishId}")
     public Result<List<DishCommentDto>> list(@PathVariable Long dishId) {
@@ -77,7 +80,7 @@ public class DishCommentController {
                 return Result.error("请先登录");
             }
 
-            Long wxUserId = JwtUtil.getUserId(token);
+            Long wxUserId = jwtUtil.getUserId(token);
             comment.setWxUserId(wxUserId);
 
             // 优先从WxUser获取用户信息

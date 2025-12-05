@@ -25,6 +25,9 @@ public class UserController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private com.yao.food_menu.common.util.JwtUtil jwtUtil;
+
     /**
      * 发送验证码
      */
@@ -72,7 +75,7 @@ public class UserController {
                 token = token.substring(7);
             }
 
-            Long userId = com.yao.food_menu.common.util.JwtUtil.getUserId(token);
+            Long userId = jwtUtil.getUserId(token);
             User user = userService.getCurrentUser(userId);
 
             // 不返回密码
@@ -99,7 +102,7 @@ public class UserController {
                 token = token.substring(7);
             }
 
-            Long userId = com.yao.food_menu.common.util.JwtUtil.getUserId(token);
+            Long userId = jwtUtil.getUserId(token);
             user.setId(userId);
 
             // 不允许更新密码、手机号、状态
@@ -190,7 +193,7 @@ public class UserController {
                 token = token.substring(7);
             }
 
-            Long currentUserId = com.yao.food_menu.common.util.JwtUtil.getUserId(token);
+            Long currentUserId = jwtUtil.getUserId(token);
 
             // 不能删除自己
             if (id.equals(currentUserId)) {

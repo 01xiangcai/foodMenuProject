@@ -8,6 +8,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/food_menu?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: root
+    # 开发环境可以使用明文，生产环境建议加密: ENC(加密后的密码)
     password: root
     hikari:
       # 连接池名称
@@ -76,10 +77,29 @@ file:
       folder: food-menu
       avatar-folder: avatars
 
+# JWT配置
+jwt:
+  # JWT密钥（生产环境建议64位以上，并使用加密）
+  secret: YourJWTSecretKeyForDevelopmentMustBeLongEnoughAndComplexMin64Chars!
+  # Token过期时间（毫秒），默认7天
+  expiration-time: 604800000
+
+# Jasypt加密配置
+# 加密密钥通过环境变量或启动参数传入
+# 环境变量: JASYPT_ENCRYPTOR_PASSWORD
+# 启动参数: -Djasypt.encryptor.password=your_password
+jasypt:
+  encryptor:
+    # 加密算法
+    algorithm: PBEWithMD5AndDES
+    # 开发环境默认密钥（生产环境必须通过环境变量传入）
+    password: DefaultPasswordChangeInProduction
+
 # Aliyun OSS Configuration
 aliyun:
   oss:
     endpoint: https://food-menu-yao.oss-cn-shenzhen.aliyuncs.com
+    # 开发环境可以使用明文，生产环境建议加密: ENC(加密后的key)
     access-key-id: LTAI5tMRyKmbt7EZRgXjJRTk
     access-key-secret: ueDZl8rmIIl4aVWzC7vM751eCZv0nf
     bucket-name: food-menu-yao

@@ -57,6 +57,9 @@ public class OrdersController {
     @Autowired
     private com.yao.food_menu.common.config.LocalStorageProperties localStorageProperties;
 
+    @Autowired
+    private JwtUtil jwtUtil;
+
     /**
      * Submit order
      */
@@ -71,7 +74,7 @@ public class OrdersController {
                 token = token.substring(7);
             }
 
-            Long userId = JwtUtil.getUserId(token);
+            Long userId = jwtUtil.getUserId(token);
             ordersDto.setUserId(userId);
 
             ordersService.submit(ordersDto);
@@ -169,7 +172,7 @@ public class OrdersController {
                 token = token.substring(7);
             }
 
-            Long userId = JwtUtil.getUserId(token);
+            Long userId = jwtUtil.getUserId(token);
             log.info("Query orders for wx_user: {}", userId);
 
             Page<Orders> pageInfo = new Page<>(page, pageSize);
@@ -241,7 +244,7 @@ public class OrdersController {
                 token = token.substring(7);
             }
 
-            Long userId = JwtUtil.getUserId(token);
+            Long userId = jwtUtil.getUserId(token);
 
             Orders orders = ordersService.getById(id);
             if (orders == null) {
@@ -285,7 +288,7 @@ public class OrdersController {
                 token = token.substring(7);
             }
 
-            Long userId = JwtUtil.getUserId(token);
+            Long userId = jwtUtil.getUserId(token);
             if (!wxUserService.isAdmin(userId)) {
                 return Result.error("无权限访问");
             }
@@ -357,7 +360,7 @@ public class OrdersController {
                 token = token.substring(7);
             }
 
-            Long userId = JwtUtil.getUserId(token);
+            Long userId = jwtUtil.getUserId(token);
             if (userId == null) {
                 return Result.error("未登录");
             }

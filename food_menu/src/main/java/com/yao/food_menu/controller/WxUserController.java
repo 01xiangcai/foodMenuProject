@@ -35,6 +35,9 @@ public class WxUserController {
     @Autowired
     private com.yao.food_menu.common.config.FileStorageProperties fileStorageProperties;
 
+    @Autowired
+    private com.yao.food_menu.common.util.JwtUtil jwtUtil;
+
     /**
      * 发送验证码
      */
@@ -123,7 +126,7 @@ public class WxUserController {
             if (token.startsWith("Bearer ")) {
                 token = token.substring(7);
             }
-            Long userId = com.yao.food_menu.common.util.JwtUtil.getUserId(token);
+            Long userId = jwtUtil.getUserId(token);
 
             // 获取用户信息并检查限制
             WxUser user = wxUserService.getById(userId);
@@ -192,7 +195,7 @@ public class WxUserController {
                 token = token.substring(7);
             }
 
-            Long userId = com.yao.food_menu.common.util.JwtUtil.getUserId(token);
+            Long userId = jwtUtil.getUserId(token);
             
             // 标记为查询当前用户自己的信息，跳过数据隔离
             // 这样可以允许用户查询自己的信息，即使还没有绑定家庭
@@ -247,7 +250,7 @@ public class WxUserController {
                 token = token.substring(7);
             }
 
-            Long userId = com.yao.food_menu.common.util.JwtUtil.getUserId(token);
+            Long userId = jwtUtil.getUserId(token);
 
             // 获取当前用户
             WxUser user = wxUserService.getById(userId);

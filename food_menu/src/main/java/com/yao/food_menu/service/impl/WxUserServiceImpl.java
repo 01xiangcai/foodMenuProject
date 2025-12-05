@@ -22,6 +22,9 @@ import java.util.Random;
 @Slf4j
 public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> implements WxUserService {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private JwtUtil jwtUtil;
+
     private static final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     // 模拟验证码存储(生产环境应使用Redis)
@@ -105,7 +108,7 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
         }
 
             // 生成JWT token（包含familyId和role信息）
-            return JwtUtil.generateToken(
+            return jwtUtil.generateToken(
                     user.getId(),
                     user.getUsername() != null ? user.getUsername() : user.getPhone(),
                     user.getFamilyId(),

@@ -27,6 +27,9 @@ public class FamilyControllerForUniapp {
     @Autowired
     private WxUserService wxUserService;
 
+    @Autowired
+    private JwtUtil jwtUtil;
+
     /**
      * 通过邀请码加入家庭
      */
@@ -56,7 +59,7 @@ public class FamilyControllerForUniapp {
 
         // 生成新的Token，包含更新后的familyId
         // 由于这里没有username，暂时使用占位符，因为拦截器主要使用userId和familyId
-        String token = JwtUtil.generateToken(userId, "WechatUser", family.getId(), 0);
+        String token = jwtUtil.generateToken(userId, "WechatUser", family.getId(), 0);
 
         return Result.success(token);
     }
