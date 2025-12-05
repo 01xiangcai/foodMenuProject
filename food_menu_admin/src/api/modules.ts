@@ -221,3 +221,46 @@ export const createFamily = (data: FamilyPayload) => http.post('/admin/family', 
 export const updateFamily = (data: FamilyPayload) => http.put('/admin/family', data);
 export const deleteFamily = (id: number) => http.delete(`/admin/family/${id}`);
 
+// 操作日志
+export type OperationLogQuery = {
+  page: number;
+  pageSize: number;
+  operationType?: string;
+  operationModule?: string;
+  operatorId?: number;
+  operatorName?: string;
+  operatorType?: string;
+  status?: number;
+  familyId?: number | null; // 家庭ID（仅超级管理员可用，用于筛选特定家庭）
+  startTime?: string;
+  endTime?: string;
+  ipAddress?: string;
+};
+
+export type OperationLog = {
+  id: number;
+  operationType: string;
+  operationModule: string;
+  operationDesc: string;
+  methodName: string;
+  requestMethod: string;
+  requestUrl: string;
+  requestParams?: string;
+  responseResult?: string;
+  operatorId: number;
+  operatorName: string;
+  operatorType: string;
+  ipAddress: string;
+  userAgent?: string;
+  executionTime: number;
+  status: number;
+  errorMsg?: string;
+  familyId?: number;
+  createTime: string;
+};
+
+export const fetchOperationLogs = (params: OperationLogQuery) => http.get('/admin/operationLog/page', { params });
+export const fetchOperationLogDetail = (id: number) => http.get(`/admin/operationLog/${id}`);
+export const deleteOperationLog = (id: number) => http.delete(`/admin/operationLog/${id}`);
+export const batchDeleteOperationLogs = (endTime: string) => http.delete('/admin/operationLog/batch', { params: { endTime } });
+

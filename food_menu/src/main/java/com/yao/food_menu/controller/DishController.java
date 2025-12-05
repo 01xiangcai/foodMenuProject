@@ -50,6 +50,11 @@ public class DishController {
     private ObjectMapper objectMapper;
 
     @Operation(summary = "添加菜品", description = "添加菜品及其口味信息")
+    @com.yao.food_menu.common.annotation.OperationLog(
+        operationType = com.yao.food_menu.common.annotation.OperationLog.OperationType.INSERT,
+        operationModule = "菜品",
+        operationDesc = "添加菜品"
+    )
     @PostMapping
     public Result<String> save(@RequestBody DishDto dishDto) {
         log.info("新增菜品请求: {}", dishDto);
@@ -207,6 +212,11 @@ public class DishController {
     }
 
     @Operation(summary = "更新菜品", description = "更新菜品及其口味信息")
+    @com.yao.food_menu.common.annotation.OperationLog(
+        operationType = com.yao.food_menu.common.annotation.OperationLog.OperationType.UPDATE,
+        operationModule = "菜品",
+        operationDesc = "更新菜品"
+    )
     @PutMapping
     public Result<String> update(@RequestBody DishDto dishDto) {
         log.info("更新菜品请求 - 菜品ID: {}, 名称: {}", dishDto.getId(), dishDto.getName());
@@ -222,6 +232,11 @@ public class DishController {
     }
 
     @Operation(summary = "删除菜品", description = "根据ID删除菜品(逻辑删除)")
+    @com.yao.food_menu.common.annotation.OperationLog(
+        operationType = com.yao.food_menu.common.annotation.OperationLog.OperationType.DELETE,
+        operationModule = "菜品",
+        operationDesc = "删除菜品"
+    )
     @DeleteMapping
     public Result<String> delete(Long id) {
         dishService.removeById(id);

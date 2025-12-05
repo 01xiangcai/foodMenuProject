@@ -7,6 +7,8 @@ type UserProfile = {
   name?: string;
   username?: string;
   phone?: string;
+  role?: number; // 角色: 0-普通管理员, 1-家庭管理员, 2-超级管理员
+  familyId?: number; // 家庭ID
 };
 
 export const useUserStore = defineStore('user', () => {

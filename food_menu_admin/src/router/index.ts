@@ -10,6 +10,7 @@ import MigrationView from '@/views/migration/MigrationView.vue';
 import TagsView from '@/views/tags/TagsView.vue';
 import SettingsView from '@/views/settings/SettingsView.vue';
 import FamiliesView from '@/views/families/FamiliesView.vue';
+import OperationLogsView from '@/views/operationLogs/OperationLogsView.vue';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -78,6 +79,12 @@ const routes: RouteRecordRaw[] = [
         name: 'settings',
         component: SettingsView,
         meta: { title: '系统设置' }
+      },
+      {
+        path: 'operationLogs',
+        name: 'operationLogs',
+        component: OperationLogsView,
+        meta: { title: '操作日志' }
       }
     ]
   }

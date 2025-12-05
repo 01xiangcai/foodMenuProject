@@ -50,6 +50,13 @@ public class UserController {
      */
     @Operation(summary = "用户登录", description = "支持用户名/密码登录(type=1)和手机号/验证码登录(type=2)")
     @com.yao.food_menu.common.annotation.RateLimiter(qps = 5, timeout = 500, message = "登录请求过于频繁，请稍后再试", limitType = com.yao.food_menu.common.annotation.RateLimiter.LimitType.IP)
+    @com.yao.food_menu.common.annotation.OperationLog(
+        operationType = com.yao.food_menu.common.annotation.OperationLog.OperationType.LOGIN,
+        operationModule = "用户",
+        operationDesc = "管理员登录",
+        recordParams = true,
+        recordResult = false
+    )
     @PostMapping("/login")
     public Result<String> login(@RequestBody LoginDto loginDto) {
         // 日志中不输出密码等敏感信息，只输出登录类型和用户标识
@@ -101,6 +108,11 @@ public class UserController {
      * 更新用户信息
      */
     @Operation(summary = "更新用户信息", description = "更新当前用户的姓名、头像等信息")
+    @com.yao.food_menu.common.annotation.OperationLog(
+        operationType = com.yao.food_menu.common.annotation.OperationLog.OperationType.UPDATE,
+        operationModule = "用户",
+        operationDesc = "更新用户信息"
+    )
     @PutMapping
     public Result<String> update(@RequestBody User user, @RequestHeader("Authorization") String token) {
         log.info("更新用户信息: {}", user);
@@ -150,6 +162,11 @@ public class UserController {
      * 创建用户(仅管理员)
      */
     @Operation(summary = "创建用户", description = "创建管理员用户")
+    @com.yao.food_menu.common.annotation.OperationLog(
+        operationType = com.yao.food_menu.common.annotation.OperationLog.OperationType.INSERT,
+        operationModule = "用户",
+        operationDesc = "创建管理员用户"
+    )
     @PostMapping
     public Result<String> create(@RequestBody UserDto userDto) {
         log.info("创建用户: {}", userDto);
@@ -171,6 +188,11 @@ public class UserController {
      * 更新用户(管理员)
      */
     @Operation(summary = "更新用户", description = "管理员更新用户信息")
+    @com.yao.food_menu.common.annotation.OperationLog(
+        operationType = com.yao.food_menu.common.annotation.OperationLog.OperationType.UPDATE,
+        operationModule = "用户",
+        operationDesc = "管理员更新用户信息"
+    )
     @PutMapping("/admin/update")
     public Result<String> adminUpdate(@RequestBody UserDto userDto) {
         log.info("管理员更新用户: {}", userDto);

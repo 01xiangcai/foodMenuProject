@@ -66,6 +66,13 @@ public class OrdersController {
     @Operation(summary = "提交订单", description = "提交订单,自动生成订单号并计算总金额")
     @com.yao.food_menu.common.annotation.RateLimiter(qps = 3, timeout = 500, message = "订单提交过于频繁，请稍后再试", limitType = com.yao.food_menu.common.annotation.RateLimiter.LimitType.USER)
     @com.yao.food_menu.common.annotation.PreventDuplicateSubmit(interval = 3000, message = "订单已提交")
+    @com.yao.food_menu.common.annotation.OperationLog(
+        operationType = com.yao.food_menu.common.annotation.OperationLog.OperationType.INSERT,
+        operationModule = "订单",
+        operationDesc = "提交订单",
+        recordParams = true,
+        recordResult = true
+    )
     @PostMapping("/submit")
     public Result<Long> submit(@RequestBody OrdersDto ordersDto, @RequestHeader("Authorization") String token) {
         log.info("Submit order: {}", ordersDto);
@@ -396,6 +403,12 @@ public class OrdersController {
      * Update order status
      */
     @Operation(summary = "更新订单状态", description = "更新订单状态:0-待接单,1-准备中,2-配送中,3-已完成,4-已取消。仅管理员可操作，普通用户仅可取消")
+    @com.yao.food_menu.common.annotation.OperationLog(
+        operationType = com.yao.food_menu.common.annotation.OperationLog.OperationType.UPDATE,
+        operationModule = "订单",
+        operationDesc = "更新订单状态",
+        recordParams = true
+    )
     @PutMapping("/status")
     public Result<String> updateStatus(@RequestParam Long id, @RequestParam Integer status,
             @RequestHeader(value = "Authorization", required = false) String token) {
