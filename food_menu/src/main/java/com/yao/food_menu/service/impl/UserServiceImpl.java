@@ -37,7 +37,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         // 模拟发送验证码
         String code = "1234"; // 测试用固定验证码
         CODE_CACHE.put(phone, code);
-        log.info("验证码已发送到 {}: {}", phone, code);
+        // 验证码是敏感信息，生产环境日志中不应输出明文
+        log.info("验证码已发送到手机号: {}", phone.substring(0, 3) + "****" + phone.substring(7));
+        log.debug("验证码内容(仅开发环境): {}", code);
     }
 
     @Override
@@ -57,19 +59,19 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                 }
                 username = username.trim();
 
-                log.info("尝试登录，用户名: {}", username);
+                log.info("用户尝试密码登录，用户名: {}", username);
 
                 LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
                 queryWrapper.eq(User::getUsername, username);
                 user = this.getOne(queryWrapper);
 
                 if (user == null) {
-                    log.warn("用户不存在，用户名: {}", username);
+                    log.warn("用户登录失败-用户不存在: {}", username);
                     // 尝试直接查询数据库，绕过逻辑删除，用于调试
                     try {
                         User debugUser = this.baseMapper.selectOne(queryWrapper);
                         if (debugUser != null) {
-                            log.warn("找到用户但可能被逻辑删除过滤，用户ID: {}, deleted值: {}",
+                            log.warn("找到用户但被逻辑删除过滤，用户ID: {}, deleted值: {}",
                                     debugUser.getId(), debugUser.getDeleted());
                             log.warn("提示：如果deleted字段为NULL，请执行: UPDATE user SET deleted = 0 WHERE deleted IS NULL");
                         }
@@ -79,17 +81,23 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                     throw new RuntimeException("用户不存在");
                 }
 
-                log.info("找到用户，ID: {}, 用户名: {}, 状态: {}, deleted: {}",
-                        user.getId(), user.getUsername(), user.getStatus(), user.getDeleted());
+                log.debug("找到用户，ID: {}, 用户名: {}, 状态: {}", 
+                        user.getId(), user.getUsername(), user.getStatus());
 
                 if (!passwordEncoder.matches(loginDto.getPassword(), user.getPassword())) {
+                    log.warn("用户登录失败-密码错误: userId={}, username={}", user.getId(), username);
                     throw new RuntimeException("密码错误");
                 }
 
             } else if (type == 2) {
                 // 手机号/验证码登录
+                log.info("用户尝试验证码登录，手机号: {}", 
+                    loginDto.getPhone().substring(0, 3) + "****" + loginDto.getPhone().substring(7));
+                
                 String cachedCode = CODE_CACHE.get(loginDto.getPhone());
                 if (cachedCode == null || !cachedCode.equals(loginDto.getCode())) {
+                    log.warn("验证码登录失败-验证码无效: phone={}", 
+                        loginDto.getPhone().substring(0, 3) + "****" + loginDto.getPhone().substring(7));
                     throw new RuntimeException("验证码无效");
                 }
 
@@ -99,24 +107,33 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
                 // 如果用户不存在则自动注册
                 if (user == null) {
+                    log.info("新用户通过验证码登录，自动注册: phone={}", 
+                        loginDto.getPhone().substring(0, 3) + "****" + loginDto.getPhone().substring(7));
                     user = new User();
                     user.setPhone(loginDto.getPhone());
                     user.setName("用户_" + loginDto.getPhone().substring(7));
                     user.setStatus(1);
                     this.save(user);
+                    log.info("新用户注册成功: userId={}", user.getId());
                 }
 
                 // 清除已使用的验证码
                 CODE_CACHE.remove(loginDto.getPhone());
             } else {
+                log.error("无效的登录类型: {}", type);
                 throw new RuntimeException("无效的登录类型");
             }
 
             if (user.getStatus() == 0) {
+                log.warn("用户已被禁用: userId={}, username={}", user.getId(), user.getUsername());
                 throw new RuntimeException("用户已被禁用");
             }
 
             // 生成JWT token（包含familyId和role信息）
+            log.info("用户登录成功: userId={}, username={}, familyId={}, role={}", 
+                user.getId(), user.getUsername() != null ? user.getUsername() : "手机用户", 
+                user.getFamilyId(), user.getRole());
+            
             return jwtUtil.generateToken(
                     user.getId(),
                     user.getUsername() != null ? user.getUsername() : user.getPhone(),

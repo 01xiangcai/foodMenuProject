@@ -52,13 +52,17 @@ public class UserController {
     @com.yao.food_menu.common.annotation.RateLimiter(qps = 5, timeout = 500, message = "登录请求过于频繁，请稍后再试", limitType = com.yao.food_menu.common.annotation.RateLimiter.LimitType.IP)
     @PostMapping("/login")
     public Result<String> login(@RequestBody LoginDto loginDto) {
-        log.info("用户登录: {}", loginDto);
+        // 日志中不输出密码等敏感信息，只输出登录类型和用户标识
+        log.info("用户登录请求: 登录类型={}, 用户名={}, 手机号={}", 
+            loginDto.getType(), loginDto.getUsername(), 
+            loginDto.getPhone() != null ? loginDto.getPhone().substring(0, 3) + "****" : null);
 
         try {
             String token = userService.login(loginDto);
+            log.info("用户登录成功: 用户名={}", loginDto.getUsername());
             return Result.success(token);
         } catch (Exception e) {
-            log.error("登录失败: {}", e.getMessage());
+            log.warn("用户登录失败: 用户名={}, 原因={}", loginDto.getUsername(), e.getMessage());
             return Result.error(e.getMessage());
         }
     }
@@ -69,7 +73,8 @@ public class UserController {
     @Operation(summary = "获取用户信息", description = "根据Token获取当前登录用户信息")
     @GetMapping("/info")
     public Result<User> getUserInfo(@RequestHeader("Authorization") String token) {
-        log.info("获取用户信息,token: {}", token);
+        // Token是敏感信息，日志中不完整输出
+        log.debug("获取用户信息请求");
 
         try {
             // 移除"Bearer "前缀(如果存在)
@@ -78,14 +83,16 @@ public class UserController {
             }
 
             Long userId = jwtUtil.getUserId(token);
+            log.debug("解析Token成功, userId={}", userId);
             User user = userService.getCurrentUser(userId);
 
             // 不返回密码
             user.setPassword(null);
 
+            log.info("获取用户信息成功: userId={}, username={}", user.getId(), user.getUsername());
             return Result.success(user);
         } catch (Exception e) {
-            log.error("获取用户信息失败: {}", e.getMessage());
+            log.warn("获取用户信息失败: {}", e.getMessage());
             return Result.error("无效的token");
         }
     }

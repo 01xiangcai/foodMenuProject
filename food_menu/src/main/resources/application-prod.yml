@@ -86,3 +86,25 @@ aliyun:
     folder: food-menu/
     avatar-folder: avatars/
     presigned-url-expiration-hours: 24
+
+# 日志配置（生产环境）
+logging:
+  # 日志文件路径
+  file:
+    path: /var/log/food_menu
+  # 日志级别配置
+  level:
+    # 根日志级别（生产环境使用INFO）
+    root: INFO
+    # 应用日志级别
+    com.yao.food_menu: INFO
+    # MyBatis日志级别（生产环境关闭SQL日志）
+    com.yao.food_menu.mapper: WARN
+    # 框架日志级别（减少框架日志）
+    org.springframework: WARN
+    org.springframework.web: WARN
+    org.apache.ibatis: WARN
+    com.baomidou: WARN
+  # 日志输出格式（生产环境不输出到控制台）
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"
