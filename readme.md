@@ -1,102 +1,358 @@
 # 家宴菜单管理系统
 
-一个现代化的家庭菜单管理系统，包含后台管理系统和微信小程序端，支持菜品管理、订单管理、用户管理等功能。
+一个现代化的多家庭菜单管理系统，支持数据隔离、多端访问，包含后台管理系统和小程序端，提供完整的菜品管理、订单管理、用户管理等功能。
 
 ## 📋 目录
 
 - [项目简介](#项目简介)
-- [技术栈](#技术栈)
+- [技术架构](#技术架构)
+- [功能特性](#功能特性)
 - [项目结构](#项目结构)
 - [快速开始](#快速开始)
 - [本地开发](#本地开发)
 - [生产部署](#生产部署)
 - [常见问题](#常见问题)
 
+---
+
 ## 🎯 项目简介
 
-本项目包含三个主要模块：
+**家宴菜单管理系统** 是一个完整的家庭菜单管理解决方案，采用前后端分离架构，支持多家庭数据隔离。
 
-- **后端服务** (`food_menu`)：基于 Spring Boot 的 RESTful API 服务
-- **管理后台** (`food_menu_admin`)：基于 Vue 3 的现代化管理界面
-- **微信小程序** (`food_menu_weixin`)：面向C端用户的点餐小程序
+### 三端架构
 
-### 主要功能
+- **后端服务** (`food_menu`)：基于 Spring Boot 3 的 RESTful API 服务
+- **管理后台** (`food_menu_admin`)：基于 Vue 3 + TypeScript 的现代化管理界面
+- **小程序端** (`food_menu_uniapp`)：基于 Uni-app 的跨平台小程序（支持微信小程序、H5）
 
-#### 管理后台
+### 核心特性
 
-- 🍽️ 菜品分类管理
-- 📝 菜品信息管理（支持图片上传）
-- 📦 订单管理
-- 👥 用户管理（管理员 + 小程序用户）
-- 🎨 轮播图管理
-- 🌓 深色/浅色主题切换
-- 📱 响应式设计
+✅ **多家庭数据隔离** - 基于 family_id 的多租户架构，数据完全隔离  
+✅ **双端用户系统** - 管理员(User) + 小程序用户(WxUser)  
+✅ **灵活存储方案** - 支持阿里云 OSS 和本地存储无缝切换  
+✅ **完善权限控制** - 普通用户、家庭管理员、超级管理员三级权限  
+✅ **JWT 认证** - 安全的 Token 认证机制  
+✅ **友好错误提示** - 全局异常处理，中文错误信息  
 
-#### 微信小程序
+---
 
-- 🏠 首页展示（轮播图、推荐菜品）
-- 🍜 菜品浏览与搜索
-- � 购物车管理
-- 📋 订单下单与查询
-- ❤️ 收藏功能
-- 👤 个人中心
+## 🏗️ 技术架构
 
-## �🛠️ 技术栈
+### 后端技术栈
 
-### 后端
+| 技术 | 版本 | 说明 |
+|------|------|------|
+| Java | 17 | 开发语言 |
+| Spring Boot | 3.3.5 | 核心框架 |
+| MyBatis-Plus | 3.5.7 | ORM 框架 |
+| MySQL | 8.0+ | 数据库 |
+| JWT | 0.11.5 | Token 认证 |
+| Knife4j | 4.5.0 | API 文档 |
+| 阿里云 OSS | 3.17.2 | 图片存储 |
+| Spring Security Crypto | - | 密码加密 |
 
-- Java 17
-- Spring Boot 3.x
-- MyBatis-Plus
-- MySQL 8.0
-- 阿里云 OSS（图片存储）
-- Knife4j（API 文档）
+### 管理后台技术栈
 
-### 管理后台
+| 技术 | 版本 | 说明 |
+|------|------|------|
+| Vue | 3.5+ | 前端框架 |
+| TypeScript | 5.6+ | 开发语言 |
+| Naive UI | 2.38+ | UI 组件库 |
+| Pinia | 2.2+ | 状态管理 |
+| UnoCSS | 0.63+ | 原子化 CSS |
+| ECharts | 5.5+ | 数据可视化 |
+| Vite | 5.4+ | 构建工具 |
+| Vue Router | 4.4+ | 路由管理 |
 
-- Vue 3
-- TypeScript
-- Naive UI
-- Pinia（状态管理）
-- UnoCSS（原子化 CSS）
-- Vite
+### 小程序技术栈
 
-### 微信小程序
+| 技术 | 版本 | 说明 |
+|------|------|------|
+| Uni-app | 3.0 | 跨平台框架 |
+| Vue | 3.4+ | 前端框架 |
+| Pinia | 2.1+ | 状态管理 |
+| Sass | 1.77+ | CSS 预处理器 |
+| Vite | 5.2+ | 构建工具 |
 
-- 微信小程序原生开发
-- ES6+
-- Promise 封装
+---
+
+## 🌟 功能特性
+
+### 管理后台功能
+
+#### 📊 数据看板
+- 订单统计（今日/本周/本月）
+- 菜品统计（总数、热门菜品）
+- 用户统计
+- 订单流可视化
+- 口味网络图
+- 菜品评分趋势
+
+#### 🍽️ 菜品管理
+- 菜品 CRUD（创建、查看、更新、删除）
+- 菜品分类管理
+- 多图片上传
+- 标签管理（低油、高蛋白等）
+- 口味配置
+- 价格、描述、卡路里管理
+- 上下架控制
+
+#### 📦 订单管理
+- 订单列表查看
+- 订单状态管理（待接单、准备中、配送中、已完成）
+- 订单详情查看
+- 订单备注修改
+- 订单时间轴
+
+#### 👥 用户管理
+- 统一用户管理（管理员 + 小程序用户）
+- 用户状态控制（启用/禁用）
+- 角色管理（普通用户、家庭管理员、超级管理员）
+- 密码重置
+- 用户搜索、筛选
+
+#### 🎨 轮播图管理
+- 轮播图 CRUD
+- 图片上传
+- 排序管理
+- 状态控制
+
+#### 🏷️ 标签管理
+- 标签 CRUD
+- 图标配置（emoji）
+- 标签分类
+
+#### 🏠 家庭管理
+- 家庭创建
+- 邀请码生成
+- 家庭成员管理
+- 数据隔离
+
+#### 📸 图片迁移工具
+- OSS ↔ 本地存储双向迁移
+- 批量迁移
+- 进度显示
+
+#### ⚙️ 系统设置
+- 存储方式切换（OSS/本地）
+- 系统配置管理
+
+#### 🌓 主题切换
+- 深色/浅色主题
+- 响应式设计
+
+### 小程序端功能
+
+#### 🏠 首页
+- 轮播图展示
+- 推荐菜品
+- 快速导航
+- 主题切换（6种预设主题）
+
+#### 📋 菜单浏览
+- 按分类浏览菜品
+- 菜品搜索
+- 按标签筛选
+- 菜品详情查看
+- 多图片查看
+
+#### 🛒 购物车
+- 添加/删除菜品
+- 数量调整
+- 价格计算
+- 一键清空
+
+#### 📦 订单管理
+- 确认订单
+- 订单提交
+- 我的订单列表
+- 订单详情查看
+- 订单备注修改
+- 订单取消
+
+#### ❤️ 收藏功能
+- 收藏喜爱的菜品
+- 收藏列表查看
+- 取消收藏
+
+#### 💬 评论功能
+- 菜品评论
+- 查看评论列表
+- 评论回复（支持二级评论）
+
+#### 🎲 随机选菜
+- 随机推荐菜品
+- 按标签筛选（如：低油、快手菜）
+- 按分类筛选
+- 解决"不知道吃什么"的问题
+
+#### 👤 个人中心
+- 个人信息展示
+- 个人信息编辑（昵称、头像、手机号、性别）
+- 头像上传（每日限3次）
+- 家庭信息查看
+- 加入家庭（邀请码）
+- 主题切换
+
+#### 🔐 认证功能
+- 用户名/手机号 + 密码登录
+- 手机号 + 验证码登录
+- 用户注册
+- 自动识别登录方式
+
+---
 
 ## 📁 项目结构
 
 ```
 foodMenuProject/
-├── food_menu/              # 后端服务
+├── food_menu/                    # 后端服务
 │   ├── src/
 │   │   ├── main/
-│   │   │   ├── java/
+│   │   │   ├── java/com/yao/food_menu/
+│   │   │   │   ├── common/          # 公共模块
+│   │   │   │   │   ├── config/      # 配置类（MyBatis-Plus、Knife4j、存储等）
+│   │   │   │   │   ├── context/     # 上下文（家庭上下文）
+│   │   │   │   │   ├── exception/   # 全局异常处理
+│   │   │   │   │   ├── interceptor/ # 拦截器（JWT、数据隔离）
+│   │   │   │   │   └── util/        # 工具类
+│   │   │   │   ├── controller/      # 控制器（16个）
+│   │   │   │   ├── dto/             # 数据传输对象（14个）
+│   │   │   │   ├── entity/          # 实体类（14个）
+│   │   │   │   ├── mapper/          # Mapper 接口（14个）
+│   │   │   │   ├── service/         # 服务接口及实现
+│   │   │   │   │   ├── impl/        # 服务实现类（17个）
+│   │   │   │   │   └── storage/     # 存储策略（本地/OSS）
+│   │   │   │   └── task/            # 定时任务
 │   │   │   └── resources/
-│   │   └── test/
+│   │   │       ├── application.yml          # 开发环境配置
+│   │   │       ├── application-prod.yml     # 生产环境配置
+│   │   │       └── sql/
+│   │   │           └── food_menu.sql        # 数据库表结构
+│   │   └── test/                    # 测试
 │   └── pom.xml
-├── food_menu_admin/        # 管理后台
+│
+├── food_menu_admin/              # 管理后台
 │   ├── src/
-│   │   ├── api/
-│   │   ├── components/
-│   │   ├── layouts/
-│   │   ├── store/
-│   │   ├── styles/
-│   │   └── views/
+│   │   ├── api/                 # API 接口
+│   │   │   ├── http.ts          # Axios 配置
+│   │   │   └── modules.ts       # API 模块
+│   │   ├── components/          # 公共组件
+│   │   │   ├── base/
+│   │   │   │   └── EChart.vue   # ECharts 封装
+│   │   │   ├── FlavorNetwork.vue    # 口味网络图
+│   │   │   ├── OrderStream.vue      # 订单流
+│   │   │   ├── OrderTimeline.vue    # 订单时间轴
+│   │   │   ├── StarDishes.vue       # 明星菜品
+│   │   │   ├── StatCard.vue         # 统计卡片
+│   │   │   └── ThemeToggle.vue      # 主题切换
+│   │   ├── layouts/             # 布局组件
+│   │   │   └── DefaultLayout.vue
+│   │   ├── router/              # 路由配置
+│   │   ├── store/               # 状态管理
+│   │   │   ├── theme.ts         # 主题状态
+│   │   │   └── useUserStore.ts  # 用户状态
+│   │   ├── styles/              # 全局样式
+│   │   ├── views/               # 页面视图
+│   │   │   ├── auth/            # 登录
+│   │   │   ├── dashboard/       # 数据看板
+│   │   │   ├── dishes/          # 菜品管理
+│   │   │   ├── orders/          # 订单管理
+│   │   │   ├── users/           # 用户管理
+│   │   │   ├── banners/         # 轮播图管理
+│   │   │   ├── tags/            # 标签管理
+│   │   │   ├── families/        # 家庭管理
+│   │   │   ├── migration/       # 图片迁移
+│   │   │   └── settings/        # 系统设置
+│   │   └── main.ts
 │   ├── package.json
-│   └── vite.config.ts
-├── food_menu_weixin/       # 微信小程序
-│   ├── pages/
-│   ├── utils/
-│   ├── app.js
-│   ├── app.json
-│   └── project.config.json
-├── deploy.sh               # 一键部署脚本
-└── README.md
+│   ├── vite.config.ts
+│   └── uno.config.ts
+│
+├── food_menu_uniapp/             # 小程序端（Uni-app）
+│   ├── src/
+│   │   ├── api/                 # API 接口
+│   │   │   ├── comment.js       # 评论 API
+│   │   │   └── index.js         # 通用 API
+│   │   ├── components/          # 公共组件
+│   │   │   ├── CartPopup.vue    # 购物车弹窗
+│   │   │   ├── CommentInput.vue # 评论输入
+│   │   │   └── CommentList.vue  # 评论列表
+│   │   ├── pages/               # 页面
+│   │   │   ├── index/           # 首页
+│   │   │   ├── menu/            # 菜单页
+│   │   │   ├── cart/            # 购物车
+│   │   │   ├── order/           # 订单
+│   │   │   │   ├── confirm.vue      # 确认订单
+│   │   │   │   ├── list.vue         # 我的订单
+│   │   │   │   ├── detail.vue       # 订单详情
+│   │   │   │   └── admin-list.vue   # 管理员订单列表
+│   │   │   ├── detail/          # 菜品详情
+│   │   │   ├── favorites/       # 我的收藏
+│   │   │   ├── random/          # 随机选菜
+│   │   │   ├── profile/         # 个人中心
+│   │   │   │   ├── profile.vue      # 个人中心首页
+│   │   │   │   └── personal-info.vue # 个人信息编辑
+│   │   │   ├── login/           # 登录
+│   │   │   ├── register/        # 注册
+│   │   │   └── family/          # 家庭
+│   │   │       └── join.vue         # 加入家庭
+│   │   ├── stores/              # 状态管理
+│   │   │   ├── cart.js          # 购物车状态
+│   │   │   └── theme.js         # 主题状态
+│   │   ├── utils/               # 工具类
+│   │   │   ├── request.js       # 请求封装
+│   │   │   ├── image.js         # 图片工具
+│   │   │   └── theme.js         # 主题工具
+│   │   ├── styles/              # 全局样式
+│   │   ├── static/              # 静态资源
+│   │   ├── pages.json           # 页面配置
+│   │   └── manifest.json        # 应用配置
+│   ├── package.json
+│   └── vite.config.js
+│
+├── deploy.sh                     # 一键部署脚本
+├── nginx-food-menu.conf          # Nginx 配置示例
+└── README.md                     # 项目说明
 ```
+
+---
+
+## 💾 数据库设计
+
+### 核心数据表
+
+| 表名 | 说明 | 关键字段 |
+|------|------|---------|
+| **user** | 管理员用户 | username, password, family_id, role |
+| **wx_user** | 小程序用户 | username, phone, family_id, role, avatar |
+| **family** | 家庭信息 | name, invite_code, description |
+| **dish** | 菜品 | name, category_id, price, tags, image, family_id |
+| **category** | 菜品分类 | name, type, sort, family_id |
+| **dish_tag** | 菜品标签 | name, icon, family_id |
+| **orders** | 订单 | user_id, total_amount, status, family_id |
+| **order_items** | 订单项 | order_id, dish_id, quantity, price |
+| **dish_comment** | 菜品评论 | dish_id, wx_user_id, parent_id, content |
+| **dish_favorite** | 收藏 | wx_user_id, dish_id |
+| **dish_statistics** | 菜品统计 | dish_id, view_count, favorite_count, order_count |
+| **banner** | 轮播图 | image, title, sort, family_id |
+| **system_config** | 系统配置 | config_key, config_value |
+
+### 数据隔离机制
+
+- 使用 `family_id` 字段实现多家庭数据隔离
+- MyBatis-Plus 拦截器自动添加 WHERE 条件
+- 超级管理员 (role=2) 可跨家庭查看数据
+
+### 权限系统
+
+| 角色 | role 值 | 权限范围 |
+|------|---------|---------|
+| 普通用户 | 0 | 仅查看自己家庭数据 |
+| 家庭管理员 | 1 | 管理自己家庭数据 |
+| 超级管理员 | 2 | 管理所有家庭数据 |
+
+---
 
 ## 🚀 快速开始
 
@@ -106,7 +362,6 @@ foodMenuProject/
 - **Node.js**: 18 或更高版本
 - **MySQL**: 8.0 或更高版本
 - **Maven**: 3.6+ （或使用项目自带的 mvnw）
-- **微信开发者工具**: 最新稳定版
 
 ### 克隆项目
 
@@ -114,6 +369,8 @@ foodMenuProject/
 git clone <your-repository-url>
 cd foodMenuProject
 ```
+
+---
 
 ## 💻 本地开发
 
@@ -124,7 +381,7 @@ cd foodMenuProject
 ```sql
 CREATE DATABASE IF NOT EXISTS food_menu DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE food_menu;
-SOURCE /path/to/schema.sql;
+SOURCE food_menu/src/main/resources/sql/food_menu.sql;
 ```
 
 ### 2. 配置后端
@@ -138,6 +395,17 @@ spring:
     username: root
     password: your_password
 
+# 图片存储配置（二选一）
+file-storage:
+  type: local  # 或 oss
+
+# 本地存储配置
+local-storage:
+  base-path: D:/food-menu-storage  # Windows
+  # base-path: /opt/food-menu-storage  # Linux
+  url-prefix: http://localhost:8080/storage
+
+# OSS 存储配置（如果使用 OSS）
 aliyun:
   oss:
     endpoint: your_oss_endpoint
@@ -152,7 +420,7 @@ aliyun:
 cd food_menu
 
 # Windows
-.\mvnw spring-boot:run
+.\mvnw.cmd spring-boot:run
 
 # Linux/Mac
 ./mvnw spring-boot:run
@@ -160,7 +428,7 @@ cd food_menu
 
 后端服务将在 `http://localhost:8080` 启动。
 
-API 文档访问：`http://localhost:8080/doc.html`
+**API 文档访问**：`http://localhost:8080/doc.html`
 
 ### 4. 启动管理后台
 
@@ -172,157 +440,114 @@ npm run dev
 
 管理后台将在 `http://localhost:5173` 启动。
 
-### 5. 启动微信小程序
-
-1. **配置 API 地址**
-
-编辑 `food_menu_weixin/utils/request.js`：
-
-```javascript
-const BASE_URL = 'http://localhost:8080'; // 本地开发
-// const BASE_URL = 'https://your-domain.com/api'; // 生产环境
-```
-
-2. **打开微信开发者工具**
-
-- 导入项目：选择 `food_menu_weixin` 目录
-- AppID：使用测试号或您的小程序 AppID
-- 点击"编译"即可预览
-
-3. **配置合法域名**（生产环境必需）
-
-在微信公众平台 > 开发 > 开发管理 > 开发设置 > 服务器域名中配置：
-
-- request合法域名：`https://your-domain.com`
-- uploadFile合法域名：`https://your-oss-domain.com`
-
-### 6. 默认登录账号
-
-**管理后台**：
-
+**默认登录账号**：
 - 用户名: `admin`
 - 密码: `123456`
 
-**微信小程序**：
-
-- 支持手机号验证码登录（测试环境验证码固定为 `1234`）
-
 > ⚠️ **安全提示**：首次登录后请立即修改默认密码！
+
+### 5. 启动小程序
+
+#### 方式一：微信小程序
+
+1. **配置 API 地址**
+
+编辑 `food_menu_uniapp/src/utils/request.js`：
+
+```javascript
+// 开发环境
+const BASE_URL = 'http://localhost:8080';
+```
+
+2. **安装依赖**
+
+```bash
+cd food_menu_uniapp
+npm install
+```
+
+3. **编译**
+
+```bash
+# 编译到微信小程序
+npm run dev:mp-weixin
+```
+
+4. **打开微信开发者工具**
+
+- 导入项目：选择 `food_menu_uniapp/dist/dev/mp-weixin` 目录
+- AppID：使用测试号或您的小程序 AppID
+- 点击"编译"即可预览
+
+#### 方式二：H5（浏览器预览）
+
+```bash
+cd food_menu_uniapp
+npm run dev:h5
+```
+
+访问 `http://localhost:5174`
+
+**默认登录方式**：
+- 用户名/手机号 + 密码登录
+- 手机号 + 验证码登录（测试环境验证码固定为 `1234`）
+
+---
 
 ## 🌐 生产部署
 
 ### 部署架构
 
 ```
-                    ┌─────────────────┐
-                    │   用户/管理员    │
-                    └────────┬────────┘
-                             │
-                    ┌────────▼────────┐
-                    │  Nginx (80/443) │
-                    └────────┬────────┘
-                             │
-              ┌──────────────┼──────────────┐
-              │              │              │
-    ┌─────────▼────────┐ ┌──▼──────┐ ┌────▼────────┐
-    │  管理后台静态资源 │ │ API代理 │ │ 微信小程序   │
-    │  /var/www/admin  │ │  /api   │ │  (云端)     │
-    └──────────────────┘ └──┬──────┘ └─────────────┘
-                            │
-                    ┌───────▼────────┐
-                    │  后端服务:8080  │
-                    └───────┬────────┘
-                            │
-                    ┌───────▼────────┐
-                    │  MySQL 数据库   │
-                    └────────────────┘
+用户/管理员
+    ↓
+Nginx (80/443)
+    ↓
+    ├─→ /           → 管理后台静态文件 (/var/www/food-menu-admin)
+    ├─→ /api        → 后端API代理 (→ localhost:8080)
+    └─→ 小程序       → 直接访问 API (HTTPS)
+            ↓
+       Spring Boot (8080)
+            ↓
+       MySQL (3306)
+            ↓
+   阿里云 OSS / 本地存储
 ```
 
-### 方式一：手动部署（完整流程）
+### 快速部署步骤
 
-#### 步骤 1：准备服务器
+#### 1. 准备服务器
 
-1. **购买云服务器**（阿里云/腾讯云/华为云等）
-   - 推荐配置：2核4G，40GB硬盘
-   - 操作系统：Ubuntu 20.04 LTS
+- 推荐配置：2核4G，40GB硬盘
+- 操作系统：Ubuntu 20.04 LTS / CentOS 7+
 
-2. **安装必需软件**
+安装必需软件：
 
 ```bash
-# 更新系统
+# Ubuntu
 sudo apt update && sudo apt upgrade -y
+sudo apt install openjdk-17-jdk nginx mysql-server -y
 
-# 安装 Java 17
-sudo apt install openjdk-17-jdk -y
-java -version
-
-# 安装 MySQL
-sudo apt install mysql-server -y
-sudo mysql_secure_installation
-
-# 安装 Nginx
-sudo apt install nginx -y
-
-# 安装 Node.js（用于构建前端）
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt install nodejs -y
-node -v
-npm -v
+# CentOS
+sudo yum update -y
+sudo yum install java-17-openjdk nginx mysql-server -y
 ```
 
-#### 步骤 2：部署后端
-
-1. **创建生产配置**
-
-在 `food_menu/src/main/resources/` 创建 `application-prod.yml`：
-
-```yaml
-server:
-  port: 8080
-
-spring:
-  datasource:
-    url: jdbc:mysql://localhost:3306/food_menu?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
-    username: your_db_user
-    password: your_db_password
-
-# 关闭 Swagger（生产环境）
-knife4j:
-  enable: false
-springdoc:
-  api-docs:
-    enabled: false
-  swagger-ui:
-    enabled: false
-
-aliyun:
-  oss:
-    endpoint: your_oss_endpoint
-    access-key-id: your_access_key_id
-    access-key-secret: your_access_key_secret
-    bucket-name: your_bucket_name
-```
-
-2. **构建 JAR 包**
+#### 2. 部署后端
 
 ```bash
+# 构建 JAR 包
 cd food_menu
 ./mvnw clean package -DskipTests
+
+# 上传到服务器
+scp target/food_menu-0.0.1-SNAPSHOT.jar user@your-server:/opt/food-menu/
+
+# 创建 systemd 服务
+sudo nano /etc/systemd/system/food-menu.service
 ```
 
-生成的 JAR 包：`target/food_menu-0.0.1-SNAPSHOT.jar`
-
-3. **上传到服务器**
-
-```bash
-# 在本地执行
-scp target/food_menu-0.0.1-SNAPSHOT.jar user@your-server-ip:/opt/food-menu/
-scp src/main/resources/application-prod.yml user@your-server-ip:/opt/food-menu/
-```
-
-4. **创建 systemd 服务**
-
-在服务器上创建 `/etc/systemd/system/food-menu.service`：
+服务配置：
 
 ```ini
 [Unit]
@@ -333,17 +558,15 @@ After=network.target mysql.service
 Type=simple
 User=www-data
 WorkingDirectory=/opt/food-menu
-ExecStart=/usr/bin/java -Xms512m -Xmx1024m -jar /opt/food-menu/food_menu-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod --spring.config.additional-location=/opt/food-menu/application-prod.yml
+ExecStart=/usr/bin/java -Xms512m -Xmx1024m -jar /opt/food-menu/food_menu-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
 Restart=on-failure
 RestartSec=10
-StandardOutput=journal
-StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-5. **启动后端服务**
+启动服务：
 
 ```bash
 sudo systemctl daemon-reload
@@ -352,101 +575,19 @@ sudo systemctl start food-menu
 sudo systemctl status food-menu
 ```
 
-查看日志：
+#### 3. 部署管理后台
 
 ```bash
-sudo journalctl -u food-menu -f
-```
-
-#### 步骤 3：部署管理后台
-
-1. **配置生产环境 API 地址**
-
-编辑 `food_menu_admin/src/api/http.ts`：
-
-```typescript
-const http = axios.create({
-  baseURL: process.env.NODE_ENV === 'production' 
-    ? '/api'  // 生产环境通过 Nginx 代理
-    : '/api', // 开发环境通过 Vite 代理
-  timeout: 10000
-});
-```
-
-2. **构建生产版本**
-
-```bash
+# 构建
 cd food_menu_admin
 npm install
 npm run build
+
+# 上传到服务器
+scp -r dist/* user@your-server:/var/www/food-menu-admin/
 ```
 
-3. **上传到服务器**
-
-```bash
-# 在本地执行
-scp -r dist/* user@your-server-ip:/var/www/food-menu-admin/
-```
-
-或在服务器上：
-
-```bash
-sudo mkdir -p /var/www/food-menu-admin
-# 将 dist 内容上传到此目录
-```
-
-#### 步骤 4：部署微信小程序
-
-1. **配置生产环境 API**
-
-编辑 `food_menu_weixin/utils/request.js`：
-
-```javascript
-// 生产环境使用 HTTPS 域名
-const BASE_URL = 'https://your-domain.com/api';
-```
-
-2. **配置小程序 AppID**
-
-编辑 `food_menu_weixin/project.config.json`：
-
-```json
-{
-  "appid": "your-miniprogram-appid",
-  "projectname": "food_menu_weixin"
-}
-```
-
-3. **配置服务器域名**
-
-登录[微信公众平台](https://mp.weixin.qq.com/)：
-
-- 开发 > 开发管理 > 开发设置 > 服务器域名
-- 配置以下域名：
-  - **request合法域名**: `https://your-domain.com`
-  - **uploadFile合法域名**: `https://your-oss-endpoint.com`
-  - **downloadFile合法域名**: `https://your-oss-endpoint.com`
-
-4. **上传小程序代码**
-
-使用微信开发者工具：
-
-- 打开项目 `food_menu_weixin`
-- 点击右上角"上传"
-- 填写版本号和项目备注
-- 上传成功后，登录微信公众平台提交审核
-
-5. **提交审核**
-
-- 登录微信公众平台
-- 管理 > 版本管理
-- 选择开发版本，点击"提交审核"
-- 填写审核信息（功能介绍、测试账号等）
-- 等待审核通过后发布
-
-#### 步骤 5：配置 Nginx
-
-1. **创建 Nginx 配置**
+#### 4. 配置 Nginx
 
 创建 `/etc/nginx/sites-available/food-menu`：
 
@@ -457,232 +598,77 @@ upstream backend_api {
 
 server {
     listen 80;
-    server_name your-domain.com;  # 替换为您的域名
+    server_name your-domain.com;
     
     # 管理后台静态资源
     location / {
         root /var/www/food-menu-admin;
         try_files $uri $uri/ /index.html;
         
-        # 静态资源缓存
-        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
             expires 1y;
             add_header Cache-Control "public, immutable";
         }
     }
     
-    # API 代理（管理后台 + 小程序共用）
+    # API 代理
     location /api/ {
         proxy_pass http://backend_api/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
         
-        # 超时设置
-        proxy_connect_timeout 60s;
-        proxy_send_timeout 60s;
-        proxy_read_timeout 60s;
-        
-        # 文件上传大小限制
         client_max_body_size 20M;
     }
     
     # Gzip 压缩
     gzip on;
-    gzip_vary on;
-    gzip_min_length 1024;
-    gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
+    gzip_types text/plain text/css application/json application/javascript;
 }
 ```
 
-2. **启用站点**
+启用站点：
 
 ```bash
 sudo ln -s /etc/nginx/sites-available/food-menu /etc/nginx/sites-enabled/
-sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-3. **配置 HTTPS（必需，小程序要求）**
+#### 5. 配置 HTTPS（小程序必需）
 
 ```bash
-# 安装 Certbot
 sudo apt install certbot python3-certbot-nginx -y
-
-# 获取免费 SSL 证书
 sudo certbot --nginx -d your-domain.com
-
-# 自动续期
-sudo certbot renew --dry-run
 ```
 
-#### 步骤 6：配置防火墙
+#### 6. 部署小程序
 
-```bash
-# 允许 HTTP 和 HTTPS
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-sudo ufw allow 22/tcp  # SSH
-sudo ufw enable
-sudo ufw status
+1. 修改 API 地址为生产环境：
+
+```javascript
+// food_menu_uniapp/src/utils/request.js
+const BASE_URL = 'https://your-domain.com/api';
 ```
 
-### 方式二：使用一键部署脚本
+2. 在微信公众平台配置服务器域名：
+   - request合法域名: `https://your-domain.com`
+   - uploadFile合法域名: `https://your-oss-endpoint.com`（如果使用OSS）
 
-我们提供了自动化部署脚本，简化部署流程。
+3. 使用微信开发者工具上传代码并提交审核
 
-#### 1. 配置部署参数
-
-编辑 `deploy.sh`，修改以下变量：
-
-```bash
-DB_PASSWORD="your_db_password"
-OSS_ENDPOINT="your_oss_endpoint"
-OSS_ACCESS_KEY="your_access_key"
-OSS_SECRET_KEY="your_secret_key"
-DOMAIN="your-domain.com"
-```
-
-#### 2. 执行部署
-
-```bash
-# 上传脚本到服务器
-scp deploy.sh user@your-server:/tmp/
-
-# 在服务器上执行
-ssh user@your-server
-cd /tmp
-chmod +x deploy.sh
-sudo ./deploy.sh
-```
-
-脚本将自动完成：
-
-- ✅ 安装所有依赖
-- ✅ 配置数据库
-- ✅ 部署后端服务
-- ✅ 配置 Nginx
-- ✅ 配置 SSL 证书
-
-#### 3. 手动上传代码
-
-脚本执行完成后，需要手动上传：
-
-```bash
-# 上传后端 JAR
-scp target/food_menu-0.0.1-SNAPSHOT.jar user@your-server:/opt/food-menu/
-
-# 上传管理后台
-scp -r food_menu_admin/dist/* user@your-server:/var/www/food-menu-admin/
-
-# 启动后端服务
-ssh user@your-server
-sudo systemctl start food-menu
-```
-
-### 方式三：使用宝塔面板（适合新手）
-
-1. **安装宝塔面板**
-
-```bash
-wget -O install.sh https://download.bt.cn/install/install-ubuntu_6.0.sh && sudo bash install.sh
-```
-
-2. **登录宝塔面板**
-
-访问 `http://your-server-ip:8888`，使用安装时显示的账号密码登录。
-
-3. **安装软件**
-
-在宝塔面板中安装：
-
-- Nginx
-- MySQL 8.0
-- Java 项目管理器
-
-4. **部署后端**
-
-- 上传 JAR 包到 `/www/wwwroot/food-menu/`
-- 在 Java 项目管理器中添加项目
-- 配置启动参数：`--spring.profiles.active=prod`
-- 启动项目
-
-5. **部署管理后台**
-
-- 上传 `dist` 目录到 `/www/wwwroot/food-menu-admin/`
-- 在网站管理中添加站点
-- 配置反向代理：`/api` → `http://127.0.0.1:8080`
-
-6. **配置 SSL**
-
-- 在网站设置中申请 Let's Encrypt 证书
-- 开启强制 HTTPS
-
-## 📦 部署检查清单
-
-部署完成后，请逐项检查：
-
-### 后端检查
-
-- [ ] 服务启动成功：`sudo systemctl status food-menu`
-- [ ] 数据库连接正常
-- [ ] API 接口可访问：`curl http://localhost:8080/api/health`
-- [ ] 日志无错误：`sudo journalctl -u food-menu -n 50`
-
-### 管理后台检查
-
-- [ ] 页面可正常访问：`https://your-domain.com`
-- [ ] 静态资源加载正常（无 404）
-- [ ] 登录功能正常
-- [ ] API 请求成功（检查浏览器控制台）
-- [ ] 图片上传功能正常
-
-### 微信小程序检查
-
-- [ ] 服务器域名已配置
-- [ ] HTTPS 证书有效
-- [ ] 小程序可正常登录
-- [ ] 菜品列表加载正常
-- [ ] 下单功能正常
-- [ ] 图片显示正常
-
-### 安全检查
-
-- [ ] 修改默认管理员密码
-- [ ] 数据库使用强密码
-- [ ] 生产环境已关闭 Swagger
-- [ ] 防火墙已配置
-- [ ] HTTPS 已启用
-- [ ] OSS 访问权限正确配置
+---
 
 ## 🔧 运维管理
 
 ### 查看服务状态
 
 ```bash
-# 后端服务状态
+# 后端服务
 sudo systemctl status food-menu
 
-# Nginx 状态
-sudo systemctl status nginx
-
-# MySQL 状态
-sudo systemctl status mysql
-```
-
-### 查看日志
-
-```bash
-# 后端日志（实时）
+# 查看日志
 sudo journalctl -u food-menu -f
-
-# Nginx 访问日志
-sudo tail -f /var/log/nginx/access.log
-
-# Nginx 错误日志
-sudo tail -f /var/log/nginx/error.log
 ```
 
 ### 重启服务
@@ -693,81 +679,36 @@ sudo systemctl restart food-menu
 
 # 重启 Nginx
 sudo systemctl restart nginx
-
-# 重启 MySQL
-sudo systemctl restart mysql
 ```
 
 ### 数据库备份
 
-创建备份脚本 `/opt/backup/backup-db.sh`：
-
 ```bash
-#!/bin/bash
-DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_DIR="/opt/backup"
-DB_NAME="food_menu"
-DB_USER="root"
-DB_PASS="your_password"
+# 手动备份
+mysqldump -u root -p food_menu > backup_$(date +%Y%m%d).sql
 
-# 创建备份
-mysqldump -u $DB_USER -p$DB_PASS $DB_NAME > $BACKUP_DIR/food_menu_$DATE.sql
-
-# 压缩备份
-gzip $BACKUP_DIR/food_menu_$DATE.sql
-
-# 删除7天前的备份
-find $BACKUP_DIR -name "food_menu_*.sql.gz" -mtime +7 -delete
-
-echo "Backup completed: food_menu_$DATE.sql.gz"
-```
-
-设置定时任务：
-
-```bash
-chmod +x /opt/backup/backup-db.sh
+# 设置定时备份
 crontab -e
-
-# 添加以下行（每天凌晨2点备份）
-0 2 * * * /opt/backup/backup-db.sh >> /var/log/backup.log 2>&1
+# 添加：每天凌晨2点备份
+0 2 * * * mysqldump -u root -p'your_password' food_menu | gzip > /opt/backup/food_menu_$(date +\%Y\%m\%d).sql.gz
 ```
 
 ### 更新部署
 
-#### 更新后端
-
 ```bash
-# 1. 构建新的 JAR 包
+# 更新后端
 cd food_menu
 ./mvnw clean package -DskipTests
+scp target/*.jar user@server:/opt/food-menu/
+ssh user@server "sudo systemctl restart food-menu"
 
-# 2. 上传到服务器
-scp target/food_menu-0.0.1-SNAPSHOT.jar user@your-server:/opt/food-menu/
-
-# 3. 重启服务
-sudo systemctl restart food-menu
-```
-
-#### 更新管理后台
-
-```bash
-# 1. 构建新版本
+# 更新管理后台
 cd food_menu_admin
 npm run build
-
-# 2. 上传到服务器
-scp -r dist/* user@your-server:/var/www/food-menu-admin/
-
-# 3. 清除浏览器缓存或使用 Ctrl+F5 强制刷新
+scp -r dist/* user@server:/var/www/food-menu-admin/
 ```
 
-#### 更新微信小程序
-
-```bash
-# 1. 修改代码后，在微信开发者工具中点击"上传"
-# 2. 登录微信公众平台提交审核
-# 3. 审核通过后发布新版本
-```
+---
 
 ## ❓ 常见问题
 
@@ -778,31 +719,25 @@ scp -r dist/* user@your-server:/var/www/food-menu-admin/
 **解决方案**：
 
 ```bash
-# 查看详细错误日志
+# 查看详细日志
 sudo journalctl -u food-menu -n 100
 
 # 常见原因：
 # - 端口被占用：sudo netstat -tulpn | grep 8080
-# - 数据库连接失败：检查配置文件中的数据库信息
+# - 数据库连接失败：检查 application-prod.yml 配置
 # - Java 版本不对：java -version（需要 17+）
 ```
 
-### 2. 管理后台无法访问后端 API
+### 2. 图片上传失败
 
-**问题**：浏览器控制台显示 CORS 错误或 404
+**问题**：上传图片时报错
 
 **解决方案**：
 
-```bash
-# 检查 Nginx 配置
-sudo nginx -t
-
-# 检查后端服务是否运行
-curl http://localhost:8080/api/health
-
-# 查看 Nginx 错误日志
-sudo tail -f /var/log/nginx/error.log
-```
+- 检查 `file-storage.type` 配置（local 或 oss）
+- 本地存储：确保 `local-storage.base-path` 目录存在且有写权限
+- OSS 存储：检查 OSS 配置是否正确
+- 检查 Nginx `client_max_body_size` 设置（默认 20M）
 
 ### 3. 小程序无法连接后端
 
@@ -810,23 +745,12 @@ sudo tail -f /var/log/nginx/error.log
 
 **解决方案**：
 
-- 检查服务器域名是否已在微信公众平台配置
 - 确认域名使用 HTTPS（小程序要求）
+- 检查服务器域名是否已在微信公众平台配置
 - 检查 SSL 证书是否有效
 - 在微信开发者工具中查看详细错误信息
 
-### 4. 图片上传失败
-
-**问题**：上传图片时报错
-
-**解决方案**：
-
-- 检查 OSS 配置是否正确
-- 检查 Nginx `client_max_body_size` 设置（默认 20M）
-- 查看后端日志中的详细错误信息
-- 确认 OSS Bucket 权限配置正确
-
-### 5. 数据库连接失败
+### 4. 数据库连接失败
 
 **问题**：后端日志显示数据库连接错误
 
@@ -836,47 +760,80 @@ sudo tail -f /var/log/nginx/error.log
 # 检查 MySQL 是否运行
 sudo systemctl status mysql
 
-# 测试数据库连接
+# 测试连接
 mysql -u root -p
 
 # 检查用户权限
 mysql> SHOW GRANTS FOR 'your_user'@'localhost';
 
-# 如果需要创建用户
+# 创建用户（如需要）
 mysql> CREATE USER 'food_menu'@'localhost' IDENTIFIED BY 'password';
 mysql> GRANT ALL PRIVILEGES ON food_menu.* TO 'food_menu'@'localhost';
 mysql> FLUSH PRIVILEGES;
 ```
 
-### 6. 小程序审核被拒
+### 5. 管理后台无法访问 API
 
-**常见原因**：
-
-- 缺少用户协议和隐私政策
-- 功能描述不清晰
-- 测试账号无法正常使用
-- 缺少必要的资质证明
+**问题**：浏览器控制台显示 CORS 错误或 404
 
 **解决方案**：
 
-- 完善用户协议和隐私政策页面
-- 提供详细的功能说明和操作步骤
-- 确保测试账号可以正常登录和使用
-- 根据审核意见补充相关资质
+```bash
+# 检查 Nginx 配置
+sudo nginx -t
+
+# 检查后端服务
+curl http://localhost:8080/api/health
+
+# 查看 Nginx 错误日志
+sudo tail -f /var/log/nginx/error.log
+```
+
+---
+
+## 📊 项目统计
+
+- **后端代码**：114+ Java 文件
+- **管理后台**：30+ Vue 组件
+- **小程序**：15+ 页面
+- **数据表**：14 张
+- **API接口**：80+ 个
+
+---
+
+## 🎯 项目亮点
+
+1. **多租户架构** - 支持多家庭数据隔离，适合 SaaS 化部署
+2. **前后端分离** - 三端独立开发部署，职责清晰
+3. **灵活存储方案** - OSS/本地存储可无缝切换
+4. **完善权限控制** - 三级权限体系，安全可靠
+5. **现代化技术栈** - Spring Boot 3 + Vue 3 + Uni-app
+6. **代码规范** - 统一异常处理、日志记录、中文注释
+7. **可扩展性强** - 模块化设计，易于扩展新功能
+
+---
 
 ## 📞 技术支持
 
 如遇到问题，请提供以下信息：
 
-1. 操作系统版本：`lsb_release -a`
+1. 操作系统版本：`lsb_release -a`（Linux）或 `systeminfo`（Windows）
 2. Java 版本：`java -version`
 3. 错误日志：`sudo journalctl -u food-menu -n 100`
-4. Nginx 配置：`sudo nginx -t`
+4. 浏览器控制台错误信息
+
+---
 
 ## 📄 许可证
 
 本项目仅供学习和研究使用。
 
+---
+
 ## 🙏 致谢
 
 感谢所有开源项目的贡献者！
+
+---
+
+**最后更新时间**：2025-12-05
