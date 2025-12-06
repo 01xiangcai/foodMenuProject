@@ -85,7 +85,7 @@
             
             <!-- 标签行 -->
             <view class="tags-row" v-if="dish.tags && dish.tags.length">
-              <view class="tag" v-for="(tag, index) in dish.tags.slice(0, 3)" :key="tag">
+              <view class="tag" v-for="(tag, index) in dish.tags.slice(0, isCompactMode ? 2 : 3)" :key="tag">
                 <text class="tag-icon">{{ getTagIcon(tag) }}</text>
                 <text class="tag-text">{{ tag }}</text>
               </view>
@@ -743,12 +743,13 @@ onShow(() => {
   
   .tags-row {
     margin-bottom: 4rpx;
-    flex-wrap: nowrap; /* Prevent wrapping to save vertical space */
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    display: flex;
+    flex-wrap: wrap; /* Allow partial wrapping to inspect overflow */
+    overflow: hidden; /* Hide anything that overflows the container */
+    max-height: 40rpx; /* Restrict to roughly one line height + padding */
     width: 100%;
     flex-shrink: 0;
+    gap: 8rpx; /* Add some spacing between tags */
     
     .tag {
       padding: 2rpx 8rpx;
