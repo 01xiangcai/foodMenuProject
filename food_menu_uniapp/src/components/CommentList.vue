@@ -27,7 +27,17 @@
             </view>
             
             <!-- 评论文本 -->
-            <text class="comment-text">{{ comment.content }}</text>
+            <view class="comment-text-wrapper">
+              <block v-for="(segment, index) in parseCommentContent(comment.content)" :key="index">
+                <text v-if="segment.type === 'text'" class="comment-text">{{ segment.content }}</text>
+                <image 
+                  v-else 
+                  class="sticker-inline" 
+                  :src="segment.url" 
+                  mode="aspectFit" 
+                />
+              </block>
+            </view>
             
             <!-- 回复按钮 -->
             <view class="action-btn" @tap="handleReply(comment)">
@@ -55,13 +65,24 @@
 
               <view class="reply-content">
                 <!-- 回复者和被回复者 -->
-                <text class="reply-text">
+                <view class="reply-header">
                   <text class="reply-author">{{ reply.authorName || '家庭成员' }}</text>
                   <text class="reply-to">
                     ▶    {{ getReplyToName(comment, reply) }}
                   </text>
-                  <text class="reply-message"> ：{{ reply.content }}</text>
-                </text>
+                </view>
+                
+                <view class="reply-text-wrapper">
+                  <block v-for="(segment, index) in parseCommentContent(reply.content)" :key="index">
+                    <text v-if="segment.type === 'text'" class="reply-text">{{ segment.content }}</text>
+                    <image 
+                      v-else 
+                      class="sticker-inline-small" 
+                      :src="segment.url" 
+                      mode="aspectFit" 
+                    />
+                  </block>
+                </view>
                 
                 <!-- 时间和回复按钮 -->
                 <view class="reply-footer">
@@ -94,6 +115,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useTheme } from '@/stores/theme'
+import { parseCommentContent } from '@/utils/emoji-parser'
 
 const { themeConfig } = useTheme()
 
@@ -277,12 +299,25 @@ const formatTime = (timeStr) => {
   color: v-bind('themeConfig.textSecondary');
 }
 
+.comment-text-wrapper {
+  margin-top: 4rpx;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
 .comment-text {
   font-size: 30rpx;
   color: v-bind('themeConfig.textPrimary');
   line-height: 1.5;
   word-break: break-all;
-  margin-top: 4rpx;
+}
+
+.sticker-inline {
+  width: 60rpx;
+  height: 60rpx;
+  margin: 0 4rpx;
+  vertical-align: middle;
 }
 
 .action-btn {
@@ -335,24 +370,42 @@ const formatTime = (timeStr) => {
   gap: 8rpx;
 }
 
+.reply-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.reply-text-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
 .reply-text {
   font-size: 28rpx;
   line-height: 1.5;
   word-break: break-all;
+  color: v-bind('themeConfig.textPrimary');
+}
+
+.sticker-inline-small {
+  width: 40rpx;
+  height: 40rpx;
+  margin: 0 4rpx;
+  vertical-align: middle;
 }
 
 .reply-author {
   color: v-bind('themeConfig.textPrimary');
   font-weight: 500;
+  font-size: 28rpx;
 }
 
 .reply-to {
   color: v-bind('themeConfig.primaryColor');
   margin: 0 4rpx;
-}
-
-.reply-message {
-  color: v-bind('themeConfig.textPrimary');
+  font-size: 28rpx;
 }
 
 .reply-footer {
