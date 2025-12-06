@@ -25,6 +25,11 @@
       <view class="random-btn" @tap="goToRandom">
         <text class="random-icon">🎲</text>
       </view>
+
+      <!-- 视图切换按钮 -->
+      <view class="view-toggle-btn" @tap="toggleViewMode">
+        <text class="view-icon">{{ isCompactMode ? '🔲' : '☰' }}</text>
+      </view>
     </view>
     
     <!-- 内容区域 -->
@@ -46,9 +51,10 @@
 
       <!-- 右侧菜品列表 -->
       <scroll-view class="dish-scroll" scroll-y @scrolltolower="loadMore">
-      <view class="dish-list">
+      <view class="dish-list" :class="{ 'compact-mode': isCompactMode }">
         <view 
           class="dish-card"
+          :class="{ 'is-compact': isCompactMode }"
           v-for="dish in dishes" 
           :key="dish.id"
           @tap="goToDetail(dish.id)"
@@ -212,7 +218,13 @@ const favoriteIds = ref(new Set())
 const cartPopupVisible = ref(false)
 const tagIconMap = ref({})
 const searchKeyword = ref('')
+const isCompactMode = ref(false)
 let searchTimer = null
+
+// 切换视图模式
+const toggleViewMode = () => {
+  isCompactMode.value = !isCompactMode.value
+}
 
 // 加载分类
 const loadCategories = async () => {
@@ -581,6 +593,30 @@ onShow(() => {
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
 }
 
+/* 视图切换按钮 */
+.view-toggle-btn {
+  width: 80rpx;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: v-bind('themeConfig.bgSecondary');
+  border-radius: 50%;
+  border: 1px solid v-bind('themeConfig.borderColor');
+  margin-left: 10rpx; /* 与随机按钮保持一点距离 */
+  transition: all 0.3s ease;
+
+  &:active {
+    transform: scale(0.9);
+    background: v-bind('themeConfig.inputBg');
+  }
+}
+
+.view-icon {
+  font-size: 36rpx;
+  color: v-bind('themeConfig.textPrimary');
+}
+
 
 .page-content {
   display: flex;
@@ -650,6 +686,7 @@ onShow(() => {
   padding-bottom: 40rpx;
 }
 
+/* 卡片样式适配 */
 .dish-card {
   position: relative;
   margin-bottom: 24rpx;
@@ -662,14 +699,111 @@ onShow(() => {
     0 0 0 1px rgba(255, 255, 255, 0.1) inset;
   backdrop-filter: blur(20px);
   transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-  
+  display: flex;
+  flex-direction: column;
+
   &:active {
     transform: scale(0.98);
     box-shadow: 
       0 2px 8px rgba(0, 0, 0, 0.12),
       0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  }
 }
+
+/* 紧凑模式样式 */
+.dish-card.is-compact {
+  flex-direction: row;
+  height: auto;
+  min-height: 220rpx;
+  
+  .dish-image-wrapper {
+    width: 220rpx;
+    height: 220rpx;
+    flex-shrink: 0;
+  }
+  
+  .dish-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 16rpx 20rpx;
+    overflow: hidden;
+    height: 220rpx; /* Constrain height to match image for alignment consistency */
+    box-sizing: border-box;
+  }
+  
+  .title-row {
+    margin-bottom: 4rpx;
+    flex-shrink: 0;
+  }
+  
+  .dish-name {
+    font-size: 30rpx;
+  }
+  
+  .tags-row {
+    margin-bottom: 4rpx;
+    flex-wrap: nowrap; /* Prevent wrapping to save vertical space */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 100%;
+    flex-shrink: 0;
+    
+    .tag {
+      padding: 2rpx 8rpx;
+      font-size: 18rpx;
+      flex-shrink: 0; /* Prevent tags from shrinking too much */
+    }
+  }
+  
+  /* Show description in compact mode, max 1 line */
+  .dish-desc {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    overflow: hidden;
+    font-size: 22rpx;
+    margin-top: 4rpx;
+    color: v-bind('themeConfig.textSecondary');
+    margin-bottom: 0;
+  }
+  
+  /* Use spacer or auto margin to push action bar to bottom */
+  .action-bar {
+    padding-top: 0;
+    border-top: none;
+    margin-top: auto; /* Aligns to bottom */
+    display: flex;
+    align-items: flex-end; /* Align items to bottom */
+    width: 100%;
+    flex-shrink: 0;
+  }
+  
+  .favorite-btn {
+    top: 8rpx;
+    right: auto;
+    left: 8rpx;
+    width: 48rpx;
+    height: 48rpx;
+    
+    .heart-icon {
+      font-size: 24rpx;
+    }
+  }
+  
+  .category-badge {
+    bottom: 8rpx;
+    left: 8rpx;
+    padding: 4rpx 10rpx;
+    font-size: 18rpx;
+    
+    text {
+      font-size: 18rpx;
+    }
+  }
 }
+
 
 /* 图片区域 */
 .dish-image-wrapper {
