@@ -2,10 +2,10 @@
   <view class="page">
     <!-- 头部渐变背景 + 头像 -->
     <view class="header-section">
-      <view class="avatar-container" @tap="chooseAvatar">
+      <view class="avatar-container" @tap="isMyself && chooseAvatar()">
         <image class="avatar" :src="userInfo.avatar" mode="aspectFill" />
         <view class="avatar-ring"></view>
-        <view class="camera-badge">
+        <view class="camera-badge" v-if="isMyself">
           <text class="camera-icon">📷</text>
         </view>
       </view>
@@ -15,11 +15,11 @@
     <view class="info-card glass-card">
       <view class="card-title">基本信息</view>
       
-      <view class="info-row" @tap="editField('nickname')">
+      <view class="info-row" @tap="isMyself && editField('nickname')">
         <text class="label">昵称</text>
         <view class="value-container">
           <input 
-            v-if="editingField === 'nickname'"
+            v-if="editingField === 'nickname' && isMyself"
             class="input-field"
             v-model="formData.nickname"
             :focus="editingField === 'nickname'"
@@ -27,7 +27,7 @@
             @blur="saveField('nickname')"
           />
           <text v-else class="value">{{ formData.nickname || userInfo.nickname || '未设置' }}</text>
-          <text v-if="editingField !== 'nickname'" class="edit-icon">✏️</text>
+          <text v-if="editingField !== 'nickname' && isMyself" class="edit-icon">✏️</text>
         </view>
       </view>
 
@@ -36,11 +36,11 @@
         <text class="value readonly-value">{{ userInfo.username || '未设置' }}</text>
       </view>
 
-      <view class="info-row" @tap="editField('phone')">
+      <view class="info-row" @tap="isMyself && editField('phone')">
         <text class="label">手机号</text>
         <view class="value-container">
           <input 
-            v-if="editingField === 'phone'"
+            v-if="editingField === 'phone' && isMyself"
             class="input-field"
             v-model="formData.phone"
             type="number"
@@ -49,15 +49,15 @@
             @blur="saveField('phone')"
           />
           <text v-else class="value">{{ formData.phone || userInfo.phone || '未设置' }}</text>
-          <text v-if="editingField !== 'phone'" class="edit-icon">✏️</text>
+          <text v-if="editingField !== 'phone' && isMyself" class="edit-icon">✏️</text>
         </view>
       </view>
 
-      <view class="info-row" @tap="showGenderSelector">
+      <view class="info-row" @tap="isMyself && showGenderSelector()">
         <text class="label">性别</text>
         <view class="value-container">
           <text class="value">{{ genderText }}</text>
-          <text class="arrow">›</text>
+          <text class="arrow" v-if="isMyself">›</text>
         </view>
       </view>
     </view>
@@ -69,8 +69,8 @@
       <view class="info-row readonly">
         <text class="label">所属家庭</text>
         <view class="value-container">
-          <text v-if="familyInfo" class="value family-badge">
-            🏠 {{ familyInfo.name }}
+          <text v-if="familyInfo || userInfo.familyName" class="value family-badge">
+            🏠 {{ familyInfo ? familyInfo.name : userInfo.familyName }}
           </text>
           <text v-else class="value readonly-value">未加入家庭</text>
         </view>
@@ -112,14 +112,16 @@
         <view 
           v-for="(option, index) in genderOptionsData" 
           :key="index"
-          class="gender-option"
-          :class="{ active: formData.gender === index }"
+          class="gender-card"
+          :class="{ selected: formData.gender === index }"
           @tap="selectGender(index)"
         >
-          <text class="option-icon">{{ option.icon }}</text>
-          <text class="option-label">{{ option.label }}</text>
-          <view class="check-icon" v-if="formData.gender === index">
-            <text>✓</text>
+          <view class="card-content">
+            <text class="card-icon">{{ option.icon }}</text>
+            <text class="card-label">{{ option.label }}</text>
+          </view>
+          <view class="selection-indicator" v-if="formData.gender === index">
+            <text class="check-mark">✓</text>
           </view>
         </view>
       </view>
@@ -131,6 +133,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { getWxUserInfo, getCurrentFamily } from '@/api/index'
 import { useTheme } from '@/stores/theme'
+import { onLoad } from '@dcloudio/uni-app'
 
 // 使用主题
 const { themeConfig } = useTheme()
@@ -175,38 +178,69 @@ const genderText = computed(() => {
   return `${genderOptionsData[currentGender].icon} ${genderOptionsData[currentGender].label}`
 })
 
-// 加载用户信息
-const loadUserInfo = async () => {
+// 当前查看的用户ID (null表示自己)
+const currentViewUserId = ref(null)
+
+// 是否是自己
+const isMyself = computed(() => {
+  return !currentViewUserId.value
+})
+
+// 加载用户信息（核心逻辑重构）
+const loadPageData = async (optionId) => {
   const token = uni.getStorageSync('fm_token')
   if (!token) {
-    uni.showToast({
-      title: '请先登录',
-      icon: 'none'
-    })
-    setTimeout(() => {
-      uni.navigateBack()
-    }, 1500)
+    uni.showToast({ title: '请先登录', icon: 'none' })
+    setTimeout(() => uni.navigateBack(), 1500)
     return
   }
 
   try {
-    const res = await getWxUserInfo()
-    if (res.data) {
-      userInfo.value = res.data
-      // 初始化表单数据
-      formData.value = {
-        nickname: res.data.nickname || '',
-        phone: res.data.phone || '',
-        gender: res.data.gender || 0,
-        avatar: res.data.avatar || ''
-      }
+    // 1. 总是先获取"我"的信息，以拿到 myId
+    const myRes = await getWxUserInfo()
+    if (!myRes.data) throw new Error('获取个人信息失败')
+    
+    const myInfo = myRes.data
+    const myId = myInfo.id
+
+    // 2. 判断是否是自己
+    let targetId = null
+    if (optionId && String(optionId) !== String(myId)) {
+      targetId = optionId
     }
+
+    // 设置状态
+    currentViewUserId.value = targetId // null means myself
+
+    if (isMyself.value) {
+      // --- 查看自己 ---
+      userInfo.value = myInfo
+      // 初始化表单
+      formData.value = {
+        nickname: myInfo.nickname || '',
+        phone: myInfo.phone || '',
+        gender: myInfo.gender || 0,
+        avatar: myInfo.avatar || ''
+      }
+      // 加载家庭信息
+      loadFamilyInfo()
+    } else {
+      // --- 查看他人 ---
+      // 加载他人信息
+      const { getWxOtherUserInfo } = await import('@/api/index')
+      const otherRes = await getWxOtherUserInfo(targetId)
+      if (otherRes.data) {
+        userInfo.value = otherRes.data
+        // 清空表单（只读模式不需要表单数据）
+        formData.value = {}
+      }
+      // 他人模式下，不加载家庭信息（或只显示脱敏信息）
+      familyInfo.value = null 
+    }
+
   } catch (error) {
-    console.error('获取用户信息失败:', error)
-    uni.showToast({
-      title: '获取用户信息失败',
-      icon: 'none'
-    })
+    console.error('加载页面数据失败:', error)
+    uni.showToast({ title: '加载失败', icon: 'none' })
   }
 }
 
@@ -396,7 +430,7 @@ const saveChanges = async () => {
     
     // 刷新用户信息
     setTimeout(() => {
-      loadUserInfo()
+      loadPageData(null)
     }, 500)
   } catch (error) {
     console.error('保存失败:', error)
@@ -430,16 +464,27 @@ const saveChanges = async () => {
   }
 }
 
+
 // 格式化日期
 const formatDate = (dateString) => {
   if (!dateString) return '未知'
-  const date = new Date(dateString)
+  // 解决部分环境 new Date() 不支持 "yyyy-MM-dd HH:mm:ss" 的问题
+  const normalizedDate = typeof dateString === 'string' ? dateString.replace(/-/g, '/').replace(' ', ' ') : dateString
+  const date = new Date(normalizedDate)
+  
+  if (isNaN(date.getTime())) return dateString // 如果解析失败，直接显示原字符串
+  
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
+
 onMounted(() => {
-  loadUserInfo()
-  loadFamilyInfo()
+  // onMounted 逻辑已移至 onLoad 统一处理
+})
+
+onLoad((options) => {
+  const id = options?.id || null
+  loadPageData(id)
 })
 </script>
 
@@ -774,56 +819,113 @@ onMounted(() => {
 }
 
 .gender-options {
-  padding: 20rpx;
-  padding-bottom: env(safe-area-inset-bottom);
+  display: flex;
+  gap: 20rpx;
+  padding: 30rpx 20rpx;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 30rpx);
 }
 
-.gender-option {
-  display: flex;
-  align-items: center;
-  padding: 32rpx 30rpx;
-  margin-bottom: 16rpx;
-  background: v-bind('themeConfig.inputBg');
-  border: 2rpx solid v-bind('themeConfig.borderColor');
-  border-radius: 20rpx;
-  transition: all 0.3s ease;
+.gender-card {
+  flex: 1;
   position: relative;
+  background: v-bind('themeConfig.inputBg');
+  border: 3rpx solid v-bind('themeConfig.borderColor');
+  border-radius: 24rpx;
+  padding: 40rpx 20rpx;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, transparent 0%, v-bind('themeConfig.primaryColor + "0a"') 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
   
   &:active {
-    transform: scale(0.98);
+    transform: scale(0.96);
   }
   
-  &.active {
-    background: v-bind('themeConfig.primaryColor + "1a"');
+  &.selected {
     border-color: v-bind('themeConfig.primaryColor');
-  }
-  
-  .option-icon {
-    font-size: 48rpx;
-    margin-right: 24rpx;
-  }
-  
-  .option-label {
-    flex: 1;
-    font-size: 32rpx;
-    color: v-bind('themeConfig.textPrimary');
-    font-weight: 500;
-  }
-  
-  .check-icon {
-    width: 48rpx;
-    height: 48rpx;
-    background: v-bind('themeConfig.primaryColor');
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    background: v-bind('themeConfig.primaryColor + "15"');
+    box-shadow: 0 8rpx 24rpx v-bind('themeConfig.primaryColor + "30"');
     
-    text {
-      font-size: 28rpx;
-      color: #ffffff;
-      font-weight: bold;
+    &::before {
+      opacity: 1;
     }
   }
+}
+
+.card-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+  position: relative;
+  z-index: 1;
+}
+
+.card-icon {
+  font-size: 80rpx;
+  line-height: 1;
+  transition: transform 0.3s ease;
+  
+  .gender-card.selected & {
+    transform: scale(1.1);
+  }
+}
+
+.card-label {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: v-bind('themeConfig.textPrimary');
+  transition: color 0.3s ease;
+  
+  .gender-card.selected & {
+    color: v-bind('themeConfig.primaryColor');
+  }
+}
+
+.selection-indicator {
+  position: absolute;
+  top: 12rpx;
+  right: 12rpx;
+  width: 44rpx;
+  height: 44rpx;
+  background: v-bind('themeConfig.primaryColor');
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 12rpx v-bind('themeConfig.primaryColor + "40"');
+  animation: popIn 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  z-index: 2;
+}
+
+@keyframes popIn {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.check-mark {
+  font-size: 24rpx;
+  color: #ffffff;
+  font-weight: bold;
 }
 </style>

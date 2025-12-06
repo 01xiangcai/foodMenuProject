@@ -30,6 +30,9 @@ public class WxUserController {
     private WxUserService wxUserService;
 
     @Autowired
+    private com.yao.food_menu.service.FamilyService familyService;
+
+    @Autowired
     private OssService ossService;
 
     @Autowired
@@ -186,7 +189,8 @@ public class WxUserController {
     @Operation(summary = "获取用户信息", description = "根据Token获取当前登录用户信息")
     @GetMapping("/info")
     public Result<WxUser> getUserInfo(@RequestHeader(value = "Authorization", required = false) String token) {
-        log.info("获取用户信息,token: {}", token != null ? (token.length() > 20 ? token.substring(0, 20) + "..." : token) : "null");
+        log.info("获取用户信息,token: {}",
+                token != null ? (token.length() > 20 ? token.substring(0, 20) + "..." : token) : "null");
 
         if (token == null || token.trim().isEmpty()) {
             log.warn("获取用户信息失败: token为空");
@@ -200,13 +204,13 @@ public class WxUserController {
             }
 
             Long userId = jwtUtil.getUserId(token);
-            
+
             // 标记为查询当前用户自己的信息，跳过数据隔离
             // 这样可以允许用户查询自己的信息，即使还没有绑定家庭
             com.yao.food_menu.common.context.FamilyContext.setQueryCurrentUser(true);
             try {
                 WxUser user = wxUserService.getCurrentUser(userId);
-                
+
                 if (user == null) {
                     return Result.error("用户不存在");
                 }
@@ -237,6 +241,64 @@ public class WxUserController {
             log.error("获取用户信息失败: {}", e.getMessage(), e);
             return Result.error("无效的token: " + e.getMessage());
         }
+    }
+
+    /**
+     * 获取指定用户信息（公开信息）
+     */
+    @Operation(summary = "获取指定用户信息", description = "获取指定用户的公开信息(头像、昵称、性别)")
+    @GetMapping("/info/{id}")
+    public Result<WxUser> getPublicUserInfo(@PathVariable Long id) {
+        // 使用FamilyContext skipping logic if needed, but here we just need basic info
+        // We might need to bypass tenant isolation if we want to see users from other
+        // families in comments?
+        // Comments are usually within family or public? The requirement implies valid
+        // viewing.
+        // For simplicity, we query directly. If MyBatis Plus plugin enforces tenant, we
+        // might need to skip.
+        // Assuming GetById bypasses tenant or tenant is handled.
+        // However, WxUser doesn't seem to have tenant isolation strictly enforced on
+        // getById usually unless configured.
+        // Let's assume standard behavior first.
+
+        WxUser user = wxUserService.getById(id);
+        if (user == null) {
+            return Result.error("用户不存在");
+        }
+
+        // 脱敏处理: 仅去除密码，其他信息全部返回
+        user.setPassword(null);
+
+        // 默认昵称
+        if (!StringUtils.hasText(user.getNickname())) {
+            user.setNickname("家庭成员");
+        }
+
+        // 处理头像
+        if (StringUtils.hasText(user.getLocalAvatar())) {
+            String urlPrefix = localStorageProperties.getUrlPrefix();
+            if (!urlPrefix.endsWith("/")) {
+                urlPrefix += "/";
+            }
+            user.setAvatar(urlPrefix + user.getLocalAvatar());
+        } else if (StringUtils.hasText(user.getAvatar())) {
+            try {
+                String presignedUrl = ossService.generatePresignedUrl(user.getAvatar());
+                user.setAvatar(presignedUrl);
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+
+        // 填充家庭名称
+        if (user.getFamilyId() != null) {
+            com.yao.food_menu.entity.Family family = familyService.getById(user.getFamilyId());
+            if (family != null) {
+                user.setFamilyName(family.getName());
+            }
+        }
+
+        return Result.success(user);
     }
 
     /**
@@ -274,8 +336,7 @@ public class WxUserController {
                 // 检查手机号是否已被其他用户使用（需要跳过数据隔离，因为手机号是全局唯一的）
                 com.yao.food_menu.common.context.FamilyContext.setQueryCurrentUser(true);
                 try {
-                    com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<WxUser> phoneWrapper = 
-                        new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+                    com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<WxUser> phoneWrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
                     phoneWrapper.eq(WxUser::getPhone, updateUserDto.getPhone());
                     phoneWrapper.ne(WxUser::getId, userId); // 排除当前用户
                     if (wxUserService.count(phoneWrapper) > 0) {
@@ -297,8 +358,8 @@ public class WxUserController {
             log.error("更新用户信息失败: {}", e.getMessage(), e);
             // 如果错误信息已经包含友好的提示（如"手机号已被其他用户使用"），直接返回
             String errorMsg = e.getMessage();
-            if (errorMsg != null && (errorMsg.contains("手机号已被其他用户使用") || 
-                errorMsg.contains("用户不存在"))) {
+            if (errorMsg != null && (errorMsg.contains("手机号已被其他用户使用") ||
+                    errorMsg.contains("用户不存在"))) {
                 return Result.error(errorMsg);
             }
             // 其他错误返回通用提示

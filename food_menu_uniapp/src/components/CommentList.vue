@@ -15,6 +15,7 @@
             class="avatar" 
             :src="comment.avatarUrl || defaultAvatar" 
             mode="aspectFill"
+            @tap.stop="goToProfile(comment.wxUserId)"
           />
           
           <!-- 评论内容 -->
@@ -44,6 +45,14 @@
               :key="reply.id" 
               class="reply-item"
             >
+              <!-- 子评论头像 -->
+              <image 
+                class="reply-avatar" 
+                :src="reply.avatarUrl || defaultAvatar" 
+                mode="aspectFill"
+                @tap.stop="goToProfile(reply.wxUserId)"
+              />
+
               <view class="reply-content">
                 <!-- 回复者和被回复者 -->
                 <text class="reply-text">
@@ -73,7 +82,7 @@
               收起 ^
             </text>
             <text v-else>
-              展开更多 {{ comment.replies.length }} 条回复 ▽
+              展开更多 {{ comment.replies.length - 3 }} 条回复 ▽
             </text>
           </view>
         </view>
@@ -153,6 +162,25 @@ const getReplyToName = (parentComment, reply) => {
 const handleReply = (targetComment, parentComment = null) => {
   // 如果是回复子评论，传递父评论信息
   emit('reply', targetComment, parentComment)
+}
+
+// 跳转到个人主页
+const goToProfile = (userId) => {
+  if (!userId) {
+    console.warn('Cannot navigate to profile: userId is missing')
+    return
+  }
+  
+  uni.navigateTo({
+    url: `/pages/profile/personal-info?id=${userId}`,
+    fail: (err) => {
+      console.error('Navigate to profile failed:', err)
+      uni.showToast({
+        title: '无法查看用户主页',
+        icon: 'none'
+      })
+    }
+  })
 }
 
 // 格式化时间
@@ -286,10 +314,22 @@ const formatTime = (timeStr) => {
 
 .reply-item {
   display: flex;
-  flex-direction: column;
+  flex-direction: row; /* 改为水平排列以支持左侧头像 */
+  gap: 16rpx;
+}
+
+.reply-avatar {
+  width: 48rpx; /* 24px */
+  height: 48rpx; /* 24px */
+  border-radius: 50%;
+  background-color: v-bind('themeConfig.bgPrimary');
+  flex-shrink: 0;
+  margin-top: 4rpx; /* 微调对齐 */
+  margin-right: 16rpx;
 }
 
 .reply-content {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 8rpx;

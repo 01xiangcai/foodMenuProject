@@ -241,6 +241,17 @@ export const getWxUserInfo = () => {
 }
 
 /**
+ * 获取指定用户信息（公开信息）
+ * @param {Number} id 用户ID
+ */
+export const getWxOtherUserInfo = (id) => {
+    return request({
+        url: `/wx/user/info/${id}`,
+        method: 'GET'
+    })
+}
+
+/**
  * 更新用户信息
  * @param {Object} data 用户信息
  */

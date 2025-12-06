@@ -58,7 +58,11 @@ public class WxUser implements Serializable {
     // 状态: 0-禁用, 1-正常
     private Integer status;
 
+    @TableField(exist = false)
+    private String familyName;
+
     @TableField(fill = FieldFill.INSERT)
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createTime;
 
     @TableField(fill = FieldFill.INSERT_UPDATE)

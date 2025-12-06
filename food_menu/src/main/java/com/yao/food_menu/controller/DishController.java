@@ -50,30 +50,27 @@ public class DishController {
     private ObjectMapper objectMapper;
 
     @Operation(summary = "添加菜品", description = "添加菜品及其口味信息")
-    @com.yao.food_menu.common.annotation.OperationLog(
-        operationType = com.yao.food_menu.common.annotation.OperationLog.OperationType.INSERT,
-        operationModule = "菜品",
-        operationDesc = "添加菜品"
-    )
+    @com.yao.food_menu.common.annotation.OperationLog(operationType = com.yao.food_menu.common.annotation.OperationLog.OperationType.INSERT, operationModule = "菜品", operationDesc = "添加菜品")
     @PostMapping
     public Result<String> save(@RequestBody DishDto dishDto) {
         log.info("新增菜品请求: {}", dishDto);
-        
+
         // 参数校验
         Result<String> validateResult = validateDishDto(dishDto);
         if (validateResult != null) {
             return validateResult;
         }
-        
+
         ensureImage(dishDto);
         handleImageFields(dishDto);
         validateMainImageInList(dishDto);
         dishService.saveWithFlavor(dishDto);
         return Result.success("Dish added successfully");
     }
-    
+
     /**
      * 校验菜品DTO参数
+     * 
      * @param dishDto 菜品DTO
      * @return 如果校验失败返回错误结果，否则返回null
      */
@@ -85,7 +82,7 @@ public class DishController {
         if (dishDto.getName().trim().length() > 50) {
             return Result.error("菜品名称长度不能超过50个字符");
         }
-        
+
         // 校验分类ID
         if (dishDto.getCategoryId() == null) {
             return Result.error("所属分类不能为空");
@@ -95,7 +92,7 @@ public class DishController {
         if (category == null) {
             return Result.error("所选分类不存在");
         }
-        
+
         // 校验价格
         if (dishDto.getPrice() == null) {
             return Result.error("价格不能为空");
@@ -106,7 +103,7 @@ public class DishController {
         if (dishDto.getPrice().compareTo(new java.math.BigDecimal("99999.99")) > 0) {
             return Result.error("价格不能超过99999.99");
         }
-        
+
         // 校验图片（本地存储模式）
         if (fileStorageProperties.isLocal()) {
             // 校验主图
@@ -117,7 +114,9 @@ public class DishController {
                 }
                 // 解析图片列表
                 try {
-                    List<String> imageList = objectMapper.readValue(dishDto.getLocalImages(), new TypeReference<List<String>>() {});
+                    List<String> imageList = objectMapper.readValue(dishDto.getLocalImages(),
+                            new TypeReference<List<String>>() {
+                            });
                     List<String> validImages = imageList.stream()
                             .filter(img -> img != null && !img.trim().isEmpty())
                             .collect(Collectors.toList());
@@ -135,22 +134,22 @@ public class DishController {
                 return Result.error("请至少上传一张图片");
             }
         }
-        
+
         // 校验描述长度（可选字段）
         if (dishDto.getDescription() != null && dishDto.getDescription().length() > 500) {
             return Result.error("家庭备注长度不能超过500个字符");
         }
-        
+
         // 校验卡路里格式（可选字段）
         if (dishDto.getCalories() != null && dishDto.getCalories().trim().length() > 50) {
             return Result.error("卡路里信息长度不能超过50个字符");
         }
-        
+
         // 校验标签长度（可选字段）
         if (dishDto.getTags() != null && dishDto.getTags().length() > 200) {
             return Result.error("标签长度不能超过200个字符");
         }
-        
+
         return null; // 校验通过
     }
 
@@ -212,11 +211,7 @@ public class DishController {
     }
 
     @Operation(summary = "更新菜品", description = "更新菜品及其口味信息")
-    @com.yao.food_menu.common.annotation.OperationLog(
-        operationType = com.yao.food_menu.common.annotation.OperationLog.OperationType.UPDATE,
-        operationModule = "菜品",
-        operationDesc = "更新菜品"
-    )
+    @com.yao.food_menu.common.annotation.OperationLog(operationType = com.yao.food_menu.common.annotation.OperationLog.OperationType.UPDATE, operationModule = "菜品", operationDesc = "更新菜品")
     @PutMapping
     public Result<String> update(@RequestBody DishDto dishDto) {
         log.info("更新菜品请求 - 菜品ID: {}, 名称: {}", dishDto.getId(), dishDto.getName());
@@ -225,39 +220,51 @@ public class DishController {
         handleImageFields(dishDto);
         log.info("处理图片字段后 - 主图(localImage): {}", dishDto.getLocalImage());
         validateMainImageInList(dishDto);
-        log.info("验证主图后 - 主图(localImage): {}, 图片列表(localImages): {}", dishDto.getLocalImage(), dishDto.getLocalImages());
+        log.info("验证主图后 - 主图(localImage): {}, 图片列表(localImages): {}", dishDto.getLocalImage(),
+                dishDto.getLocalImages());
         dishService.updateWithFlavor(dishDto);
         log.info("菜品更新成功 - 菜品ID: {}", dishDto.getId());
         return Result.success("Dish updated successfully");
     }
 
     @Operation(summary = "删除菜品", description = "根据ID删除菜品(逻辑删除)")
-    @com.yao.food_menu.common.annotation.OperationLog(
-        operationType = com.yao.food_menu.common.annotation.OperationLog.OperationType.DELETE,
-        operationModule = "菜品",
-        operationDesc = "删除菜品"
-    )
+    @com.yao.food_menu.common.annotation.OperationLog(operationType = com.yao.food_menu.common.annotation.OperationLog.OperationType.DELETE, operationModule = "菜品", operationDesc = "删除菜品")
     @DeleteMapping
     public Result<String> delete(Long id) {
         dishService.removeById(id);
         return Result.success("Dish deleted successfully");
     }
 
-    @Operation(summary = "查询分类下的菜品", description = "查询指定分类下所有在售菜品，支持按名称模糊搜索")
+    @Operation(summary = "查询分类下的菜品", description = "查询指定分类下所有在售菜品，支持按名称模糊搜索，支持分页")
     @GetMapping("/list")
-    public Result<List<Dish>> list(
+    public Result<Object> list(
             @RequestParam(required = false) Long categoryId,
-            @RequestParam(required = false) String name) {
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false, defaultValue = "1") Integer page,
+            @RequestParam(required = false, defaultValue = "10") Integer pageSize) {
+
         LambdaQueryWrapper<Dish> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(categoryId != null, Dish::getCategoryId, categoryId);
         queryWrapper.like(StringUtils.hasText(name), Dish::getName, name);
         queryWrapper.eq(Dish::getStatus, 1);
         queryWrapper.orderByAsc(Dish::getSort).orderByDesc(Dish::getUpdateTime);
 
-        List<Dish> list = dishService.list(queryWrapper);
-        // Convert OSS object keys to presigned URLs for all dishes
-        list.forEach(this::convertDishImageToPresignedUrl);
-        return Result.success(list);
+        // 如果提供了分页参数，使用分页查询
+        if (page != null && pageSize != null && page > 0 && pageSize > 0) {
+            Page<Dish> pageInfo = new Page<>(page, pageSize);
+            dishService.page(pageInfo, queryWrapper);
+
+            // Convert OSS object keys to presigned URLs for all dishes
+            pageInfo.getRecords().forEach(this::convertDishImageToPresignedUrl);
+
+            return Result.success(pageInfo);
+        } else {
+            // 向后兼容：如果没有分页参数，返回所有记录
+            List<Dish> list = dishService.list(queryWrapper);
+            // Convert OSS object keys to presigned URLs for all dishes
+            list.forEach(this::convertDishImageToPresignedUrl);
+            return Result.success(list);
+        }
     }
 
     @Operation(summary = "查询明星菜品", description = "查询销量最高的5道菜品")
@@ -379,9 +386,9 @@ public class DishController {
                         urlPrefix += "/";
                     }
                     // 移除localImage开头的斜杠
-                    String localPath = localImage.startsWith("/") 
-                        ? localImage.substring(1) 
-                        : localImage;
+                    String localPath = localImage.startsWith("/")
+                            ? localImage.substring(1)
+                            : localImage;
                     String fullUrl = urlPrefix + localPath;
                     // 将完整URL设置到image字段，供前端使用
                     dishDto.setImage(fullUrl);
@@ -437,9 +444,9 @@ public class DishController {
                         urlPrefix += "/";
                     }
                     // 移除localImage开头的斜杠
-                    String localPath = localImage.startsWith("/") 
-                        ? localImage.substring(1) 
-                        : localImage;
+                    String localPath = localImage.startsWith("/")
+                            ? localImage.substring(1)
+                            : localImage;
                     String fullUrl = urlPrefix + localPath;
                     // 将完整URL设置到image字段，供前端使用
                     dish.setImage(fullUrl);
@@ -475,22 +482,23 @@ public class DishController {
     private void validateMainImageInList(DishDto dishDto) {
         String localImage = dishDto.getLocalImage();
         String localImages = dishDto.getLocalImages();
-        
+
         // 处理图片列表：将完整 URL 转换为相对路径
         if (fileStorageProperties.isLocal() && StringUtils.hasText(localImages)) {
             try {
-                List<String> imageList = objectMapper.readValue(localImages, new TypeReference<List<String>>() {});
+                List<String> imageList = objectMapper.readValue(localImages, new TypeReference<List<String>>() {
+                });
                 List<String> processedList = new ArrayList<>();
                 String urlPrefix = localStorageProperties.getUrlPrefix();
                 if (!urlPrefix.endsWith("/")) {
                     urlPrefix += "/";
                 }
-                
+
                 for (String imagePath : imageList) {
                     if (!StringUtils.hasText(imagePath)) {
                         continue;
                     }
-                    
+
                     // 如果是完整 URL，提取相对路径
                     if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
                         if (imagePath.startsWith(urlPrefix)) {
@@ -505,7 +513,7 @@ public class DishController {
                         processedList.add(imagePath);
                     }
                 }
-                
+
                 // 去重并更新列表
                 List<String> uniqueList = new ArrayList<>();
                 for (String path : processedList) {
@@ -513,20 +521,20 @@ public class DishController {
                         uniqueList.add(path);
                     }
                 }
-                
+
                 dishDto.setLocalImages(objectMapper.writeValueAsString(uniqueList));
             } catch (Exception e) {
                 log.warn("处理 localImages 失败: {}", localImages, e);
             }
         }
-        
+
         // 处理主图：将完整 URL 转换为相对路径
         if (fileStorageProperties.isLocal() && StringUtils.hasText(localImage)) {
             String urlPrefix = localStorageProperties.getUrlPrefix();
             if (!urlPrefix.endsWith("/")) {
                 urlPrefix += "/";
             }
-            
+
             if (localImage.startsWith("http://") || localImage.startsWith("https://")) {
                 if (localImage.startsWith(urlPrefix)) {
                     String relativePath = localImage.substring(urlPrefix.length());
@@ -534,15 +542,15 @@ public class DishController {
                 }
             }
         }
-        
+
         // 确保主图在图片列表中（使用转换后的值）
         String processedLocalImage = dishDto.getLocalImage();
         String processedLocalImages = dishDto.getLocalImages();
-        
+
         if (!StringUtils.hasText(processedLocalImage)) {
             return; // 如果没有主图，跳过验证
         }
-        
+
         if (!StringUtils.hasText(processedLocalImages)) {
             // 如果没有图片列表，将主图作为唯一图片
             try {
@@ -554,10 +562,11 @@ public class DishController {
             }
             return;
         }
-        
+
         try {
-            List<String> imageList = objectMapper.readValue(processedLocalImages, new TypeReference<List<String>>() {});
-            
+            List<String> imageList = objectMapper.readValue(processedLocalImages, new TypeReference<List<String>>() {
+            });
+
             // 检查主图是否在列表中（支持相对路径和完整URL的匹配）
             boolean mainImageInList = false;
             int mainImageIndex = -1;
@@ -565,20 +574,20 @@ public class DishController {
             if (!urlPrefix.endsWith("/")) {
                 urlPrefix += "/";
             }
-            
+
             for (int i = 0; i < imageList.size(); i++) {
                 String imagePath = imageList.get(i);
                 if (imagePath == null) {
                     continue;
                 }
-                
+
                 // 直接匹配
                 if (imagePath.equals(processedLocalImage)) {
                     mainImageInList = true;
                     mainImageIndex = i;
                     break;
                 }
-                
+
                 // 尝试匹配完整URL和相对路径
                 if (fileStorageProperties.isLocal()) {
                     // 如果列表中的路径是完整URL，提取相对路径进行比较
@@ -603,7 +612,7 @@ public class DishController {
                     }
                 }
             }
-            
+
             // 如果主图不在列表中，将其添加到列表开头
             if (!mainImageInList) {
                 imageList.add(0, processedLocalImage);
@@ -612,17 +621,17 @@ public class DishController {
                 imageList.remove(mainImageIndex);
                 imageList.add(0, processedLocalImage);
             }
-            
+
             // 更新图片列表
             dishDto.setLocalImages(objectMapper.writeValueAsString(imageList));
-            
+
             // 确保主图字段是相对路径
             if (processedLocalImage.startsWith("http://") || processedLocalImage.startsWith("https://")) {
                 if (fileStorageProperties.isLocal() && processedLocalImage.startsWith(urlPrefix)) {
                     dishDto.setLocalImage(processedLocalImage.substring(urlPrefix.length()));
                 }
             }
-            
+
             log.info("验证主图完成 - 主图: {}, 图片列表: {}", dishDto.getLocalImage(), imageList);
         } catch (Exception e) {
             log.warn("解析 localImages 失败: {}", processedLocalImages, e);
@@ -644,11 +653,12 @@ public class DishController {
     private void convertLocalImagesToArray(DishDto dishDto) {
         String localImages = dishDto.getLocalImages();
         List<String> imagePathList = new ArrayList<>();
-        
+
         // 解析 JSON 字符串为路径数组
         if (StringUtils.hasText(localImages)) {
             try {
-                imagePathList = objectMapper.readValue(localImages, new TypeReference<List<String>>() {});
+                imagePathList = objectMapper.readValue(localImages, new TypeReference<List<String>>() {
+                });
             } catch (Exception e) {
                 log.warn("解析 localImages JSON 失败: {}", localImages, e);
                 // 如果解析失败，尝试从主图生成
@@ -660,7 +670,7 @@ public class DishController {
             // 如果没有 localImages，从 localImage 生成数组
             imagePathList.add(dishDto.getLocalImage());
         }
-        
+
         // 将图片路径转换为完整 URL
         List<String> imageUrlList = new ArrayList<>();
         for (String imagePath : imagePathList) {
@@ -670,11 +680,11 @@ public class DishController {
             String imageUrl = convertImagePathToUrl(imagePath, dishDto);
             imageUrlList.add(imageUrl);
         }
-        
+
         // 设置到 DTO 中供前端使用
         dishDto.setLocalImagesArray(imageUrlList);
     }
-    
+
     /**
      * 将图片路径转换为完整 URL（与 convertImageToPresignedUrl 逻辑一致）
      */
@@ -682,22 +692,23 @@ public class DishController {
         if (imagePath == null || imagePath.isEmpty()) {
             return DEFAULT_IMAGE;
         }
-        
+
         // 如果已经是完整 URL，直接返回（不要再次转换）
         if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
             return imagePath;
         }
-        
+
         // 如果是主图，使用已经转换好的 dishDto.getImage()（在调用此方法前应该已经转换）
         if (StringUtils.hasText(dishDto.getLocalImage()) && imagePath.equals(dishDto.getLocalImage())) {
             // 直接使用已转换的主图 URL
             String mainImageUrl = dishDto.getImage();
-            if (StringUtils.hasText(mainImageUrl) && (mainImageUrl.startsWith("http://") || mainImageUrl.startsWith("https://"))) {
+            if (StringUtils.hasText(mainImageUrl)
+                    && (mainImageUrl.startsWith("http://") || mainImageUrl.startsWith("https://"))) {
                 return mainImageUrl;
             }
             // 如果主图 URL 还没转换，继续下面的转换逻辑
         }
-        
+
         // 其他图片，使用与主图相同的转换逻辑
         if (fileStorageProperties.isLocal()) {
             // 本地存储模式：使用本地存储 URL 前缀
