@@ -525,7 +525,9 @@ const handleImageError = (e: Event) => {
 };
 
 const handleSearch = () => {
-  // 筛选逻辑已在 computed 中实现
+  // 筛选逻辑已在 computed 中实现，但为了支持服务端状态过滤，需要重新加载
+  // 尤其是当用户点击刷新（触发了服务端特定状态过滤）后切换页签
+  loadOrders(true);
 };
 
 const handleReset = () => {

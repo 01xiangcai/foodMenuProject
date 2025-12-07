@@ -1,5 +1,7 @@
 package com.yao.food_menu.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.yao.food_menu.common.context.FamilyContext;
 import com.yao.food_menu.dto.OrdersDto;
@@ -22,7 +24,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -113,7 +118,7 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
         log.info("Process payment for order: {}", orderNumber);
 
         // 查询订单
-        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Orders> queryWrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+        LambdaQueryWrapper<Orders> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(Orders::getOrderNumber, orderNumber);
         Orders order = this.getOne(queryWrapper);
 
@@ -128,11 +133,6 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
         if (order.getStatus() == Orders.STATUS_CANCELLED) {
             throw new RuntimeException("订单已取消，无法支付");
         }
-
-        // 验证用户
-        // 注意：这里可能需要更多的安全校验，比如验证调用者是否为订单拥有者
-        // 但由于是在 internal service 中，我们假设 Controller 层已经做了一些基本的校验
-        // 或者我们在这里再校验一次（需要传入 userId）
 
         Integer payMethod = payDto.getPayMethod();
         if (payMethod == null) {
@@ -194,7 +194,6 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
         LocalDateTime now = LocalDateTime.now();
 
         // 校验：如果是接单操作(0 -> 1)，必须已支付
-        // 校验：如果是接单操作(0 -> 1)，必须已支付
         if (status == Orders.STATUS_PREPARING) {
             if (oldStatus == Orders.STATUS_UNPAID) {
                 throw new RuntimeException("订单未支付，无法接单");
@@ -206,7 +205,6 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
                 // 接单
                 orders.setAcceptTime(now);
             }
-        } else if (status == Orders.STATUS_DELIVERING && oldStatus != Orders.STATUS_DELIVERING) {
         } else if (status == Orders.STATUS_DELIVERING && oldStatus != Orders.STATUS_DELIVERING) {
             // 开始配送
             orders.setDeliveryTime(now);
@@ -226,21 +224,41 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
         if ((status == Orders.STATUS_DELIVERING || status == Orders.STATUS_COMPLETED) && !status.equals(oldStatus)) {
             log.info("Order completed, updating dish statistics for order: {}", id);
             try {
-                com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<OrderItem> queryWrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+                LambdaQueryWrapper<OrderItem> queryWrapper = new LambdaQueryWrapper<>();
                 queryWrapper.eq(OrderItem::getOrderId, id);
                 List<OrderItem> orderItems = orderItemService.list(queryWrapper);
 
-                List<Long> dishIds = orderItems.stream()
-                        .map(OrderItem::getDishId)
-                        .distinct()
-                        .collect(java.util.stream.Collectors.toList());
+                if (orderItems != null && !orderItems.isEmpty()) {
+                    List<Long> dishIds = orderItems.stream()
+                            .map(OrderItem::getDishId)
+                            .distinct()
+                            .collect(Collectors.toList());
 
-                dishStatisticsService.batchIncrementOrderCount(dishIds);
-                log.info("Dish statistics updated for {} dishes", dishIds.size());
+                    dishStatisticsService.batchIncrementOrderCount(dishIds);
+                    log.info("Dish statistics updated for {} dishes", dishIds.size());
+                }
             } catch (Exception e) {
                 log.error("Failed to update dish statistics for order: {}", id, e);
             }
         }
+    }
+
+    @Override
+    public Map<Integer, Long> getOrderCounts(Long userId) {
+        QueryWrapper<Orders> wrapper = new QueryWrapper<>();
+        wrapper.select("status", "count(*) as count")
+                .eq("user_id", userId)
+                .groupBy("status");
+
+        List<Map<String, Object>> list = this.listMaps(wrapper);
+
+        Map<Integer, Long> result = new HashMap<>();
+        for (Map<String, Object> map : list) {
+            Integer status = (Integer) map.get("status");
+            Long count = ((Number) map.get("count")).longValue();
+            result.put(status, count);
+        }
+        return result;
     }
 
     /**

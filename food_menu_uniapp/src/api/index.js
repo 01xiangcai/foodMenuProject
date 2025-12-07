@@ -117,6 +117,16 @@ export const getOrderList = (params) => {
 }
 
 /**
+ * 获取订单统计
+ */
+export const getOrderCounts = () => {
+    return request({
+        url: '/order/count',
+        method: 'GET'
+    })
+}
+
+/**
  * 删除订单
  * @param {Number} id 订单ID
  */

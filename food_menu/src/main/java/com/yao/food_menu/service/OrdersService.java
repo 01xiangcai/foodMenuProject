@@ -20,4 +20,9 @@ public interface OrdersService extends IService<Orders> {
      * Update order status
      */
     void updateStatus(Long id, Integer status);
+
+    /**
+     * Get order counts by status
+     */
+    java.util.Map<Integer, Long> getOrderCounts(Long userId);
 }

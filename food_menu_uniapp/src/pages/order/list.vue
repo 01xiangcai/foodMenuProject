@@ -18,7 +18,12 @@
           :class="{ active: currentTab === tab.value }"
           @tap="switchTab(tab.value)"
         >
-          <text class="tab-text">{{ tab.label }}</text>
+          <view class="tab-content">
+            <text class="tab-text">{{ tab.label }}</text>
+            <view class="tab-badge" v-if="tab.count > 0" :style="getBadgeStyle(tab.value)">
+              {{ tab.count > 99 ? '99+' : tab.count }}
+            </view>
+          </view>
           <view class="tab-line-container" v-if="currentTab === tab.value">
              <view class="tab-line"></view>
           </view>
@@ -139,7 +144,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getOrderList, updateOrderStatus, deleteOrder } from '@/api/index'
+import { getOrderList, updateOrderStatus, deleteOrder, getOrderCounts } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 import { getDishImage } from '@/utils/image'
 
@@ -152,15 +157,15 @@ const noMore = ref(false)
 const cancellingId = ref(null)
 const currentTab = ref(-1)
 
-const statusTabs = [
-  { label: '全部', value: -1 },
-  { label: '待支付', value: 5 },
-  { label: '待接单', value: 0 },
-  { label: '准备中', value: 1 },
-  { label: '配送中', value: 2 },
-  { label: '已完成', value: 3 },
-  { label: '已取消', value: 4 }
-]
+const statusTabs = ref([
+  { label: '全部', value: -1, count: 0 },
+  { label: '待支付', value: 5, count: 0 },
+  { label: '待接单', value: 0, count: 0 },
+  { label: '准备中', value: 1, count: 0 },
+  { label: '配送中', value: 2, count: 0 },
+  { label: '已完成', value: 3, count: 0 },
+  { label: '已取消', value: 4, count: 0 }
+])
 
 // 切换Tab
 const switchTab = (value) => {
@@ -318,6 +323,7 @@ const cancelOrder = (orderId) => {
           if (order) {
             order.status = 4
           }
+          fetchOrderCounts()
         } catch (error) {
           console.error('取消订单失败:', error)
           uni.showToast({
@@ -347,6 +353,7 @@ const handleDelete = (orderId) => {
           })
           // 本地移除
           orders.value = orders.value.filter(o => o.id !== orderId)
+          fetchOrderCounts()
         } catch (error) {
           console.error('删除失败:', error)
           uni.showToast({
@@ -407,7 +414,53 @@ onMounted(() => {
 onShow(() => {
   // 每次页面重新显示时刷新订单列表，确保状态及时更新
   loadOrders(true)
+  fetchOrderCounts()
 })
+
+// 获取订单统计
+const fetchOrderCounts = async () => {
+  try {
+    const res = await getOrderCounts()
+    if (res.code === 1) {
+      const counts = res.data || {}
+      let total = 0
+      
+      statusTabs.value.forEach(tab => {
+        if (tab.value === -1) {
+          // 暂时不赋值，等循环结束后赋值总数
+          return
+        }
+        const count = counts[tab.value] || 0
+        tab.count = count
+        total += count
+      })
+      
+      // 设置全部页签的徽章（显示总数）
+      const allTab = statusTabs.value.find(t => t.value === -1)
+      if (allTab) {
+        allTab.count = total
+      }
+    }
+  } catch (error) {
+    console.error('获取订单统计失败:', error)
+  }
+}
+
+// 获取徽章背景色
+const getBadgeStyle = (status) => {
+  const colors = {
+    '-1': '#722ed1', // 全部 - 紫色
+    '5': '#ff3b30',  // 待支付 - 红色
+    '0': '#ff9500',  // 待接单 - 橙色
+    '1': '#14b8ff',  // 准备中 - 蓝色
+    '2': '#667eea',  // 配送中 - 紫色
+    '3': '#34c759',  // 已完成 - 绿色
+    '4': '#8e8e93'   // 已取消 - 灰色
+  }
+  return {
+    background: colors[status] || '#ff3b30'
+  }
+}
 </script>
 
 <style lang="scss" scoped>
@@ -785,5 +838,31 @@ onShow(() => {
     border-radius: 999px;
     box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.1);
   }
+}
+
+.tab-content {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.tab-badge {
+  position: absolute;
+  top: -16rpx;
+  right: -24rpx;
+  background: #ff3b30;
+  color: #fff;
+  font-size: 20rpx;
+  height: 28rpx;
+  min-width: 28rpx;
+  padding: 0 8rpx;
+  border-radius: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  box-shadow: 0 2rpx 4rpx rgba(255, 59, 48, 0.3);
+  font-weight: 500;
+  line-height: 1;
 }
 </style>
