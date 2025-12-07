@@ -68,7 +68,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['update:visible', 'submit', 'close'])
+const emit = defineEmits(['update:visible', 'submit', 'confirm', 'close'])
 
 const { themeConfig } = useTheme()
 
@@ -109,6 +109,7 @@ const handleKeyPress = (key) => {
   // 输入完成6位后自动提交
   if (password.value.length === 6) {
     emit('submit', password.value)
+    emit('confirm', password.value)
   }
 }
 

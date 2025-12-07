@@ -146,7 +146,8 @@ const getTypeName = (type) => {
   const map = {
     1: '充值',
     2: '消费',
-    3: '冻结'
+    3: '冻结',
+    4: '退款'
   }
   return map[type] || '未知'
 }
@@ -156,7 +157,8 @@ const getTypeIcon = (type) => {
   const map = {
     1: '💰',
     2: '🛒',
-    3: '❄️'
+    3: '❄️',
+    4: '↩️'
   }
   return map[type] || '📝'
 }
@@ -166,7 +168,8 @@ const getTypeClass = (type) => {
   const map = {
     1: 'recharge',
     2: 'consume',
-    3: 'freeze'
+    3: 'freeze',
+    4: 'refund'
   }
   return map[type] || ''
 }
@@ -450,6 +453,10 @@ onMounted(() => {
           
           &.freeze {
             background: rgba(96, 165, 250, 0.2);
+          }
+          
+          &.refund {
+            background: rgba(52, 211, 153, 0.2);
           }
         }
         

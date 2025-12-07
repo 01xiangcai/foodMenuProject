@@ -30,6 +30,54 @@
       </view>
     </view>
 
+    <!-- 支付方式卡片 -->
+    <view class="card">
+      <view class="card-header">
+        <text class="card-title">支付方式</text>
+      </view>
+      
+      <view class="pay-methods">
+        <!-- 余额支付 -->
+        <view 
+          class="pay-method" 
+          :class="{ active: payMethod === 1, disabled: !canUseWallet }"
+          @tap="selectPayMethod(1)"
+        >
+          <view class="pay-method-left">
+            <text class="pay-icon">💰</text>
+            <view class="pay-info">
+              <text class="pay-name">余额支付</text>
+              <text class="pay-balance" :class="{ insufficient: !canUseWallet }">
+                余额: ¥{{ walletBalance.toFixed(2) }}
+              </text>
+            </view>
+          </view>
+          <view class="pay-check" v-if="payMethod === 1">✓</view>
+        </view>
+
+        <!-- 模拟支付 -->
+        <view 
+          class="pay-method" 
+          :class="{ active: payMethod === 2 }"
+          @tap="selectPayMethod(2)"
+        >
+          <view class="pay-method-left">
+            <text class="pay-icon">🎮</text>
+            <view class="pay-info">
+              <text class="pay-name">模拟支付</text>
+              <text class="pay-desc">开发测试使用</text>
+            </view>
+          </view>
+          <view class="pay-check" v-if="payMethod === 2">✓</view>
+        </view>
+      </view>
+
+      <!-- 余额不足提示 -->
+      <view class="insufficient-tip" v-if="payMethod === 1 && !canUseWallet">
+        <text>余额不足，请充值或者联系管理员</text>
+      </view>
+    </view>
+
     <!-- 备注卡片 -->
     <view class="card">
       <view class="card-header">
@@ -52,28 +100,44 @@
         <text class="label">合计:</text>
         <text class="price">¥{{ goodsAmount }}</text>
       </view>
-      <view class="btn-submit" @tap="submitOrder">
-        <text>提交订单</text>
+      <view 
+        class="btn-submit" 
+        :class="{ disabled: !canSubmit }"
+        @tap="handleSubmit"
+      >
+        <text>{{ submitBtnText }}</text>
       </view>
     </view>
+
+    <!-- 支付密码弹窗 -->
+    <PayPasswordPopup
+      v-model:visible="showPayPassword"
+      :title="'请输入支付密码'"
+      @confirm="onPayPasswordConfirm"
+      @cancel="showPayPassword = false"
+    />
   </view>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
-import { createOrder } from '@/api/index'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad, onShow } from '@dcloudio/uni-app'
+import { createOrder, getWalletInfo, checkPayPassword } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 import { useCartStore } from '@/stores/cart'
 import { getDishImage } from '@/utils/image'
+import PayPasswordPopup from '@/components/PayPasswordPopup.vue'
 
 const { themeConfig } = useTheme()
 const cartStore = useCartStore()
 
-
-
 const items = ref([])
 const remark = ref('')
+const payMethod = ref(2) // 默认模拟支付
+const walletBalance = ref(0)
+const hasPayPassword = ref(false)
+const showPayPassword = ref(false)
+const isSubmitting = ref(false)
 
 // 商品金额
 const goodsAmount = computed(() => {
@@ -82,24 +146,99 @@ const goodsAmount = computed(() => {
   }, 0).toFixed(2)
 })
 
-// 设计图中合计与小计一致，这里 totalAmount 直接使用 goodsAmount 即可
-const totalAmount = computed(() => goodsAmount.value)
+// 是否可以使用余额支付
+const canUseWallet = computed(() => {
+  return walletBalance.value >= parseFloat(goodsAmount.value)
+})
 
+// 是否可以提交订单
+const canSubmit = computed(() => {
+  if (isSubmitting.value) return false
+  if (payMethod.value === 1 && !canUseWallet.value) return false
+  return items.value.length > 0
+})
 
+// 提交按钮文字
+const submitBtnText = computed(() => {
+  if (isSubmitting.value) return '提交中...'
+  if (payMethod.value === 1 && !canUseWallet.value) return '余额不足'
+  return '确认支付'
+})
+
+// 获取钱包信息
+const loadWalletInfo = async () => {
+  try {
+    const res = await getWalletInfo()
+    if (res.data) {
+      walletBalance.value = res.data.balance || 0
+      hasPayPassword.value = res.data.hasPayPassword || false
+    }
+  } catch (error) {
+    console.error('获取钱包信息失败:', error)
+  }
+}
+
+// 选择支付方式
+const selectPayMethod = (method) => {
+  if (method === 1 && !canUseWallet.value) {
+    uni.showToast({
+      title: '余额不足，请充值或者联系管理员',
+      icon: 'none'
+    })
+    return
+  }
+  payMethod.value = method
+}
 
 // 处理图片加载错误
 const handleImageError = (item) => {
-  item.image = '/static/logo.png' // 使用默认图片
+  item.image = '/static/logo.png'
+}
+
+// 点击提交
+const handleSubmit = () => {
+  if (!canSubmit.value) return
+
+  if (payMethod.value === 1) {
+    // 余额支付需要输入密码
+    if (!hasPayPassword.value) {
+      uni.showModal({
+        title: '提示',
+        content: '您尚未设置支付密码，请先设置支付密码',
+        confirmText: '去设置',
+        success: (res) => {
+          if (res.confirm) {
+            uni.navigateTo({
+              url: '/pages/wallet/index'
+            })
+          }
+        }
+      })
+      return
+    }
+    showPayPassword.value = true
+  } else {
+    // 模拟支付直接提交
+    submitOrder(null)
+  }
+}
+
+// 支付密码确认
+const onPayPasswordConfirm = (password) => {
+  showPayPassword.value = false
+  submitOrder(password)
 }
 
 // 提交订单
-const submitOrder = async () => {
-
+const submitOrder = async (payPassword) => {
+  if (isSubmitting.value) return
+  isSubmitting.value = true
 
   try {
     const orderData = {
-      // 后端当前暂未使用地址字段，这里先保留占位
       remark: remark.value,
+      payMethod: payMethod.value,
+      payPassword: payPassword,
       orderItems: items.value.map(item => ({
         dishId: item.id,
         quantity: item.quantity
@@ -113,7 +252,7 @@ const submitOrder = async () => {
       cartStore.clearCart()
       
       uni.showToast({
-        title: '订单提交成功',
+        title: payMethod.value === 1 ? '支付成功' : '订单提交成功',
         icon: 'success'
       })
       
@@ -125,10 +264,14 @@ const submitOrder = async () => {
     }
   } catch (error) {
     console.error('提交订单失败:', error)
+    const errMsg = error.message || '订单提交失败'
     uni.showToast({
-      title: '订单提交失败',
-      icon: 'none'
+      title: errMsg,
+      icon: 'none',
+      duration: 3000
     })
+  } finally {
+    isSubmitting.value = false
   }
 }
 
@@ -140,7 +283,6 @@ onLoad((options) => {
       console.error('解析商品数据失败:', error)
     }
   } else if (options.dishId && options.quantity) {
-    // 从详情页直接购买
     items.value = [{
       id: parseInt(options.dishId),
       name: '商品',
@@ -149,6 +291,10 @@ onLoad((options) => {
       image: 'https://dummyimage.com/200x200/ff6b6b/ffffff&text=商品'
     }]
   }
+})
+
+onShow(() => {
+  loadWalletInfo()
 })
 </script>
 
@@ -247,6 +393,94 @@ onLoad((options) => {
   font-weight: 700;
 }
 
+/* 支付方式样式 */
+.pay-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.pay-method {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx;
+  background-color: v-bind('themeConfig.bgTertiary');
+  border-radius: 16rpx;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+
+  &.active {
+    border-color: v-bind('themeConfig.primary');
+    background-color: v-bind('themeConfig.primary + "1a"');
+  }
+
+  &.disabled {
+    opacity: 0.6;
+  }
+}
+
+.pay-method-left {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.pay-icon {
+  font-size: 48rpx;
+}
+
+.pay-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.pay-name {
+  font-size: 30rpx;
+  color: v-bind('themeConfig.textPrimary');
+  font-weight: 600;
+}
+
+.pay-balance {
+  font-size: 24rpx;
+  color: #34d399;
+
+  &.insufficient {
+    color: #f87171;
+  }
+}
+
+.pay-desc {
+  font-size: 24rpx;
+  color: v-bind('themeConfig.textSecondary');
+}
+
+.pay-check {
+  width: 44rpx;
+  height: 44rpx;
+  background: v-bind('themeConfig.gradient');
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 24rpx;
+  font-weight: bold;
+}
+
+.insufficient-tip {
+  margin-top: 20rpx;
+  padding: 16rpx 20rpx;
+  background-color: rgba(248, 113, 113, 0.1);
+  border-radius: 12rpx;
+  
+  text {
+    font-size: 24rpx;
+    color: #f87171;
+  }
+}
+
 .textarea-wrapper {
   background-color: v-bind('themeConfig.bgTertiary');
   border-radius: 12rpx;
@@ -311,9 +545,14 @@ onLoad((options) => {
     font-weight: 600;
   }
   
-  &:active {
+  &.disabled {
+    opacity: 0.5;
+  }
+  
+  &:active:not(.disabled) {
     opacity: 0.9;
     transform: scale(0.98);
   }
 }
 </style>
+

@@ -237,10 +237,11 @@ const transactionColumns: DataTableColumns<WalletTransaction> = [
     key: 'transType',
     width: 100,
     render: (row) => {
-      const typeMap: Record<number, { label: string; type: 'success' | 'error' | 'warning' }> = {
+      const typeMap: Record<number, { label: string; type: 'success' | 'error' | 'warning' | 'info' }> = {
         1: { label: '充值', type: 'success' },
         2: { label: '消费', type: 'error' },
         3: { label: '冻结', type: 'warning' },
+        4: { label: '退款', type: 'info' },
       };
       const info = typeMap[row.transType] || { label: '未知', type: 'warning' };
       return h(NTag, { type: info.type, size: 'small' }, () => info.label);

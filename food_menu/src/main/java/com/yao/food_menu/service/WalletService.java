@@ -87,4 +87,13 @@ public interface WalletService extends IService<UserWallet> {
      * @return 是否已设置
      */
     boolean hasPayPassword(String wxUserId);
+
+    /**
+     * 订单取消退款
+     *
+     * @param wxUserId 微信用户ID
+     * @param amount   退款金额
+     * @param orderNo  关联订单号
+     */
+    void refund(String wxUserId, java.math.BigDecimal amount, String orderNo);
 }

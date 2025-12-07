@@ -29,7 +29,7 @@ public class WalletTransaction implements Serializable {
     private String wxUserId;
 
     /**
-     * 交易类型: 1=后台充值, 2=订单消费, 3=退款冻结
+     * 交易类型: 1=后台充值, 2=订单消费, 3=退款冻结，4=取消退款
      */
     private Integer transType;
 
@@ -69,4 +69,5 @@ public class WalletTransaction implements Serializable {
     public static final int TRANS_TYPE_RECHARGE = 1; // 后台充值
     public static final int TRANS_TYPE_CONSUME = 2; // 订单消费
     public static final int TRANS_TYPE_FREEZE = 3; // 退款冻结
+    public static final int TRANS_TYPE_REFUND = 4; // 订单取消退款
 }

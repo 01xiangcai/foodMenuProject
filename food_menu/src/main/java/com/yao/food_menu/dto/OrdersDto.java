@@ -22,4 +22,8 @@ public class OrdersDto extends Orders {
     private String userNickname; // 用户昵称
     private String userPhone; // 用户手机号
     private String userAvatar; // 用户头像
+
+    // 支付密码（余额支付时使用，不持久化）
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private String payPassword;
 }

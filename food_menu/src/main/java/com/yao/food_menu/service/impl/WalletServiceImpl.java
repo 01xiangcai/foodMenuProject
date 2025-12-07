@@ -234,4 +234,42 @@ public class WalletServiceImpl extends ServiceImpl<UserWalletMapper, UserWallet>
         UserWallet wallet = getWalletByUserId(wxUserId);
         return wallet != null && StringUtils.hasText(wallet.getPayPassword());
     }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void refund(String wxUserId, java.math.BigDecimal amount, String orderNo) {
+        if (amount == null || amount.compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("退款金额必须大于0");
+        }
+
+        // 获取钱包
+        UserWallet wallet = getWalletByUserId(wxUserId);
+        if (wallet == null) {
+            throw new RuntimeException("钱包不存在");
+        }
+
+        // 增加余额
+        java.math.BigDecimal newBalance = wallet.getBalance().add(amount);
+
+        // 使用乐观锁更新（@Version注解由插件自动处理版本号）
+        wallet.setBalance(newBalance);
+        wallet.setUpdateTime(java.time.LocalDateTime.now());
+
+        boolean updated = this.updateById(wallet);
+        if (!updated) {
+            throw new RuntimeException("退款失败，请重试");
+        }
+
+        // 记录流水（退款作为充值类型，金额为正数）
+        WalletTransaction transaction = new WalletTransaction();
+        transaction.setWxUserId(wxUserId);
+        transaction.setTransType(WalletTransaction.TRANS_TYPE_REFUND);
+        transaction.setAmount(amount);
+        transaction.setBalanceAfter(newBalance);
+        transaction.setRelatedOrderNo(orderNo);
+        transaction.setRemark("订单取消退款: " + orderNo);
+        transaction.setCreateTime(java.time.LocalDateTime.now());
+
+        transactionMapper.insert(transaction);
+    }
 }

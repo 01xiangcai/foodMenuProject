@@ -50,6 +50,15 @@ public class Orders implements Serializable {
     // 备注
     private String remark;
 
+    // 支付方式: 1=余额支付, 2=模拟支付
+    private Integer payMethod;
+
+    // 支付状态: 0=未支付, 1=已支付, 2=已退款
+    private Integer payStatus;
+
+    // 支付时间
+    private LocalDateTime payTime;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 
@@ -59,4 +68,22 @@ public class Orders implements Serializable {
     // 逻辑删除: 0-未删除, 1-已删除
     @TableLogic(value = "0", delval = "1")
     private Integer deleted;
+
+    // ========== 常量定义 ==========
+
+    // 支付方式常量
+    public static final int PAY_METHOD_WALLET = 1; // 余额支付
+    public static final int PAY_METHOD_MOCK = 2; // 模拟支付
+
+    // 支付状态常量
+    public static final int PAY_STATUS_UNPAID = 0; // 未支付
+    public static final int PAY_STATUS_PAID = 1; // 已支付
+    public static final int PAY_STATUS_REFUNDED = 2; // 已退款
+
+    // 订单状态常量
+    public static final int STATUS_PENDING = 0; // 待处理
+    public static final int STATUS_PREPARING = 1; // 准备中
+    public static final int STATUS_DELIVERING = 2; // 配送中
+    public static final int STATUS_COMPLETED = 3; // 已完成
+    public static final int STATUS_CANCELLED = 4; // 已取消
 }
