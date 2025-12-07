@@ -97,6 +97,12 @@
             "style": {
                 "navigationBarTitleText": "随机点餐"
             }
+        },
+        {
+            "path": "pages/wallet/index",
+            "style": {
+                "navigationBarTitleText": "我的钱包"
+            }
         }
     ],
     "globalStyle": {

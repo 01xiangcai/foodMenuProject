@@ -371,3 +371,74 @@ export const getRandomFilterOptions = () => {
         method: 'GET'
     })
 }
+
+// ================== 钱包相关 API ==================
+
+/**
+ * 获取钱包信息
+ */
+export const getWalletInfo = () => {
+    return request({
+        url: '/app/wallet/info',
+        method: 'GET'
+    })
+}
+
+/**
+ * 余额支付
+ * @param {Object} data { amount, payPassword, orderNo, remark }
+ */
+export const walletPay = (data) => {
+    return request({
+        url: '/app/wallet/pay',
+        method: 'POST',
+        data
+    })
+}
+
+/**
+ * 获取交易流水
+ * @param {Number} page 页码
+ * @param {Number} pageSize 每页数量
+ */
+export const getWalletTransactions = (page = 1, pageSize = 10) => {
+    return request({
+        url: '/app/wallet/transactions',
+        method: 'GET',
+        data: { page, pageSize }
+    })
+}
+
+/**
+ * 设置支付密码
+ * @param {String} payPassword 6位数字密码
+ */
+export const setPayPassword = (payPassword) => {
+    return request({
+        url: '/app/wallet/password',
+        method: 'POST',
+        data: { payPassword }
+    })
+}
+
+/**
+ * 验证支付密码
+ * @param {String} payPassword 6位数字密码
+ */
+export const verifyPayPassword = (payPassword) => {
+    return request({
+        url: '/app/wallet/password/verify',
+        method: 'POST',
+        data: { payPassword }
+    })
+}
+
+/**
+ * 检查是否已设置支付密码
+ */
+export const checkPayPassword = () => {
+    return request({
+        url: '/app/wallet/password/check',
+        method: 'GET'
+    })
+}

@@ -11,6 +11,7 @@ import TagsView from '@/views/tags/TagsView.vue';
 import SettingsView from '@/views/settings/SettingsView.vue';
 import FamiliesView from '@/views/families/FamiliesView.vue';
 import OperationLogsView from '@/views/operationLogs/OperationLogsView.vue';
+import WalletListView from '@/views/finance/WalletListView.vue';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -85,6 +86,12 @@ const routes: RouteRecordRaw[] = [
         name: 'operationLogs',
         component: OperationLogsView,
         meta: { title: '操作日志' }
+      },
+      {
+        path: 'wallet',
+        name: 'wallet',
+        component: WalletListView,
+        meta: { title: '钱包管理' }
       }
     ]
   }

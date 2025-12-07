@@ -31,6 +31,12 @@
         <text class="badge">新功能</text>
         <text class="arrow">→</text>
       </view>
+      <view class="menu-item" @tap="goToWallet">
+        <text class="icon">💰</text>
+        <text class="label">我的钱包</text>
+        <text class="wallet-balance" v-if="walletBalance > 0">¥{{ walletBalance.toFixed(2) }}</text>
+        <text class="arrow">→</text>
+      </view>
       <view class="menu-item" @tap="goToOrders">
         <text class="icon">📋</text>
         <text class="label">我的订单</text>
@@ -177,7 +183,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getWxUserInfo, getCurrentFamily } from '@/api/index'
+import { getWxUserInfo, getCurrentFamily, getWalletInfo } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 
 const userInfo = ref({
@@ -189,6 +195,9 @@ const userInfo = ref({
 
 // 家庭信息
 const familyInfo = ref(null)
+
+// 钱包余额
+const walletBalance = ref(0)
 
 // 使用主题store
 const { currentTheme, themeConfig, toggleTheme, loadTheme } = useTheme()
@@ -280,6 +289,29 @@ const goToJoinFamily = () => {
   uni.navigateTo({
     url: '/pages/family/join'
   })
+}
+
+// 跳转到钱包页面
+const goToWallet = () => {
+  if (!checkLogin()) return
+  uni.navigateTo({
+    url: '/pages/wallet/index'
+  })
+}
+
+// 加载钱包余额
+const loadWalletBalance = async () => {
+  const token = uni.getStorageSync('fm_token')
+  if (!token) return
+  
+  try {
+    const res = await getWalletInfo()
+    if (res.data) {
+      walletBalance.value = res.data.balance || 0
+    }
+  } catch (error) {
+    console.error('获取钱包余额失败:', error)
+  }
 }
 
 // 查看家庭信息
@@ -517,6 +549,7 @@ const logout = () => {
 onShow(() => {
   loadUserInfo()
   loadFamilyInfo()
+  loadWalletBalance()
 })
 
 onMounted(() => {
@@ -688,6 +721,16 @@ onMounted(() => {
     font-weight: 600;
     padding: 4rpx 12rpx;
     background: v-bind('themeConfig.primaryColor + "1a"');
+    border-radius: 6rpx;
+  }
+  
+  .wallet-balance {
+    font-size: 24rpx;
+    color: #34d399;
+    margin-right: 10rpx;
+    font-weight: 600;
+    padding: 4rpx 12rpx;
+    background: rgba(52, 211, 153, 0.15);
     border-radius: 6rpx;
   }
   

@@ -25,6 +25,9 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
     @org.springframework.beans.factory.annotation.Autowired
     private JwtUtil jwtUtil;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.yao.food_menu.service.WalletService walletService;
+
     private static final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     // 模拟验证码存储(生产环境应使用Redis)
@@ -46,66 +49,68 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
             WxUser user = null;
             Integer type = resolveLoginType(loginDto);
 
-        if (type == 1) {
-            // 用户名/手机号+密码登录
-            String loginInput = loginDto.getUsername();
-            if (!StringUtils.hasText(loginInput)) {
-                throw new RuntimeException("请输入用户名或手机号");
-            }
+            if (type == 1) {
+                // 用户名/手机号+密码登录
+                String loginInput = loginDto.getUsername();
+                if (!StringUtils.hasText(loginInput)) {
+                    throw new RuntimeException("请输入用户名或手机号");
+                }
 
-            // 判断输入的是手机号还是用户名（手机号是11位数字）
-            boolean isPhone = loginInput.matches("^1[3-9]\\d{9}$");
-            
-            LambdaQueryWrapper<WxUser> queryWrapper = new LambdaQueryWrapper<>();
-            if (isPhone) {
-                // 按手机号查询
-                queryWrapper.eq(WxUser::getPhone, loginInput);
+                // 判断输入的是手机号还是用户名（手机号是11位数字）
+                boolean isPhone = loginInput.matches("^1[3-9]\\d{9}$");
+
+                LambdaQueryWrapper<WxUser> queryWrapper = new LambdaQueryWrapper<>();
+                if (isPhone) {
+                    // 按手机号查询
+                    queryWrapper.eq(WxUser::getPhone, loginInput);
+                } else {
+                    // 按用户名查询
+                    queryWrapper.eq(WxUser::getUsername, loginInput);
+                }
+                user = this.getOne(queryWrapper);
+
+                if (user == null) {
+                    throw new RuntimeException("用户不存在");
+                }
+
+                // 检查用户是否有密码（手机号注册的用户可能没有密码）
+                if (user.getPassword() == null || user.getPassword().isEmpty()) {
+                    throw new RuntimeException("该账号未设置密码，请使用验证码登录");
+                }
+
+                if (!passwordEncoder.matches(loginDto.getPassword(), user.getPassword())) {
+                    throw new RuntimeException("密码错误");
+                }
+
+            } else if (type == 2) {
+                // 手机号/验证码登录
+                String cachedCode = CODE_CACHE.get(loginDto.getPhone());
+                if (cachedCode == null || !cachedCode.equals(loginDto.getCode())) {
+                    throw new RuntimeException("验证码无效");
+                }
+
+                LambdaQueryWrapper<WxUser> queryWrapper = new LambdaQueryWrapper<>();
+                queryWrapper.eq(WxUser::getPhone, loginDto.getPhone());
+                user = this.getOne(queryWrapper);
+
+                // 如果用户不存在则自动注册
+                if (user == null) {
+                    user = new WxUser();
+                    user.setPhone(loginDto.getPhone());
+                    user.setNickname("用户_" + loginDto.getPhone().substring(7));
+                    // 默认角色为普通用户
+                    user.setRole(0);
+                    user.setStatus(1); // 默认状态为启用
+                    this.save(user);
+                    // 自动创建钱包
+                    walletService.getOrCreateWallet(user.getId().toString());
+                }
+
+                // 清除已使用的验证码
+                CODE_CACHE.remove(loginDto.getPhone());
             } else {
-                // 按用户名查询
-                queryWrapper.eq(WxUser::getUsername, loginInput);
+                throw new RuntimeException("无效的登录类型");
             }
-            user = this.getOne(queryWrapper);
-
-            if (user == null) {
-                throw new RuntimeException("用户不存在");
-            }
-
-            // 检查用户是否有密码（手机号注册的用户可能没有密码）
-            if (user.getPassword() == null || user.getPassword().isEmpty()) {
-                throw new RuntimeException("该账号未设置密码，请使用验证码登录");
-            }
-
-            if (!passwordEncoder.matches(loginDto.getPassword(), user.getPassword())) {
-                throw new RuntimeException("密码错误");
-            }
-
-        } else if (type == 2) {
-            // 手机号/验证码登录
-            String cachedCode = CODE_CACHE.get(loginDto.getPhone());
-            if (cachedCode == null || !cachedCode.equals(loginDto.getCode())) {
-                throw new RuntimeException("验证码无效");
-            }
-
-            LambdaQueryWrapper<WxUser> queryWrapper = new LambdaQueryWrapper<>();
-            queryWrapper.eq(WxUser::getPhone, loginDto.getPhone());
-            user = this.getOne(queryWrapper);
-
-            // 如果用户不存在则自动注册
-            if (user == null) {
-                user = new WxUser();
-                user.setPhone(loginDto.getPhone());
-                user.setNickname("用户_" + loginDto.getPhone().substring(7));
-                // 默认角色为普通用户
-                user.setRole(0);
-                user.setStatus(1); // 默认状态为启用
-                this.save(user);
-            }
-
-            // 清除已使用的验证码
-            CODE_CACHE.remove(loginDto.getPhone());
-        } else {
-            throw new RuntimeException("无效的登录类型");
-        }
 
             // 生成JWT token（包含familyId和role信息）
             return jwtUtil.generateToken(
@@ -182,6 +187,9 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
         user.setStatus(1); // 默认状态为启用
 
         this.save(user);
+
+        // 自动创建钱包
+        walletService.getOrCreateWallet(user.getId().toString());
     }
 
     @Override

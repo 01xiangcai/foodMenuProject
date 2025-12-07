@@ -264,3 +264,46 @@ export const fetchOperationLogDetail = (id: number) => http.get(`/admin/operatio
 export const deleteOperationLog = (id: number) => http.delete(`/admin/operationLog/${id}`);
 export const batchDeleteOperationLogs = (endTime: string) => http.delete('/admin/operationLog/batch', { params: { endTime } });
 
+// 钱包管理
+export type WalletQuery = {
+  page: number;
+  pageSize: number;
+  wxUserId?: string;
+  nickname?: string;
+};
+
+export type WalletInfo = {
+  id: number;
+  wxUserId: string;
+  balance: number;
+  frozenAmount: number;
+  version: number;
+  nickname?: string;
+  phone?: string;
+  createTime: string;
+  updateTime: string;
+};
+
+export type RechargePayload = {
+  wxUserId: string;
+  amount: number;
+  remark?: string;
+};
+
+export type WalletTransaction = {
+  id: number;
+  wxUserId: string;
+  transType: number;
+  amount: number;
+  balanceAfter: number;
+  relatedOrderNo?: string;
+  remark?: string;
+  createTime: string;
+};
+
+export const fetchWallets = (params: WalletQuery) => http.get('/admin/wallet/list', { params });
+export const rechargeWallet = (data: RechargePayload) => http.post('/admin/wallet/recharge', data);
+export const fetchWalletDetail = (wxUserId: string) => http.get(`/admin/wallet/detail/${wxUserId}`);
+export const fetchWalletTransactions = (params: { wxUserId: string; page: number; pageSize: number }) =>
+  http.get('/admin/wallet/transactions', { params });
+
