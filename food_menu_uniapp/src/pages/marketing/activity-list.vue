@@ -34,7 +34,7 @@
 
         <!-- 参与按钮 -->
         <view class="action">
-          <button class="btn-participate" @click.stop="participate(activity)">
+          <button class="btn-participate" @click.stop="goToWheel(activity)">
             立即参与
           </button>
         </view>
@@ -109,26 +109,11 @@ const loadActivities = async () => {
   }
 };
 
-// 跳转到活动详情
-const goToActivity = (activity) => {
-  // 根据活动类型跳转到不同页面
-  const typePageMap = {
-    LOTTERY: '/pages/marketing/lottery',
-    WHEEL: '/pages/marketing/wheel',
-    COUPON: '/pages/marketing/coupon'
-  };
-  
-  const page = typePageMap[activity.activityType];
-  if (page) {
-    uni.navigateTo({
-      url: `${page}?id=${activity.id}`
-    });
-  } else {
-    uni.showToast({
-      title: '该活动类型暂未开放',
-      icon: 'none'
-    });
-  }
+// 跳转到大转盘页面
+const goToWheel = (activity) => {
+  uni.navigateTo({
+    url: `/pages/marketing/wheel?id=${activity.id}`
+  });
 };
 
 // 参与活动

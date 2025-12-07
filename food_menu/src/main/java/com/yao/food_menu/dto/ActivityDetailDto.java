@@ -1,7 +1,9 @@
 package com.yao.food_menu.dto;
 
+import com.yao.food_menu.entity.ActivityPrize;
 import lombok.Data;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 活动详情DTO
@@ -52,4 +54,7 @@ public class ActivityDetailDto {
 
     // 更新时间
     private LocalDateTime updateTime;
+
+    // 奖品列表
+    private List<ActivityPrize> prizes;
 }

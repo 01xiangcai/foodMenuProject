@@ -70,6 +70,14 @@ public class ActivityPrizeServiceImpl extends ServiceImpl<ActivityPrizeMapper, A
     }
 
     @Override
+    public List<ActivityPrize> getPrizesByActivityId(Long activityId) {
+        LambdaQueryWrapper<ActivityPrize> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ActivityPrize::getActivityId, activityId)
+                .orderByAsc(ActivityPrize::getPrizeLevel);
+        return this.list(wrapper);
+    }
+
+    @Override
     public ActivityPrize drawPrize(Long activityId) {
         // 获取活动的所有奖品
         LambdaQueryWrapper<ActivityPrize> wrapper = new LambdaQueryWrapper<>();

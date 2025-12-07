@@ -20,6 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 活动参与服务实现类
@@ -164,5 +167,41 @@ public class ActivityParticipateServiceImpl
         record.setPrizeStatus(1); // 已领取
         record.setClaimTime(LocalDateTime.now());
         this.updateById(record);
+    }
+
+    @Override
+    public List<ActivityPrize> getMyPrizes(Long userId) {
+        // 查询用户中奖的参与记录
+        LambdaQueryWrapper<ActivityParticipateRecord> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ActivityParticipateRecord::getWxUserId, userId)
+                .eq(ActivityParticipateRecord::getIsWin, 1)
+                .orderByDesc(ActivityParticipateRecord::getParticipateTime);
+
+        List<ActivityParticipateRecord> records = this.list(wrapper);
+
+        // 提取奖品ID列表
+        List<Long> prizeIds = records.stream()
+                .map(ActivityParticipateRecord::getPrizeId)
+                .filter(id -> id != null)
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (prizeIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 查询奖品详情
+        return activityPrizeService.listByIds(prizeIds);
+    }
+
+    @Override
+    public List<ActivityParticipateRecord> getMyRecords(Long userId) {
+        // 查询用户中奖的参与记录
+        LambdaQueryWrapper<ActivityParticipateRecord> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ActivityParticipateRecord::getWxUserId, userId)
+                .eq(ActivityParticipateRecord::getIsWin, 1)
+                .orderByDesc(ActivityParticipateRecord::getParticipateTime);
+
+        return this.list(wrapper);
     }
 }

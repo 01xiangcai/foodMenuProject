@@ -109,6 +109,13 @@
             "style": {
                 "navigationBarTitleText": "营销活动"
             }
+        },
+        {
+            "path": "pages/marketing/wheel",
+            "style": {
+                "navigationBarTitleText": "幸运大转盘",
+                "navigationStyle": "custom"
+            }
         }
     ],
     "globalStyle": {

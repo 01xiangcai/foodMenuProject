@@ -7,8 +7,10 @@ import com.yao.food_menu.common.context.FamilyContext;
 import com.yao.food_menu.common.exception.BusinessException;
 import com.yao.food_menu.dto.ActivityCreateDto;
 import com.yao.food_menu.dto.ActivityDetailDto;
+import com.yao.food_menu.entity.ActivityPrize;
 import com.yao.food_menu.entity.MarketingActivity;
 import com.yao.food_menu.mapper.MarketingActivityMapper;
+import com.yao.food_menu.service.ActivityPrizeService;
 import com.yao.food_menu.service.MarketingActivityService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -23,6 +25,12 @@ import java.util.stream.Collectors;
 @Service
 public class MarketingActivityServiceImpl extends ServiceImpl<MarketingActivityMapper, MarketingActivity>
         implements MarketingActivityService {
+
+    private final ActivityPrizeService activityPrizeService;
+
+    public MarketingActivityServiceImpl(ActivityPrizeService activityPrizeService) {
+        this.activityPrizeService = activityPrizeService;
+    }
 
     @Override
     public Long createActivity(ActivityCreateDto dto) {
@@ -61,6 +69,11 @@ public class MarketingActivityServiceImpl extends ServiceImpl<MarketingActivityM
 
         ActivityDetailDto dto = new ActivityDetailDto();
         BeanUtils.copyProperties(activity, dto);
+
+        // 加载奖品列表
+        List<ActivityPrize> prizes = activityPrizeService.getPrizesByActivityId(id);
+        dto.setPrizes(prizes);
+
         return dto;
     }
 

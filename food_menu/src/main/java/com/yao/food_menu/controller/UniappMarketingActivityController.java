@@ -5,6 +5,8 @@ import com.yao.food_menu.common.context.FamilyContext;
 import com.yao.food_menu.dto.ActivityDetailDto;
 import com.yao.food_menu.dto.ParticipateResultDto;
 import com.yao.food_menu.dto.UserCouponDto;
+import com.yao.food_menu.entity.ActivityParticipateRecord;
+import com.yao.food_menu.entity.ActivityPrize;
 import com.yao.food_menu.service.ActivityParticipateService;
 import com.yao.food_menu.service.MarketingActivityService;
 import com.yao.food_menu.service.UserCouponService;
@@ -82,5 +84,21 @@ public class UniappMarketingActivityController {
         Long userId = FamilyContext.getUserId();
         List<UserCouponDto> coupons = userCouponService.getUserCoupons(userId, status);
         return Result.success(coupons);
+    }
+
+    @Operation(summary = "我的奖品", description = "获取用户中奖的奖品列表")
+    @GetMapping("/my-prizes")
+    public Result<List<ActivityPrize>> getMyPrizes() {
+        Long userId = FamilyContext.getUserId();
+        List<ActivityPrize> prizes = activityParticipateService.getMyPrizes(userId);
+        return Result.success(prizes);
+    }
+
+    @Operation(summary = "我的中奖记录", description = "获取用户的中奖记录列表")
+    @GetMapping("/my-records")
+    public Result<List<ActivityParticipateRecord>> getMyRecords() {
+        Long userId = FamilyContext.getUserId();
+        List<ActivityParticipateRecord> records = activityParticipateService.getMyRecords(userId);
+        return Result.success(records);
     }
 }

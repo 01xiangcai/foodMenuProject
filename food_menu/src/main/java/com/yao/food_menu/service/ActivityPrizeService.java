@@ -27,9 +27,14 @@ public interface ActivityPrizeService extends IService<ActivityPrize> {
     void deletePrize(Long prizeId);
 
     /**
-     * 获取活动奖品列表
+     * 获取活动奖品列表(DTO)
      */
     List<PrizeConfigDto> getActivityPrizes(Long activityId);
+
+    /**
+     * 获取活动奖品实体列表
+     */
+    List<ActivityPrize> getPrizesByActivityId(Long activityId);
 
     /**
      * 抽奖算法 - 根据概率抽取奖品
