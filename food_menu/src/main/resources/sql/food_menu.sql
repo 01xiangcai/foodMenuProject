@@ -11,7 +11,7 @@
  Target Server Version : 80042 (8.0.42)
  File Encoding         : 65001
 
- Date: 01/12/2025 23:45:41
+ Date: 07/12/2025 15:46:14
 */
 
 SET NAMES utf8mb4;
@@ -108,7 +108,7 @@ CREATE TABLE `dish_comment`  (
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_family_id`(`family_id` ASC) USING BTREE,
   INDEX `idx_reply_to_user_id`(`reply_to_user_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 34 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '菜品评论表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 48 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '菜品评论表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for dish_favorite
@@ -126,7 +126,7 @@ CREATE TABLE `dish_favorite`  (
   INDEX `idx_user_id`(`user_id` ASC) USING BTREE COMMENT '用户ID索引',
   INDEX `idx_dish_id`(`dish_id` ASC) USING BTREE COMMENT '菜品ID索引',
   INDEX `idx_family_id`(`family_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 46 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '菜品收藏表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 48 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '菜品收藏表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for dish_flavor
@@ -167,7 +167,7 @@ CREATE TABLE `dish_statistics`  (
   INDEX `idx_total_count`(`total_order_count` DESC) USING BTREE COMMENT '总次数索引',
   INDEX `idx_month_count`(`month_order_count` DESC) USING BTREE COMMENT '月度次数索引',
   INDEX `idx_family_id`(`family_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 72 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '菜品统计表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 88 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '菜品统计表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for dish_tag
@@ -214,6 +214,38 @@ CREATE TABLE `family`  (
 ) ENGINE = InnoDB AUTO_INCREMENT = 9 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '家庭表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
+-- Table structure for operation_log
+-- ----------------------------
+DROP TABLE IF EXISTS `operation_log`;
+CREATE TABLE `operation_log`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `operation_type` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '操作类型',
+  `operation_module` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '操作模块',
+  `operation_desc` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '操作描述',
+  `method_name` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '方法名',
+  `request_method` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '请求方式',
+  `request_url` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '请求URL',
+  `request_params` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL COMMENT '请求参数',
+  `response_result` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL COMMENT '响应结果',
+  `operator_id` bigint NULL DEFAULT NULL COMMENT '操作人ID',
+  `operator_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '操作人姓名',
+  `operator_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '操作人类型',
+  `ip_address` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT 'IP地址',
+  `user_agent` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '用户代理',
+  `execution_time` bigint NULL DEFAULT NULL COMMENT '执行时长(毫秒)',
+  `status` int NULL DEFAULT 1 COMMENT '状态',
+  `error_msg` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL COMMENT '错误信息',
+  `family_id` bigint NULL DEFAULT NULL COMMENT '家庭ID',
+  `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_operator_id`(`operator_id` ASC) USING BTREE,
+  INDEX `idx_operation_type`(`operation_type` ASC) USING BTREE,
+  INDEX `idx_operation_module`(`operation_module` ASC) USING BTREE,
+  INDEX `idx_create_time`(`create_time` ASC) USING BTREE,
+  INDEX `idx_family_id`(`family_id` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 15 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
 -- Table structure for order_items
 -- ----------------------------
 DROP TABLE IF EXISTS `order_items`;
@@ -232,7 +264,7 @@ CREATE TABLE `order_items`  (
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_order_id`(`order_id` ASC) USING BTREE,
   INDEX `idx_dish_id`(`dish_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 73 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '订单明细表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 94 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '订单明细表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for orders
@@ -248,6 +280,9 @@ CREATE TABLE `orders`  (
   `delivery_time` datetime NULL DEFAULT NULL COMMENT '配送时间',
   `complete_time` datetime NULL DEFAULT NULL COMMENT '完成时间',
   `remark` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '订单备注',
+  `pay_method` tinyint NULL DEFAULT NULL COMMENT '支付方式: 1=余额支付, 2=模拟支付',
+  `pay_status` tinyint NULL DEFAULT 0 COMMENT '支付状态: 0=未支付, 1=已支付, 2=已退款',
+  `pay_time` datetime NULL DEFAULT NULL COMMENT '支付时间',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `family_id` bigint NULL DEFAULT NULL COMMENT '家庭ID',
@@ -257,7 +292,7 @@ CREATE TABLE `orders`  (
   INDEX `idx_user_id`(`user_id` ASC) USING BTREE,
   INDEX `idx_create_time`(`create_time` ASC) USING BTREE,
   INDEX `idx_family_id`(`family_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 26 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '订单表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 33 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '订单表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for system_config
@@ -321,11 +356,52 @@ CREATE TABLE `wx_user`  (
   `avatar_update_count` int NULL DEFAULT 0 COMMENT '头像更新次数(每日限制)',
   `avatar_last_update_date` date NULL DEFAULT NULL COMMENT '头像最后更新日期',
   `family_id` bigint NULL DEFAULT NULL COMMENT '家庭ID',
+  `password_error_count` int NULL DEFAULT 0 COMMENT '登录密码当日错误次数',
+  `password_error_date` date NULL DEFAULT NULL COMMENT '登录密码错误日期(用于每日重置)',
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_openid`(`openid` ASC) USING BTREE,
   UNIQUE INDEX `uk_username`(`username` ASC) USING BTREE,
   UNIQUE INDEX `uk_phone`(`phone` ASC) USING BTREE,
   INDEX `idx_family_id`(`family_id` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 5 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '微信小程序用户表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for wx_user_wallet
+-- ----------------------------
+DROP TABLE IF EXISTS `wx_user_wallet`;
+CREATE TABLE `wx_user_wallet`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `wx_user_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '关联微信用户ID',
+  `balance` decimal(12, 2) NOT NULL DEFAULT 0.00 COMMENT '可用余额',
+  `frozen_amount` decimal(12, 2) NOT NULL DEFAULT 0.00 COMMENT '冻结金额',
+  `pay_password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '支付密码(BCrypt加密)',
+  `version` int NOT NULL DEFAULT 1 COMMENT '乐观锁版本号',
+  `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` tinyint NOT NULL DEFAULT 0 COMMENT '逻辑删除: 0-未删除, 1-已删除',
+  `pay_password_error_count` int NULL DEFAULT 0 COMMENT '支付密码当日错误次数',
+  `pay_password_error_date` date NULL DEFAULT NULL COMMENT '支付密码错误日期(用于每日重置)',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_wx_user_id`(`wx_user_id` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 8 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户钱包表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for wx_wallet_transaction
+-- ----------------------------
+DROP TABLE IF EXISTS `wx_wallet_transaction`;
+CREATE TABLE `wx_wallet_transaction`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `wx_user_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '关联微信用户ID',
+  `trans_type` tinyint NOT NULL COMMENT '交易类型: 1=后台充值, 2=订单消费, 3=退款冻结，4=取消退款',
+  `amount` decimal(12, 2) NOT NULL COMMENT '变动金额',
+  `balance_after` decimal(12, 2) NULL DEFAULT NULL COMMENT '交易后余额',
+  `related_order_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '关联业务单号',
+  `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '备注说明',
+  `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_wx_user_id`(`wx_user_id` ASC) USING BTREE,
+  INDEX `idx_trans_type`(`trans_type` ASC) USING BTREE,
+  INDEX `idx_create_time`(`create_time` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 5 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '钱包流水表' ROW_FORMAT = Dynamic;
 
 SET FOREIGN_KEY_CHECKS = 1;
