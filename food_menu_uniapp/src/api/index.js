@@ -97,10 +97,35 @@ export const payOrder = (data) => {
  * @param {Object} params 查询参数
  */
 export const getAllOrders = (params) => {
+    let url = '/order/admin'
+    let query = []
+    if (params) {
+        if (params.page) query.push(`page=${params.page}`)
+        if (params.pageSize) query.push(`pageSize=${params.pageSize}`)
+        if (params.status !== undefined && params.status !== -1) query.push(`status=${params.status}`)
+        if (params.familyId) query.push(`familyId=${params.familyId}`)
+    }
+    const queryString = query.join('&')
     return request({
-        url: '/order/admin',
-        method: 'GET',
-        data: params
+        url: queryString ? `${url}?${queryString}` : url,
+        method: 'GET'
+    })
+}
+
+/**
+ * 管理员获取订单统计
+ * @param {Object} params { familyId }
+ */
+export const getAdminOrderCounts = (params) => {
+    let url = '/order/admin/count'
+    let query = []
+    if (params) {
+        if (params.familyId) query.push(`familyId=${params.familyId}`)
+    }
+    const queryString = query.join('&')
+    return request({
+        url: queryString ? `${url}?${queryString}` : url,
+        method: 'GET'
     })
 }
 

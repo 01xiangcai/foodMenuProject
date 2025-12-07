@@ -1,7 +1,38 @@
 <template>
   <view class="page">
+    <!-- 顶部状态页签 -->
+    <scroll-view 
+      class="status-tabs" 
+      scroll-x 
+      :scroll-into-view="'tab-' + currentTab" 
+      scroll-with-animation
+      enable-flex
+      :show-scrollbar="false"
+    >
+      <view class="tabs-wrapper">
+        <view 
+          class="tab-item" 
+          v-for="tab in statusTabs" 
+          :key="tab.value"
+          :id="'tab-' + tab.value"
+          :class="{ active: currentTab === tab.value }"
+          @tap="switchTab(tab.value)"
+        >
+          <view class="tab-content">
+            <text class="tab-text">{{ tab.label }}</text>
+            <view class="tab-badge" v-if="tab.count > 0" :style="getBadgeStyle(tab.value)">
+              {{ tab.count > 99 ? '99+' : tab.count }}
+            </view>
+          </view>
+          <view class="tab-line-container" v-if="currentTab === tab.value">
+             <view class="tab-line"></view>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
     <!-- 订单列表 -->
-    <scroll-view class="order-scroll" scroll-y @scrolltolower="loadMore">
+    <scroll-view class="order-scroll" scroll-y @scrolltolower="loadMore" :style="{ height: 'calc(100vh - 88rpx)' }">
       <view class="order-list">
         <view 
           class="order-card"
@@ -107,6 +138,11 @@
         <text>加载中...</text>
       </view>
 
+      <!-- 没有更多数据 -->
+      <view class="no-more" v-if="!loading && noMore && orders.length > 0">
+        <text>已加载全部订单</text>
+      </view>
+
       <!-- 空状态 -->
       <view class="empty" v-if="!loading && orders.length === 0">
         <text class="icon">📋</text>
@@ -119,7 +155,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getAllOrders, updateOrderStatus } from '@/api/index'
+import { getAllOrders, updateOrderStatus, getAdminOrderCounts } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 import { getDishImage } from '@/utils/image'
 
@@ -127,8 +163,68 @@ const { themeConfig, loadTheme } = useTheme()
 const orders = ref([])
 const loading = ref(false)
 const page = ref(1)
-const pageSize = ref(5)
+const pageSize = ref(10)
 const noMore = ref(false)
+const currentTab = ref(-1)
+
+const statusTabs = ref([
+  { label: '全部', value: -1, count: 0 },
+  { label: '待支付', value: 5, count: 0 },
+  { label: '待接单', value: 0, count: 0 },
+  { label: '准备中', value: 1, count: 0 },
+  { label: '配送中', value: 2, count: 0 },
+  { label: '已完成', value: 3, count: 0 },
+  { label: '已取消', value: 4, count: 0 }
+])
+
+// 切换Tab
+const switchTab = (value) => {
+  if (currentTab.value === value) return
+  currentTab.value = value
+  loadOrders(true)
+}
+
+// 获取徽章背景色
+const getBadgeStyle = (status) => {
+  const colors = {
+    '-1': '#722ed1', // 全部 - 紫色
+    '5': '#ff3b30',  // 待支付 - 红色
+    '0': '#ff9500',  // 待接单 - 橙色
+    '1': '#14b8ff',  // 准备中 - 蓝色
+    '2': '#667eea',  // 配送中 - 紫色
+    '3': '#34c759',  // 已完成 - 绿色
+    '4': '#8e8e93'   // 已取消 - 灰色
+  }
+  return {
+    background: colors[status] || '#ff3b30'
+  }
+}
+
+// 获取订单统计
+const fetchOrderCounts = async () => {
+  try {
+    const res = await getAdminOrderCounts()
+    if (res.code === 1) {
+      const counts = res.data || {}
+      let total = 0
+      
+      statusTabs.value.forEach(tab => {
+        if (tab.value === -1) return
+        const count = counts[tab.value] || 0
+        tab.count = count
+        total += count
+      })
+      
+      // Calculate total for All tab
+      const allTab = statusTabs.value.find(t => t.value === -1)
+      if (allTab) {
+        allTab.count = total
+      }
+    }
+  } catch (error) {
+    console.error('获取订单统计失败:', error)
+  }
+}
 
 // 获取订单状态文本
 const getStatusText = (status) => {
@@ -174,8 +270,6 @@ const toggleExpand = (order) => {
 
 // 加载订单列表
 const loadOrders = async (reset = false) => {
-  if (loading.value || noMore.value) return
-
   const token = uni.getStorageSync('fm_token')
   if (!token) {
     uni.navigateTo({ url: '/pages/login/login' })
@@ -188,13 +282,22 @@ const loadOrders = async (reset = false) => {
     noMore.value = false
   }
   
+  if (loading.value || noMore.value) return
+  
   loading.value = true
   
   try {
-    const res = await getAllOrders({
+    const params = {
       page: page.value,
       pageSize: pageSize.value
-    })
+    }
+    
+    // 如果不是全部状态，则添加状态筛选
+    if (currentTab.value !== -1) {
+      params.status = currentTab.value
+    }
+
+    const res = await getAllOrders(params)
     
     const list = res.data?.records || []
     
@@ -285,6 +388,7 @@ const handleStatusUpdate = (orderId, status) => {
           })
         } finally {
           uni.hideLoading()
+          fetchOrderCounts()
         }
       }
     }
@@ -323,6 +427,7 @@ onMounted(() => {
 
 onShow(() => {
   loadOrders(true)
+  fetchOrderCounts()
 })
 </script>
 
@@ -629,6 +734,17 @@ onShow(() => {
   font-size: 28rpx;
 }
 
+.no-more {
+  padding: 30rpx 0 50rpx;
+  text-align: center;
+  
+  text {
+    font-size: 24rpx;
+    color: v-bind('themeConfig.textSecondary');
+    opacity: 0.6;
+  }
+}
+
 .empty {
   .icon {
     display: block;
@@ -641,5 +757,85 @@ onShow(() => {
     font-size: 32rpx;
     color: v-bind('themeConfig.textSecondary');
   }
+}
+
+/* 顶部状态页签样式 */
+.status-tabs {
+  width: 100%;
+  height: 88rpx;
+  background: v-bind('themeConfig.cardBg');
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.03);
+  position: relative;
+  z-index: 10;
+}
+
+.tabs-wrapper {
+  display: flex;
+  flex-wrap: nowrap;
+  height: 100%;
+  padding: 0 10rpx;
+  align-items: center;
+}
+
+.tab-item {
+  flex-shrink: 0;
+  padding: 0 30rpx;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.tab-content {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  /* 确保内容垂直居中 */
+  height: 100%; 
+}
+
+.tab-text {
+  font-size: 28rpx;
+  color: v-bind('themeConfig.textSecondary');
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.tab-badge {
+  padding: 2rpx 10rpx;
+  border-radius: 20rpx;
+  font-size: 20rpx;
+  color: #fff;
+  font-weight: 700;
+  line-height: 1.2;
+  min-width: 28rpx;
+  text-align: center;
+  transform: translateY(-16rpx); /* 向上微调 */
+}
+
+.tab-item.active .tab-text {
+  color: #14b8ff; /* 对应 active color */
+  font-weight: 600;
+  font-size: 30rpx;
+}
+
+.tab-line-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.tab-line {
+  width: 40rpx;
+  height: 4rpx;
+  background: linear-gradient(90deg, #14b8ff, #667eea);
+  border-radius: 4rpx;
+  box-shadow: 0 0 8rpx rgba(20, 184, 255, 0.4);
 }
 </style>

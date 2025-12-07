@@ -9,10 +9,12 @@ import com.yao.food_menu.entity.OrderItem;
 import com.yao.food_menu.entity.Orders;
 import com.yao.food_menu.entity.WxUser;
 import com.yao.food_menu.entity.Dish;
+import com.yao.food_menu.entity.User;
 import com.yao.food_menu.service.DishService;
 import com.yao.food_menu.service.OrderItemService;
 import com.yao.food_menu.service.OrdersService;
 import com.yao.food_menu.service.OssService;
+import com.yao.food_menu.service.UserService;
 import com.yao.food_menu.service.WxUserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -44,6 +46,9 @@ public class OrdersController {
 
     @Autowired
     private WxUserService wxUserService;
+
+    @Autowired
+    private UserService userService;
 
     @Autowired
     private OssService ossService;
@@ -142,8 +147,20 @@ public class OrdersController {
     @Operation(summary = "管理员获取订单统计", description = "管理员获取各状态订单数量")
     @GetMapping("/admin/count")
     public Result<java.util.Map<Integer, Long>> getAdminOrderCounts(
+            @RequestHeader("Authorization") String token,
             @RequestParam(required = false) Long familyId) {
         try {
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7);
+            }
+            Long currentUserId = jwtUtil.getUserId(token);
+            User currentUser = userService.getById(currentUserId);
+
+            // If not super admin (role 2), force familyId to user's family
+            if (currentUser.getRole() != 2) {
+                familyId = currentUser.getFamilyId();
+            }
+
             java.util.Map<Integer, Long> counts = ordersService.getAdminOrderCounts(familyId);
             return Result.success(counts);
         } catch (Exception e) {
