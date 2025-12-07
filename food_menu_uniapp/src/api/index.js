@@ -456,3 +456,16 @@ export const updatePayPassword = (oldPassword, newPassword) => {
     })
 }
 
+/**
+ * 修改登录密码
+ * @param {String} oldPassword 旧密码（未设置过密码的用户可不传）
+ * @param {String} newPassword 新密码
+ */
+export const updateLoginPassword = (oldPassword, newPassword) => {
+    return request({
+        url: '/wx/user/password',
+        method: 'PUT',
+        data: { oldPassword, newPassword }
+    })
+}
+

@@ -367,6 +367,33 @@ public class WxUserController {
         }
     }
 
+    /**
+     * 修改登录密码（用户自己操作）
+     */
+    @Operation(summary = "修改登录密码", description = "用户修改自己的登录密码，需要验证旧密码")
+    @PutMapping("/password")
+    public Result<String> updatePassword(@RequestBody java.util.Map<String, String> body,
+            @RequestHeader("Authorization") String token) {
+        log.info("用户修改登录密码");
+
+        try {
+            // 移除"Bearer "前缀(如果存在)
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7);
+            }
+
+            Long userId = jwtUtil.getUserId(token);
+            String oldPassword = body.get("oldPassword");
+            String newPassword = body.get("newPassword");
+
+            wxUserService.updateLoginPassword(userId, oldPassword, newPassword);
+            return Result.success("密码修改成功");
+        } catch (Exception e) {
+            log.error("修改密码失败: {}", e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
+
     // ... (skip update method)
 
     /**

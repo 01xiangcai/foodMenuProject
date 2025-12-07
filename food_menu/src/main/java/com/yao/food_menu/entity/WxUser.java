@@ -74,6 +74,12 @@ public class WxUser implements Serializable {
     // 头像最后更新日期
     private java.time.LocalDate avatarLastUpdateDate;
 
+    // 登录密码错误次数(每日限制)
+    private Integer passwordErrorCount;
+
+    // 登录密码错误日期(用于每日重置)
+    private java.time.LocalDate passwordErrorDate;
+
     // 逻辑删除: 0-未删除, 1-已删除
     @TableLogic(value = "0", delval = "1")
     private Integer deleted;

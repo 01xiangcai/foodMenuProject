@@ -357,4 +357,73 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
             com.yao.food_menu.common.context.FamilyContext.setQueryCurrentUser(false);
         }
     }
+
+    @Override
+    public void updateLoginPassword(Long userId, String oldPassword, String newPassword) {
+        // 标记为查询当前用户自己的信息，跳过数据隔离
+        com.yao.food_menu.common.context.FamilyContext.setQueryCurrentUser(true);
+        try {
+            WxUser user = this.getById(userId);
+            if (user == null) {
+                throw new RuntimeException("用户不存在");
+            }
+
+            java.time.LocalDate today = java.time.LocalDate.now();
+
+            // 如果用户已设置过密码，需要验证旧密码
+            if (StringUtils.hasText(user.getPassword())) {
+                if (!StringUtils.hasText(oldPassword)) {
+                    throw new RuntimeException("请输入原密码");
+                }
+
+                // 检查是否已锁定（当日错误次数超过5次）
+                if (today.equals(user.getPasswordErrorDate()) &&
+                        user.getPasswordErrorCount() != null &&
+                        user.getPasswordErrorCount() >= 5) {
+                    throw new RuntimeException("今日密码错误已达上限，请明天再试");
+                }
+
+                // 验证旧密码
+                if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+                    // 密码错误，更新错误计数
+                    if (!today.equals(user.getPasswordErrorDate())) {
+                        // 新的一天，重置计数
+                        user.setPasswordErrorDate(today);
+                        user.setPasswordErrorCount(1);
+                    } else {
+                        // 同一天，累加计数
+                        user.setPasswordErrorCount(
+                                (user.getPasswordErrorCount() == null ? 0 : user.getPasswordErrorCount()) + 1);
+                    }
+                    this.updateById(user);
+
+                    int remaining = 5 - user.getPasswordErrorCount();
+                    if (remaining > 0) {
+                        throw new RuntimeException("原密码错误，今日还可尝试" + remaining + "次");
+                    } else {
+                        throw new RuntimeException("今日密码错误已达上限，请明天再试");
+                    }
+                }
+
+                // 密码正确，重置错误计数
+                if (user.getPasswordErrorCount() != null && user.getPasswordErrorCount() > 0) {
+                    user.setPasswordErrorCount(0);
+                }
+            }
+
+            // 验证新密码格式（至少6位）
+            if (!StringUtils.hasText(newPassword) || newPassword.length() < 6) {
+                throw new RuntimeException("新密码不能少于6位");
+            }
+
+            // 更新密码
+            user.setPassword(passwordEncoder.encode(newPassword));
+            this.updateById(user);
+
+            log.info("用户 {} 修改登录密码成功", userId);
+        } finally {
+            // 清除查询当前用户的标记
+            com.yao.food_menu.common.context.FamilyContext.setQueryCurrentUser(false);
+        }
+    }
 }

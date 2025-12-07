@@ -73,4 +73,13 @@ public interface WxUserService extends IService<WxUser> {
      * @param familyId 家庭ID
      */
     void updateUserFamily(Long userId, Long familyId);
+
+    /**
+     * 修改登录密码（用户自己操作）
+     *
+     * @param userId      用户ID
+     * @param oldPassword 旧密码
+     * @param newPassword 新密码
+     */
+    void updateLoginPassword(Long userId, String oldPassword, String newPassword);
 }

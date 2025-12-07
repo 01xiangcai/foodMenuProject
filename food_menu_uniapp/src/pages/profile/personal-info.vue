@@ -87,6 +87,15 @@
         <text class="label">注册时间</text>
         <text class="value readonly-value">{{ formatDate(userInfo.createTime) }}</text>
       </view>
+
+      <!-- 修改密码入口（仅自己可见） -->
+      <view class="info-row" v-if="isMyself" @tap="showPasswordModal">
+        <text class="label">登录密码</text>
+        <view class="value-container">
+          <text class="value">修改密码</text>
+          <text class="arrow">›</text>
+        </view>
+      </view>
     </view>
 
     <!-- 底部操作按钮 -->
@@ -123,6 +132,62 @@
           <view class="selection-indicator" v-if="formData.gender === index">
             <text class="check-mark">✓</text>
           </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 修改密码弹窗 -->
+    <view class="password-mask" v-if="showPasswordPicker" @tap="closePasswordModal"></view>
+    <view class="password-modal" :class="{ show: showPasswordPicker }">
+      <view class="modal-header">
+        <text class="modal-title">修改登录密码</text>
+        <view class="close-btn" @tap="closePasswordModal">
+          <text>✕</text>
+        </view>
+      </view>
+      <view class="modal-body">
+        <view class="input-group">
+          <text class="input-label">原密码</text>
+          <input 
+            class="password-input"
+            type="password"
+            v-model="passwordForm.oldPassword"
+            placeholder="请输入原密码（首次设置可留空）"
+            :password="true"
+          />
+        </view>
+        <view class="input-group">
+          <text class="input-label">新密码</text>
+          <input 
+            class="password-input"
+            type="password"
+            v-model="passwordForm.newPassword"
+            placeholder="请输入新密码（至少6位）"
+            :password="true"
+          />
+        </view>
+        <view class="input-group">
+          <text class="input-label">确认密码</text>
+          <input 
+            class="password-input"
+            type="password"
+            v-model="passwordForm.confirmPassword"
+            placeholder="请再次输入新密码"
+            :password="true"
+          />
+        </view>
+        
+        <!-- 错误提示 -->
+        <view class="error-tip" v-if="passwordError">
+          <text>{{ passwordError }}</text>
+        </view>
+      </view>
+      <view class="modal-footer">
+        <view class="cancel-btn" @tap="closePasswordModal">
+          <text>取消</text>
+        </view>
+        <view class="confirm-btn" @tap="submitPasswordChange">
+          <text>确认修改</text>
         </view>
       </view>
     </view>
@@ -177,6 +242,15 @@ const genderText = computed(() => {
   const currentGender = formData.value.gender !== undefined ? formData.value.gender : (userInfo.value.gender || 0)
   return `${genderOptionsData[currentGender].icon} ${genderOptionsData[currentGender].label}`
 })
+
+// 修改密码弹窗
+const showPasswordPicker = ref(false)
+const passwordForm = ref({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+const passwordError = ref('')
 
 // 当前查看的用户ID (null表示自己)
 const currentViewUserId = ref(null)
@@ -475,6 +549,66 @@ const formatDate = (dateString) => {
   if (isNaN(date.getTime())) return dateString // 如果解析失败，直接显示原字符串
   
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+// 显示修改密码弹窗
+const showPasswordModal = () => {
+  passwordForm.value = {
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  }
+  passwordError.value = ''
+  showPasswordPicker.value = true
+}
+
+// 关闭修改密码弹窗
+const closePasswordModal = () => {
+  showPasswordPicker.value = false
+}
+
+// 提交密码修改
+const submitPasswordChange = async () => {
+  const { oldPassword, newPassword, confirmPassword } = passwordForm.value
+  
+  // 清除之前的错误
+  passwordError.value = ''
+  
+  // 验证新密码
+  if (!newPassword || newPassword.length < 6) {
+    passwordError.value = '新密码不能少于6位'
+    return
+  }
+  
+  // 验证确认密码
+  if (newPassword !== confirmPassword) {
+    passwordError.value = '两次输入的密码不一致'
+    return
+  }
+  
+  uni.showLoading({
+    title: '正在修改...',
+    mask: true
+  })
+  
+  try {
+    const { updateLoginPassword } = await import('@/api/index')
+    await updateLoginPassword(oldPassword, newPassword)
+    
+    uni.hideLoading()
+    uni.showToast({
+      title: '密码修改成功',
+      icon: 'success'
+    })
+    
+    closePasswordModal()
+  } catch (error) {
+    console.error('修改密码失败:', error)
+    uni.hideLoading()
+    
+    // 在弹窗内显示错误
+    passwordError.value = error.message || '修改密码失败'
+  }
 }
 
 
@@ -927,5 +1061,161 @@ onLoad((options) => {
   font-size: 24rpx;
   color: #ffffff;
   font-weight: bold;
+}
+
+// 修改密码弹窗
+.password-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  animation: fadeIn 0.3s ease;
+}
+
+.password-modal {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0.8);
+  width: 90%;
+  max-width: 640rpx;
+  background: v-bind('themeConfig.cardBg');
+  border-radius: 24rpx;
+  z-index: 1000;
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  
+  &.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 32rpx;
+  border-bottom: 1px solid v-bind('themeConfig.borderColor');
+  
+  .modal-title {
+    font-size: 34rpx;
+    font-weight: 700;
+    color: v-bind('themeConfig.textPrimary');
+  }
+  
+  .close-btn {
+    width: 56rpx;
+    height: 56rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    &:active {
+      opacity: 0.6;
+    }
+    
+    text {
+      font-size: 40rpx;
+      color: v-bind('themeConfig.textSecondary');
+    }
+  }
+}
+
+.modal-body {
+  padding: 32rpx;
+}
+
+.input-group {
+  margin-bottom: 28rpx;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+  
+  .input-label {
+    display: block;
+    font-size: 26rpx;
+    color: v-bind('themeConfig.textSecondary');
+    margin-bottom: 12rpx;
+  }
+  
+  .password-input {
+    width: 100%;
+    height: 88rpx;
+    padding: 0 24rpx;
+    background: v-bind('themeConfig.inputBg');
+    border: 1px solid v-bind('themeConfig.borderColor');
+    border-radius: 16rpx;
+    font-size: 28rpx;
+    color: v-bind('themeConfig.textPrimary');
+    box-sizing: border-box;
+    
+    &::placeholder {
+      color: v-bind('themeConfig.textSecondary');
+      opacity: 0.6;
+    }
+  }
+}
+
+// 错误提示
+.error-tip {
+  margin-top: 24rpx;
+  padding: 16rpx 20rpx;
+  background: rgba(255, 77, 79, 0.1);
+  border: 1px solid rgba(255, 77, 79, 0.3);
+  border-radius: 12rpx;
+  
+  text {
+    font-size: 26rpx;
+    color: #ff4d4f;
+  }
+}
+
+.modal-footer {
+  display: flex;
+  gap: 20rpx;
+  padding: 20rpx 32rpx 32rpx;
+  
+  .cancel-btn,
+  .confirm-btn {
+    flex: 1;
+    height: 88rpx;
+    border-radius: 16rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    
+    text {
+      font-size: 30rpx;
+      font-weight: 600;
+    }
+    
+    &:active {
+      transform: scale(0.98);
+    }
+  }
+  
+  .cancel-btn {
+    background: v-bind('themeConfig.inputBg');
+    border: 1px solid v-bind('themeConfig.borderColor');
+    
+    text {
+      color: v-bind('themeConfig.textSecondary');
+    }
+  }
+  
+  .confirm-btn {
+    background: v-bind('themeConfig.primaryGradient');
+    box-shadow: 0 4px 16px v-bind('themeConfig.primaryColor + "40"');
+    
+    text {
+      color: #ffffff;
+    }
+  }
 }
 </style>
