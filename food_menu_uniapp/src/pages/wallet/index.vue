@@ -74,24 +74,24 @@
       </view>
     </view>
 
-    <!-- 设置密码弹窗 -->
+    <!-- 设置/修改密码弹窗 -->
     <view class="modal-mask" v-if="showPasswordModal" @tap="showPasswordModal = false"></view>
     <view class="password-modal" :class="{ show: showPasswordModal }">
       <view class="modal-content glass-card">
         <view class="modal-header">
-          <text class="title">设置支付密码</text>
+          <text class="title">{{ getModalTitle() }}</text>
           <view class="close-btn" @tap="showPasswordModal = false">
             <text>✕</text>
           </view>
         </view>
         <view class="modal-body">
-          <text class="tip">请设置6位数字支付密码</text>
+          <text class="tip">{{ getModalTip() }}</text>
           <view class="password-input-display">
             <view 
               v-for="i in 6" 
               :key="i" 
               class="password-dot"
-              :class="{ filled: newPassword.length >= i }"
+              :class="{ filled: getCurrentPassword().length >= i }"
             ></view>
           </view>
           <!-- 数字键盘 -->
@@ -116,7 +116,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getWalletInfo, getWalletTransactions, setPayPassword, checkPayPassword } from '@/api/index'
+import { getWalletInfo, getWalletTransactions, setPayPassword, checkPayPassword, updatePayPassword, verifyPayPassword } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 
 const { themeConfig } = useTheme()
@@ -135,6 +135,9 @@ const hasMore = ref(true)
 // 密码弹窗
 const showPasswordModal = ref(false)
 const newPassword = ref('')
+const passwordMode = ref('set') // 'set' | 'change'
+const oldPassword = ref('')
+const changeStep = ref(1) // 1=输入旧密码, 2=输入新密码
 
 // 格式化金额
 const formatMoney = (value) => {
@@ -226,45 +229,145 @@ const loadMore = () => {
 // 处理密码点击
 const handlePasswordClick = () => {
   if (hasPayPassword.value) {
-    uni.showToast({
-      title: '已设置支付密码',
-      icon: 'none'
+    // 已设置密码，弹出操作菜单
+    uni.showActionSheet({
+      itemList: ['修改密码', '忘记密码'],
+      success: (res) => {
+        if (res.tapIndex === 0) {
+          // 修改密码
+          passwordMode.value = 'change'
+          changeStep.value = 1
+          oldPassword.value = ''
+          newPassword.value = ''
+          showPasswordModal.value = true
+        } else if (res.tapIndex === 1) {
+          // 忘记密码
+          uni.showModal({
+            title: '忘记密码',
+            content: '请联系管理员重置支付密码',
+            showCancel: false,
+            confirmText: '知道了'
+          })
+        }
+      }
     })
   } else {
+    // 未设置密码，开始设置
+    passwordMode.value = 'set'
     newPassword.value = ''
     showPasswordModal.value = true
   }
+}
+
+// 获取当前输入的密码（根据模式和步骤）
+const getCurrentPassword = () => {
+  if (passwordMode.value === 'change' && changeStep.value === 1) {
+    return oldPassword.value
+  }
+  return newPassword.value
+}
+
+// 设置当前输入的密码
+const setCurrentPassword = (val) => {
+  if (passwordMode.value === 'change' && changeStep.value === 1) {
+    oldPassword.value = val
+  } else {
+    newPassword.value = val
+  }
+}
+
+// 获取弹窗标题
+const getModalTitle = () => {
+  if (passwordMode.value === 'set') return '设置支付密码'
+  if (changeStep.value === 1) return '验证原密码'
+  return '设置新密码'
+}
+
+// 获取提示文字
+const getModalTip = () => {
+  if (passwordMode.value === 'set') return '请设置6位数字支付密码'
+  if (changeStep.value === 1) return '请输入当前支付密码'
+  return '请输入新的6位数字密码'
 }
 
 // 处理数字键盘按键
 const handleKeyPress = async (key) => {
   if (key === '') return
   
+  const current = getCurrentPassword()
+  
   if (key === 'del') {
-    newPassword.value = newPassword.value.slice(0, -1)
+    setCurrentPassword(current.slice(0, -1))
     return
   }
   
-  if (newPassword.value.length >= 6) return
+  if (current.length >= 6) return
   
-  newPassword.value += key
+  const updated = current + key
+  setCurrentPassword(updated)
   
-  // 输入完成6位后自动提交
-  if (newPassword.value.length === 6) {
-    try {
-      await setPayPassword(newPassword.value)
-      uni.showToast({
-        title: '设置成功',
-        icon: 'success'
-      })
-      hasPayPassword.value = true
-      showPasswordModal.value = false
-    } catch (error) {
-      uni.showToast({
-        title: error.message || '设置失败',
-        icon: 'none'
-      })
-      newPassword.value = ''
+  // 输入完成6位后处理
+  if (updated.length === 6) {
+    if (passwordMode.value === 'set') {
+      // 设置密码
+      try {
+        await setPayPassword(updated)
+        uni.showToast({
+          title: '设置成功',
+          icon: 'success'
+        })
+        hasPayPassword.value = true
+        showPasswordModal.value = false
+      } catch (error) {
+        uni.showToast({
+          title: error.message || '设置失败',
+          icon: 'none'
+        })
+        newPassword.value = ''
+      }
+    } else if (passwordMode.value === 'change') {
+      if (changeStep.value === 1) {
+        // 验证旧密码
+        try {
+          const res = await verifyPayPassword(updated)
+          if (res.data === true) {
+            // 验证通过，进入第二步
+            changeStep.value = 2
+            newPassword.value = ''
+          } else {
+            uni.showToast({
+              title: '原密码错误',
+              icon: 'none'
+            })
+            oldPassword.value = ''
+          }
+        } catch (error) {
+          uni.showToast({
+            title: error.message || '原密码错误',
+            icon: 'none'
+          })
+          oldPassword.value = ''
+        }
+      } else {
+        // 修改密码
+        try {
+          await updatePayPassword(oldPassword.value, updated)
+          uni.showToast({
+            title: '修改成功',
+            icon: 'success'
+          })
+          showPasswordModal.value = false
+        } catch (error) {
+          uni.showToast({
+            title: error.message || '修改失败',
+            icon: 'none'
+          })
+          // 重新开始
+          changeStep.value = 1
+          oldPassword.value = ''
+          newPassword.value = ''
+        }
+      }
     }
   }
 }

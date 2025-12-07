@@ -96,4 +96,20 @@ public interface WalletService extends IService<UserWallet> {
      * @param orderNo  关联订单号
      */
     void refund(String wxUserId, java.math.BigDecimal amount, String orderNo);
+
+    /**
+     * 修改支付密码（需验证旧密码）
+     *
+     * @param wxUserId       微信用户ID
+     * @param oldPayPassword 旧支付密码
+     * @param newPayPassword 新支付密码
+     */
+    void updatePayPassword(String wxUserId, String oldPayPassword, String newPayPassword);
+
+    /**
+     * 管理员重置支付密码（清空密码）
+     *
+     * @param wxUserId 微信用户ID
+     */
+    void resetPayPassword(String wxUserId);
 }

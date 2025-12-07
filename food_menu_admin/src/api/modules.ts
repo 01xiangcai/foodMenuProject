@@ -306,4 +306,7 @@ export const rechargeWallet = (data: RechargePayload) => http.post('/admin/walle
 export const fetchWalletDetail = (wxUserId: string) => http.get(`/admin/wallet/detail/${wxUserId}`);
 export const fetchWalletTransactions = (params: { wxUserId: string; page: number; pageSize: number }) =>
   http.get('/admin/wallet/transactions', { params });
+export const resetWalletPassword = (wxUserId: string) =>
+  http.post('/admin/wallet/password/reset', null, { params: { wxUserId } });
+
 

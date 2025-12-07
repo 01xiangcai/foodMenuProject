@@ -101,16 +101,19 @@ import {
   type DataTableColumns,
   type PaginationProps,
   useMessage,
+  useDialog,
 } from 'naive-ui';
 import {
   fetchWallets,
   rechargeWallet,
   fetchWalletTransactions,
+  resetWalletPassword,
   type WalletInfo,
   type WalletTransaction,
 } from '@/api/modules';
 
 const message = useMessage();
+const dialog = useDialog();
 
 const wallets = ref<WalletInfo[]>([]);
 const loading = ref(false);
@@ -205,7 +208,7 @@ const columns: DataTableColumns<WalletInfo> = [
   {
     title: '操作',
     key: 'actions',
-    width: 160,
+    width: 220,
     render: (row) =>
       h(NSpace, { size: 'small' }, () => [
         h(
@@ -226,6 +229,16 @@ const columns: DataTableColumns<WalletInfo> = [
             onClick: () => openTransactionModal(row),
           },
           () => '流水'
+        ),
+        h(
+          NButton,
+          {
+            size: 'small',
+            type: 'warning',
+            secondary: true,
+            onClick: () => handleResetPassword(row),
+          },
+          () => '重置支付密码'
         ),
       ]),
   },
@@ -362,6 +375,24 @@ async function loadTransactions() {
   } finally {
     transactionModal.loading = false;
   }
+}
+
+async function handleResetPassword(wallet: WalletInfo) {
+  dialog.warning({
+    title: '确认重置',
+    content: `确定要重置用户 ${wallet.nickname || wallet.wxUserId} 的支付密码吗？重置后用户需要重新设置密码。`,
+    positiveText: '确定重置',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await resetWalletPassword(wallet.wxUserId);
+        message.success('密码重置成功');
+        loadWallets();
+      } catch (e: any) {
+        message.error(e.response?.data?.msg || '重置失败');
+      }
+    },
+  });
 }
 
 onMounted(() => {

@@ -442,3 +442,17 @@ export const checkPayPassword = () => {
         method: 'GET'
     })
 }
+
+/**
+ * 修改支付密码
+ * @param {String} oldPassword 旧密码
+ * @param {String} newPassword 新密码
+ */
+export const updatePayPassword = (oldPassword, newPassword) => {
+    return request({
+        url: '/app/wallet/password/update',
+        method: 'POST',
+        data: { oldPassword, newPassword }
+    })
+}
+

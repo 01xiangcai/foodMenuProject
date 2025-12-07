@@ -226,7 +226,55 @@ public class WalletServiceImpl extends ServiceImpl<UserWalletMapper, UserWallet>
         if (wallet == null || !StringUtils.hasText(wallet.getPayPassword())) {
             return false;
         }
-        return passwordEncoder.matches(payPassword, wallet.getPayPassword());
+
+        java.time.LocalDate today = java.time.LocalDate.now();
+        Integer errorCount = wallet.getPayPasswordErrorCount();
+        java.time.LocalDate errorDate = wallet.getPayPasswordErrorDate();
+
+        // 如果是新的一天，重置错误计数
+        if (errorDate == null || !errorDate.equals(today)) {
+            errorCount = 0;
+        }
+
+        // 检查是否已达到当日错误上限(3次)
+        if (errorCount != null && errorCount >= 3) {
+            throw new RuntimeException("今日密码错误已达上限，请明天再试");
+        }
+
+        boolean matches = passwordEncoder.matches(payPassword, wallet.getPayPassword());
+
+        if (!matches) {
+            // 密码错误，在独立事务中更新错误计数（不受主事务回滚影响）
+            int newErrorCount = (errorCount == null ? 0 : errorCount) + 1;
+            updatePasswordErrorCount(wxUserId, newErrorCount, today);
+
+            int remaining = 3 - newErrorCount;
+            if (remaining > 0) {
+                throw new RuntimeException("密码错误，今日还可尝试" + remaining + "次");
+            } else {
+                throw new RuntimeException("今日密码错误已达上限，请明天再试");
+            }
+        }
+
+        // 密码正确，重置错误计数
+        if (errorCount != null && errorCount > 0) {
+            updatePasswordErrorCount(wxUserId, 0, today);
+        }
+
+        return true;
+    }
+
+    /**
+     * 直接更新密码错误次数（绕过当前事务，使用独立更新）
+     * 注意：同类内部调用@Transactional(REQUIRES_NEW)不生效，所以使用SQL直接更新
+     */
+    private void updatePasswordErrorCount(String wxUserId, int errorCount, java.time.LocalDate errorDate) {
+        LambdaUpdateWrapper<UserWallet> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(UserWallet::getWxUserId, wxUserId)
+                .set(UserWallet::getPayPasswordErrorCount, errorCount)
+                .set(UserWallet::getPayPasswordErrorDate, errorDate)
+                .set(UserWallet::getUpdateTime, LocalDateTime.now());
+        this.baseMapper.update(null, updateWrapper);
     }
 
     @Override
@@ -271,5 +319,49 @@ public class WalletServiceImpl extends ServiceImpl<UserWalletMapper, UserWallet>
         transaction.setCreateTime(java.time.LocalDateTime.now());
 
         transactionMapper.insert(transaction);
+    }
+
+    @Override
+    public void updatePayPassword(String wxUserId, String oldPayPassword, String newPayPassword) {
+        // 验证参数
+        if (!StringUtils.hasText(oldPayPassword) || oldPayPassword.length() != 6) {
+            throw new RuntimeException("旧密码格式不正确");
+        }
+        if (!StringUtils.hasText(newPayPassword) || newPayPassword.length() != 6) {
+            throw new RuntimeException("新密码必须为6位数字");
+        }
+
+        // 获取钱包
+        UserWallet wallet = getWalletByUserId(wxUserId);
+        if (wallet == null) {
+            throw new RuntimeException("钱包不存在");
+        }
+
+        // 验证旧密码
+        if (!StringUtils.hasText(wallet.getPayPassword())) {
+            throw new RuntimeException("尚未设置支付密码");
+        }
+        if (!passwordEncoder.matches(oldPayPassword, wallet.getPayPassword())) {
+            throw new RuntimeException("旧密码错误");
+        }
+
+        // 设置新密码
+        wallet.setPayPassword(passwordEncoder.encode(newPayPassword));
+        wallet.setUpdateTime(java.time.LocalDateTime.now());
+        this.updateById(wallet);
+    }
+
+    @Override
+    public void resetPayPassword(String wxUserId) {
+        // 获取钱包
+        UserWallet wallet = getWalletByUserId(wxUserId);
+        if (wallet == null) {
+            throw new RuntimeException("钱包不存在");
+        }
+
+        // 清空支付密码
+        wallet.setPayPassword(null);
+        wallet.setUpdateTime(java.time.LocalDateTime.now());
+        this.updateById(wallet);
     }
 }

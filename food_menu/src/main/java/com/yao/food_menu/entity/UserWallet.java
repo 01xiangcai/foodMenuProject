@@ -62,6 +62,17 @@ public class UserWallet implements Serializable {
     private LocalDateTime updateTime;
 
     /**
+     * 支付密码当日错误次数
+     */
+    private Integer payPasswordErrorCount;
+
+    /**
+     * 支付密码错误日期(用于每日重置)
+     */
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd")
+    private java.time.LocalDate payPasswordErrorDate;
+
+    /**
      * 逻辑删除: 0-未删除, 1-已删除
      */
     @TableLogic(value = "0", delval = "1")

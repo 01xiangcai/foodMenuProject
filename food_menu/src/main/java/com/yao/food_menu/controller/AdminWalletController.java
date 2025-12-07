@@ -81,4 +81,21 @@ public class AdminWalletController {
             return Result.error("查询失败: " + e.getMessage());
         }
     }
+
+    /**
+     * 管理员重置用户支付密码
+     */
+    @PostMapping("/password/reset")
+    public Result<String> resetPassword(@RequestParam String wxUserId) {
+        try {
+            if (wxUserId == null || wxUserId.isEmpty()) {
+                return Result.error("用户ID不能为空");
+            }
+
+            walletService.resetPayPassword(wxUserId);
+            return Result.success("密码重置成功");
+        } catch (Exception e) {
+            return Result.error("重置失败: " + e.getMessage());
+        }
+    }
 }

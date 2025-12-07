@@ -170,4 +170,34 @@ public class AppWalletController {
             return Result.error("检查失败: " + e.getMessage());
         }
     }
+
+    /**
+     * 修改支付密码（需验证旧密码）
+     */
+    @PostMapping("/password/update")
+    public Result<String> updatePassword(@RequestBody Map<String, String> body,
+            @RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = extractToken(authHeader);
+            Long userId = jwtUtil.getUserId(token);
+            if (userId == null) {
+                return Result.error("请先登录");
+            }
+
+            String oldPassword = body.get("oldPassword");
+            String newPassword = body.get("newPassword");
+
+            if (oldPassword == null || oldPassword.length() != 6) {
+                return Result.error("旧密码格式不正确");
+            }
+            if (newPassword == null || newPassword.length() != 6) {
+                return Result.error("新密码必须为6位数字");
+            }
+
+            walletService.updatePayPassword(userId.toString(), oldPassword, newPassword);
+            return Result.success("修改成功");
+        } catch (Exception e) {
+            return Result.error(e.getMessage());
+        }
+    }
 }
