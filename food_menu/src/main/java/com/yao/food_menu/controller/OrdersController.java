@@ -137,6 +137,22 @@ public class OrdersController {
     }
 
     /**
+     * Get admin order counts
+     */
+    @Operation(summary = "管理员获取订单统计", description = "管理员获取各状态订单数量")
+    @GetMapping("/admin/count")
+    public Result<java.util.Map<Integer, Long>> getAdminOrderCounts(
+            @RequestParam(required = false) Long familyId) {
+        try {
+            java.util.Map<Integer, Long> counts = ordersService.getAdminOrderCounts(familyId);
+            return Result.success(counts);
+        } catch (Exception e) {
+            log.error("Get admin order counts failed: {}", e.getMessage());
+            return Result.error("获取统计失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * Query orders by page
      */
     @Operation(summary = "分页查询订单", description = "分页查询订单列表，包含订单明细，后台和小程序管理员使用")

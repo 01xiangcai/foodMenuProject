@@ -25,4 +25,9 @@ public interface OrdersService extends IService<Orders> {
      * Get order counts by status
      */
     java.util.Map<Integer, Long> getOrderCounts(Long userId);
+
+    /**
+     * Get admin order counts (optionally filtered by familyId)
+     */
+    java.util.Map<Integer, Long> getAdminOrderCounts(Long familyId);
 }

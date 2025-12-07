@@ -51,8 +51,20 @@
           v-for="option in statusOptions"
           :key="option.value"
           :name="option.value"
-          :tab="option.label"
-        />
+        >
+          <template #tab>
+            <div class="tab-with-badge">
+              <span>{{ option.label }}</span>
+              <NBadge
+                v-if="orderCounts[option.value] > 0"
+                :value="orderCounts[option.value]"
+                :max="99"
+                :type="getBadgeType(option.value)"
+                class="tab-badge"
+              />
+            </div>
+          </template>
+        </NTabPane>
       </NTabs>
 
       <div class="filter-bar">
@@ -347,10 +359,11 @@ import {
   NTimelineItem,
   NTabs,
   NTabPane,
+  NBadge,
   useDialog,
   useMessage
 } from 'naive-ui';
-import { fetchOrders, updateOrderStatus, deleteOrder, fetchAllFamilies, fetchProfile } from '@/api/modules';
+import { fetchOrders, updateOrderStatus, deleteOrder, fetchAllFamilies, fetchProfile, getAdminOrderCounts } from '@/api/modules';
 
 type OrderItemRecord = {
   id: number;
@@ -412,6 +425,8 @@ const filters = reactive<OrderFilters>({
   dateRange: null,
   status: -1
 });
+
+const orderCounts = reactive<Record<number, number>>({});
 
 const detailModal = reactive({
   show: false,
@@ -541,6 +556,7 @@ const handleReset = () => {
 const handleFamilyFilterChange = () => {
   currentPage.value = 1;
   loadOrders(true);
+  loadOrderCounts();
 };
 
 // 家庭筛选选项（用于筛选订单列表）
@@ -599,6 +615,7 @@ const updateStatus = async (id: number, status: number) => {
     await updateOrderStatus(id, status);
     message.success('订单状态已更新');
     await loadOrders();
+    loadOrderCounts();
   } catch (error) {
     message.error((error as Error).message || '更新失败');
   }
@@ -620,8 +637,10 @@ const handleDelete = (id: number) => {
       try {
         await deleteOrder(id);
         message.success('订单已删除');
+        message.success('订单已删除');
         // 本地移除，避免重新加载
         orders.value = orders.value.filter(o => o.id !== id);
+        loadOrderCounts();
       } catch (error) {
         message.error((error as Error).message || '删除失败');
       }
@@ -709,9 +728,47 @@ onMounted(async () => {
       await handleOrderFromStream(id);
     }
   }
+  // 加载统计
+  await loadOrderCounts();
 });
 
 // 监听路由变化，处理订单ID参数
+// 加载订单统计
+const loadOrderCounts = async () => {
+  try {
+    const familyId = isSuperAdmin.value ? (selectedFamilyId.value ?? undefined) : undefined;
+    const result = await getAdminOrderCounts({ familyId });
+    // @ts-ignore
+    if (result.code === 1) {
+      // @ts-ignore
+      const counts = result.data || {};
+      
+      // Reset counts
+      Object.keys(orderCounts).forEach(key => delete orderCounts[Number(key)]);
+      Object.assign(orderCounts, counts);
+      
+      // Calculate total
+      let total = 0;
+      Object.values(counts).forEach(c => total += (c as number));
+      orderCounts[-1] = total;
+    }
+  } catch (error) {
+    console.error('加载订单统计失败:', error);
+  }
+};
+
+const getBadgeType = (status: number) => {
+  switch (status) {
+    case 5: return 'error';     // 待支付 - 红色
+    case 0: return 'warning';   // 待接单 - 橙色
+    case 1: return 'info';      // 准备中 - 蓝色
+    case 2: return 'default';   // 配送中 - (Using default/purple logic via CSS if needed, default is usually greyish but ok)
+    case 3: return 'success';   // 已完成 - 绿色
+    case -1: return 'info';     // 全部 - 蓝色
+    default: return 'default';
+  }
+};
+
 watch(() => route.query.orderId, async (newOrderId) => {
   if (newOrderId) {
     const id = parseInt(newOrderId as string, 10);
@@ -723,6 +780,17 @@ watch(() => route.query.orderId, async (newOrderId) => {
 </script>
 
 <style scoped>
+.tab-with-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tab-badge {
+  transform: scale(0.85);
+  transform-origin: left center;
+}
+
 .orders-page {
   padding: 0;
 }

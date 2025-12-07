@@ -261,6 +261,27 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
         return result;
     }
 
+    @Override
+    public Map<Integer, Long> getAdminOrderCounts(Long familyId) {
+        QueryWrapper<Orders> wrapper = new QueryWrapper<>();
+        wrapper.select("status", "count(*) as count")
+                .groupBy("status");
+
+        if (familyId != null) {
+            wrapper.eq("family_id", familyId);
+        }
+
+        List<Map<String, Object>> list = this.listMaps(wrapper);
+
+        Map<Integer, Long> result = new HashMap<>();
+        for (Map<String, Object> map : list) {
+            Integer status = (Integer) map.get("status");
+            Long count = ((Number) map.get("count")).longValue();
+            result.put(status, count);
+        }
+        return result;
+    }
+
     /**
      * 处理订单取消退款
      */

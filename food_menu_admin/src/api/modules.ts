@@ -133,6 +133,7 @@ export const fetchOrderDetail = (id: number) => http.get(`/order/${id}`);
 export const updateOrderStatus = (id: number, status: number) =>
   http.put('/order/status', null, { params: { id, status } });
 export const deleteOrder = (id: number) => http.delete(`/order/${id}`);
+export const getAdminOrderCounts = (params?: { familyId?: number | null }) => http.get('/order/admin/count', { params });
 
 export const uploadImage = (file: File) => {
   const formData = new FormData();
