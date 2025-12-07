@@ -275,7 +275,7 @@ CREATE TABLE `orders`  (
   `order_number` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '订单编号',
   `user_id` bigint NOT NULL COMMENT '用户ID',
   `total_amount` decimal(10, 2) NOT NULL COMMENT '订单总金额',
-  `status` tinyint NOT NULL DEFAULT 0 COMMENT '订单状态 0-待接单 1-准备中 2-配送中 3-已完成 4-已取消',
+  `status` tinyint NOT NULL DEFAULT 0 COMMENT '订单状态 0-待接单 1-准备中 2-配送中 3-已完成 4-已取消 5-待支付',
   `accept_time` datetime NULL DEFAULT NULL COMMENT '接单时间',
   `delivery_time` datetime NULL DEFAULT NULL COMMENT '配送时间',
   `complete_time` datetime NULL DEFAULT NULL COMMENT '完成时间',

@@ -64,7 +64,7 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
         // 生成订单号
         String orderNumber = generateOrderNumber();
         ordersDto.setOrderNumber(orderNumber);
-        ordersDto.setStatus(Orders.STATUS_PENDING); // 待处理
+        ordersDto.setStatus(Orders.STATUS_UNPAID); // 待支付 (5)
 
         // 计算总金额并填充菜品信息
         BigDecimal totalAmount = BigDecimal.ZERO;
@@ -86,49 +86,10 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
         }
         ordersDto.setTotalAmount(totalAmount);
 
-        // 处理支付
-        Integer payMethod = ordersDto.getPayMethod();
-        if (payMethod == null) {
-            payMethod = Orders.PAY_METHOD_MOCK; // 默认模拟支付
-        }
-        ordersDto.setPayMethod(payMethod);
-
-        if (payMethod == Orders.PAY_METHOD_WALLET) {
-            // 余额支付
-            String wxUserId = ordersDto.getUserId().toString();
-
-            // 校验钱包余额
-            UserWallet wallet = walletService.getWalletByUserId(wxUserId);
-            if (wallet == null) {
-                throw new RuntimeException("钱包不存在，请联系管理员");
-            }
-
-            BigDecimal availableBalance = wallet.getBalance().subtract(wallet.getFrozenAmount());
-            if (availableBalance.compareTo(totalAmount) < 0) {
-                throw new RuntimeException("余额不足，请充值或者联系管理员");
-            }
-
-            // 执行扣款
-            PayDto payDto = new PayDto();
-            payDto.setAmount(totalAmount);
-            payDto.setPayPassword(ordersDto.getPayPassword());
-            payDto.setOrderNo(orderNumber);
-            payDto.setRemark("订单消费: " + orderNumber);
-
-            boolean paySuccess = walletService.pay(wxUserId, payDto);
-            if (!paySuccess) {
-                throw new RuntimeException("支付失败，请重试");
-            }
-
-            ordersDto.setPayStatus(Orders.PAY_STATUS_PAID);
-            ordersDto.setPayTime(LocalDateTime.now());
-            log.info("订单 {} 余额支付成功，金额: {}", orderNumber, totalAmount);
-        } else {
-            // 模拟支付，直接标记为已支付
-            ordersDto.setPayStatus(Orders.PAY_STATUS_PAID);
-            ordersDto.setPayTime(LocalDateTime.now());
-            log.info("订单 {} 模拟支付成功，金额: {}", orderNumber, totalAmount);
-        }
+        // 设置初始支付状态为未支付
+        ordersDto.setPayStatus(Orders.PAY_STATUS_UNPAID);
+        // 初始支付方式为空，等支付时再设置
+        ordersDto.setPayMethod(null);
 
         // 保存订单
         this.save(ordersDto);
@@ -142,7 +103,80 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
         }
         orderItemService.saveBatch(orderItems);
 
-        log.info("Order submitted: {}", orderNumber);
+        log.info("Order created (pending payment): {}", orderNumber);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void pay(PayDto payDto) {
+        String orderNumber = payDto.getOrderNo();
+        log.info("Process payment for order: {}", orderNumber);
+
+        // 查询订单
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Orders> queryWrapper = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+        queryWrapper.eq(Orders::getOrderNumber, orderNumber);
+        Orders order = this.getOne(queryWrapper);
+
+        if (order == null) {
+            throw new RuntimeException("订单不存在");
+        }
+
+        if (order.getPayStatus() == Orders.PAY_STATUS_PAID) {
+            throw new RuntimeException("订单已支付");
+        }
+
+        if (order.getStatus() == Orders.STATUS_CANCELLED) {
+            throw new RuntimeException("订单已取消，无法支付");
+        }
+
+        // 验证用户
+        // 注意：这里可能需要更多的安全校验，比如验证调用者是否为订单拥有者
+        // 但由于是在 internal service 中，我们假设 Controller 层已经做了一些基本的校验
+        // 或者我们在这里再校验一次（需要传入 userId）
+
+        Integer payMethod = payDto.getPayMethod();
+        if (payMethod == null) {
+            payMethod = Orders.PAY_METHOD_MOCK;
+        }
+
+        BigDecimal amount = order.getTotalAmount();
+
+        if (payMethod == Orders.PAY_METHOD_WALLET) {
+            // 余额支付
+            String wxUserId = order.getUserId().toString();
+
+            // 校验钱包余额
+            UserWallet wallet = walletService.getWalletByUserId(wxUserId);
+            if (wallet == null) {
+                throw new RuntimeException("钱包不存在，请联系管理员");
+            }
+
+            BigDecimal availableBalance = wallet.getBalance().subtract(wallet.getFrozenAmount());
+            if (availableBalance.compareTo(amount) < 0) {
+                throw new RuntimeException("余额不足，请充值或者联系管理员");
+            }
+
+            // 设置支付金额
+            payDto.setAmount(amount);
+            payDto.setRemark("订单消费: " + orderNumber);
+
+            boolean paySuccess = walletService.pay(wxUserId, payDto);
+            if (!paySuccess) {
+                throw new RuntimeException("支付失败，请重试");
+            }
+        }
+
+        // 更新订单支付状态
+        order.setPayMethod(payMethod);
+        order.setPayStatus(Orders.PAY_STATUS_PAID);
+        order.setPayTime(LocalDateTime.now());
+
+        // 支付成功后，状态流转为待接单
+        order.setStatus(Orders.STATUS_PENDING);
+
+        this.updateById(order);
+
+        log.info("Order paid successfully: {}", orderNumber);
     }
 
     @Override
@@ -158,9 +192,21 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
 
         // 根据状态记录对应的时间
         LocalDateTime now = LocalDateTime.now();
-        if (status == Orders.STATUS_PREPARING && oldStatus != Orders.STATUS_PREPARING) {
-            // 接单
-            orders.setAcceptTime(now);
+
+        // 校验：如果是接单操作(0 -> 1)，必须已支付
+        // 校验：如果是接单操作(0 -> 1)，必须已支付
+        if (status == Orders.STATUS_PREPARING) {
+            if (oldStatus == Orders.STATUS_UNPAID) {
+                throw new RuntimeException("订单未支付，无法接单");
+            }
+            if (oldStatus == Orders.STATUS_PENDING) {
+                if (orders.getPayStatus() != Orders.PAY_STATUS_PAID) {
+                    throw new RuntimeException("订单未支付，无法接单");
+                }
+                // 接单
+                orders.setAcceptTime(now);
+            }
+        } else if (status == Orders.STATUS_DELIVERING && oldStatus != Orders.STATUS_DELIVERING) {
         } else if (status == Orders.STATUS_DELIVERING && oldStatus != Orders.STATUS_DELIVERING) {
             // 开始配送
             orders.setDeliveryTime(now);

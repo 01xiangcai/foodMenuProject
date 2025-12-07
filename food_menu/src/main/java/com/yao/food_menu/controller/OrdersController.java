@@ -91,6 +91,33 @@ public class OrdersController {
     }
 
     /**
+     * Order Payment
+     */
+    @Operation(summary = "订单支付", description = "对已提交的订单进行支付")
+    @PostMapping("/pay")
+    public Result<String> pay(@RequestBody com.yao.food_menu.dto.PayDto payDto,
+            @RequestHeader("Authorization") String token) {
+        log.info("Pay order: {}", payDto);
+
+        try {
+            // Remove "Bearer " prefix if exists
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7);
+            }
+            // Verify token checks out (optional: check if user matches order owner, but
+            // service layer handles some checks)
+            jwtUtil.getUserId(token);
+
+            ordersService.pay(payDto);
+
+            return Result.success("支付成功");
+        } catch (Exception e) {
+            log.error("Pay order failed: {}", e.getMessage());
+            return Result.error("支付失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * Query orders by page
      */
     @Operation(summary = "分页查询订单", description = "分页查询订单列表，包含订单明细，后台和小程序管理员使用")

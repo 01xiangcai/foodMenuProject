@@ -120,9 +120,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+
+import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
-import { createOrder, getWalletInfo, checkPayPassword } from '@/api/index'
+import { createOrder, getWalletInfo, checkPayPassword, payOrder, getOrderDetail, updateOrderRemark } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 import { useCartStore } from '@/stores/cart'
 import { getDishImage } from '@/utils/image'
@@ -138,6 +139,8 @@ const walletBalance = ref(0)
 const hasPayPassword = ref(false)
 const showPayPassword = ref(false)
 const isSubmitting = ref(false)
+const orderId = ref(null)
+const orderNumber = ref('')
 
 // 商品金额
 const goodsAmount = computed(() => {
@@ -160,9 +163,9 @@ const canSubmit = computed(() => {
 
 // 提交按钮文字
 const submitBtnText = computed(() => {
-  if (isSubmitting.value) return '提交中...'
+  if (isSubmitting.value) return '处理中...'
   if (payMethod.value === 1 && !canUseWallet.value) return '余额不足'
-  return '确认支付'
+  return orderId.value ? '确认支付' : '提交订单'
 })
 
 // 获取钱包信息
@@ -175,6 +178,35 @@ const loadWalletInfo = async () => {
     }
   } catch (error) {
     console.error('获取钱包信息失败:', error)
+  }
+}
+
+// 加载现有订单
+const loadOrder = async (id) => {
+  try {
+    uni.showLoading({ title: '加载中...' })
+    const res = await getOrderDetail(id)
+    uni.hideLoading()
+    
+    if (res.data) {
+      const order = res.data
+      orderId.value = order.id
+      orderNumber.value = order.orderNumber
+      remark.value = order.remark || ''
+      
+      // 转换订单项格式以匹配显示
+      items.value = order.orderItems.map(item => ({
+        id: item.dishId,
+        name: item.dishName,
+        price: item.price,
+        quantity: item.quantity,
+        image: item.dishImage
+      }))
+    }
+  } catch (error) {
+    uni.hideLoading()
+    console.error('加载订单失败:', error)
+    uni.showToast({ title: '加载订单失败', icon: 'none' })
   }
 }
 
@@ -229,42 +261,71 @@ const onPayPasswordConfirm = (password) => {
   submitOrder(password)
 }
 
-// 提交订单
+// 提交/支付订单
 const submitOrder = async (payPassword) => {
   if (isSubmitting.value) return
   isSubmitting.value = true
 
   try {
-    const orderData = {
-      remark: remark.value,
-      payMethod: payMethod.value,
-      payPassword: payPassword,
-      orderItems: items.value.map(item => ({
-        dishId: item.id,
-        quantity: item.quantity
-      }))
-    }
-
-    const res = await createOrder(orderData)
-    
-    if (res.data) {
-      // 清空购物车
-      cartStore.clearCart()
+    // 场景1: 已有订单ID（从菜单页创建），进行支付
+    if (orderId.value) {
+      // 如果备注变化了，先更新备注（可选，为简单起见，这里假设pay接口不支持直接更新备注，或者我们可以分两步）
+      // updateOrderRemark(orderId.value, remark.value) // 视需求而定，这里先跳过，假设创建时备注为空或者不重要，或者通过 payOrder 的 remark 参数传递
       
-      uni.showToast({
-        title: payMethod.value === 1 ? '支付成功' : '订单提交成功',
-        icon: 'success'
-      })
+      const payData = {
+        orderNo: orderNumber.value,
+        payMethod: payMethod.value,
+        payPassword: payPassword,
+        remark: remark.value // 将当前备注传给支付接口（如果在支付记录中需要，或者用于更新订单备注）
+      }
+      
+      await payOrder(payData)
+      
+      uni.showToast({ title: '支付成功', icon: 'success' })
       
       setTimeout(() => {
         uni.redirectTo({
-          url: `/pages/order/detail?id=${res.data}`
+          url: `/pages/order/detail?id=${orderId.value}`
         })
       }, 1500)
+      
+    } else {
+      // 场景2: 没有订单ID（旧流程或直接进入），先创建再支付（这里通常不应该发生，因为menu.vue已经改为先创建了）
+      // 但为了兼容，保留创建逻辑
+      const orderData = {
+        remark: remark.value,
+        payMethod: null,
+        payPassword: null, 
+        orderItems: items.value.map(item => ({
+          dishId: item.id,
+          quantity: item.quantity
+        }))
+      }
+
+      const res = await createOrder(orderData)
+      const newOrderId = res.data
+      
+      if (newOrderId) {
+          // 清空购物车
+          cartStore.clearCart()
+          
+          // 立即支付新创建的订单？或者跳转？
+          // 如果为了统一，这里应该拿到 orderNumber 然后走支付流程。
+          // 简化起见，保持原跳转逻辑，让detail页处理如果需要。
+          // 但根据用户要求 "Go to Checkout creates order", 这种场景应该只在 menu.vue 发生。
+          // 所以这里可以是 fallback
+          
+          uni.showToast({ title: '订单已提交', icon: 'success' })
+          setTimeout(() => {
+            uni.redirectTo({
+              url: `/pages/order/detail?id=${newOrderId}&autoPay=1`
+            })
+          }, 1500)
+      }
     }
   } catch (error) {
-    console.error('提交订单失败:', error)
-    const errMsg = error.message || '订单提交失败'
+    console.error('操作失败:', error)
+    const errMsg = error.message || '操作失败'
     uni.showToast({
       title: errMsg,
       icon: 'none',
@@ -276,17 +337,22 @@ const submitOrder = async (payPassword) => {
 }
 
 onLoad((options) => {
-  if (options.items) {
+  if (options.orderId) {
+    // 模式1: 传入了订单ID，加载现有订单
+    loadOrder(options.orderId)
+  } else if (options.items) {
+    // 模式2: 传入了商品项（旧模式，或者详情页直接购买等）
     try {
       items.value = JSON.parse(decodeURIComponent(options.items))
     } catch (error) {
       console.error('解析商品数据失败:', error)
     }
   } else if (options.dishId && options.quantity) {
+    // 模式3: 单个商品直接购买
     items.value = [{
       id: parseInt(options.dishId),
       name: '商品',
-      price: 38,
+      price: 38, //这里价格是假的，应该没关系，创建接口会重算
       quantity: parseInt(options.quantity),
       image: 'https://dummyimage.com/200x200/ff6b6b/ffffff&text=商品'
     }]

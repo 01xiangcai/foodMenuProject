@@ -40,8 +40,8 @@
               <text class="order-label">订单号：</text>
               <text class="order-no">{{ order.orderNumber }}</text>
             </view>
-            <view class="status-badge" :class="getStatusClass(order.status)">
-              <text>{{ getStatusText(order.status) }}</text>
+            <view class="status-badge" :class="getStatusClass(order.status, order.payStatus)">
+              <text>{{ getStatusText(order.status, order.payStatus) }}</text>
             </view>
           </view>
           
@@ -87,10 +87,13 @@
             </view>
             
             <view class="footer-actions">
-              <!-- 待接单订单显示取消和详情按钮 -->
-              <view class="action-btns" v-if="order.status === 0">
+              <!-- 待支付或待接单订单显示取消和详情按钮 -->
+              <view class="action-btns" v-if="order.status === 0 || order.status === 5">
                 <view class="btn-cancel" @tap.stop="cancelOrder(order.id)">
                   <text>取消订单</text>
+                </view>
+                <view class="btn-pay" v-if="order.status === 5" @tap.stop="goToDetail(order.id)">
+                  <text>去支付</text>
                 </view>
                 <view class="btn-detail" @tap.stop="goToDetail(order.id)">
                   <text>详情</text>
@@ -151,6 +154,7 @@ const currentTab = ref(-1)
 
 const statusTabs = [
   { label: '全部', value: -1 },
+  { label: '待支付', value: 5 },
   { label: '待接单', value: 0 },
   { label: '准备中', value: 1 },
   { label: '配送中', value: 2 },
@@ -166,25 +170,33 @@ const switchTab = (value) => {
 }
 
 // 获取订单状态文本
-const getStatusText = (status) => {
+const getStatusText = (status, payStatus) => {
+  if (status === 5) {
+    return '待支付'
+  }
   const statusMap = {
     0: '待接单',
     1: '准备中',
     2: '配送中',
     3: '已完成',
-    4: '已取消'
+    4: '已取消',
+    5: '待支付'
   }
   return statusMap[status] || '未知'
 }
 
 // 获取订单状态样式
-const getStatusClass = (status) => {
+const getStatusClass = (status, payStatus) => {
+  if (status === 5) {
+    return 'status-unpaid' // 待支付样式
+  }
   const classMap = {
     0: 'status-waiting',
     1: 'status-preparing',
     2: 'status-delivering',
     3: 'status-completed',
-    4: 'status-cancelled'
+    4: 'status-cancelled',
+    5: 'status-unpaid'
   }
   return classMap[status] || ''
 }
@@ -461,6 +473,12 @@ onShow(() => {
     background: rgba(255, 149, 0, 0.15);
     color: #ff9500;
     border: 1px solid rgba(255, 149, 0, 0.3);
+  }
+  
+  &.status-unpaid {
+    background: rgba(255, 59, 48, 0.15); /* 红色提醒 */
+    color: #ff3b30;
+    border: 1px solid rgba(255, 59, 48, 0.3);
   }
   
   &.status-preparing {

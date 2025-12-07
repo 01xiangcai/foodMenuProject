@@ -35,7 +35,7 @@ public class Orders implements Serializable {
     // 总金额
     private BigDecimal totalAmount;
 
-    // 订单状态: 0-待处理, 1-准备中, 2-配送中, 3-已完成, 4-已取消
+    // 订单状态: 0-待接单, 1-准备中, 2-配送中, 3-已完成, 4-已取消, 5-待支付
     private Integer status;
 
     // 接单时间
@@ -81,9 +81,10 @@ public class Orders implements Serializable {
     public static final int PAY_STATUS_REFUNDED = 2; // 已退款
 
     // 订单状态常量
-    public static final int STATUS_PENDING = 0; // 待处理
+    public static final int STATUS_PENDING = 0; // 待接单
     public static final int STATUS_PREPARING = 1; // 准备中
     public static final int STATUS_DELIVERING = 2; // 配送中
     public static final int STATUS_COMPLETED = 3; // 已完成
     public static final int STATUS_CANCELLED = 4; // 已取消
+    public static final int STATUS_UNPAID = 5; // 待支付
 }

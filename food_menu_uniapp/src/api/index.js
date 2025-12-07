@@ -81,6 +81,18 @@ export const createOrder = (data) => {
 }
 
 /**
+ * 订单支付
+ * @param {Object} data { orderNo, payMethod, payPassword, remark }
+ */
+export const payOrder = (data) => {
+    return request({
+        url: '/order/pay',
+        method: 'POST',
+        data
+    })
+}
+
+/**
  * 管理员获取全部订单列表
  * @param {Object} params 查询参数
  */

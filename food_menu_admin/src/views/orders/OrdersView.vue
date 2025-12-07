@@ -120,8 +120,8 @@
               <span class="label">订单号</span>
               <span class="value">{{ order.orderNumber }}</span>
             </div>
-            <NTag :type="getStatusType(order.status)" :bordered="false">
-              {{ getStatusText(order.status) }}
+            <NTag :type="getStatusType(order.status, order.payStatus)" :bordered="false">
+              {{ getStatusText(order.status, order.payStatus) }}
             </NTag>
           </div>
 
@@ -370,6 +370,7 @@ type OrderRecord = {
   userId: number;
   totalAmount: string | number;
   status: number;
+  payStatus: number; // 0=未支付, 1=已支付
   remark?: string;
   createTime: string;
   updateTime: string;
@@ -420,6 +421,7 @@ const detailModal = reactive({
 
 const statusOptions = [
   { label: '全部状态', value: -1 },
+  { label: '待支付', value: 5 },
   { label: '待接单', value: 0 },
   { label: '准备中', value: 1 },
   { label: '配送中', value: 2 },
@@ -432,7 +434,8 @@ const statusMap: Record<number, { text: string; type: 'warning' | 'info' | 'defa
   1: { text: '准备中', type: 'info' },
   2: { text: '配送中', type: 'default' },
   3: { text: '已完成', type: 'success' },
-  4: { text: '已取消', type: 'error' }
+  4: { text: '已取消', type: 'error' },
+  5: { text: '待支付', type: 'error' }
 };
 
 // 统计数据
@@ -477,8 +480,13 @@ const filteredOrders = computed(() => {
   return result;
 });
 
-const getStatusText = (status: number) => statusMap[status]?.text || '未知';
-const getStatusType = (status: number) => statusMap[status]?.type || 'default';
+const getStatusText = (status: number, payStatus?: number) => {
+  return statusMap[status]?.text || '未知';
+};
+
+const getStatusType = (status: number, payStatus?: number) => {
+  return statusMap[status]?.type || 'default';
+};
 
 const isToday = (dateStr: string) => {
   const date = new Date(dateStr);

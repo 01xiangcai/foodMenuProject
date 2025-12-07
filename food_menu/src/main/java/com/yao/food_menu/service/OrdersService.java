@@ -12,6 +12,11 @@ public interface OrdersService extends IService<Orders> {
     void submit(OrdersDto ordersDto);
 
     /**
+     * Submit order payment
+     */
+    void pay(com.yao.food_menu.dto.PayDto payDto);
+
+    /**
      * Update order status
      */
     void updateStatus(Long id, Integer status);

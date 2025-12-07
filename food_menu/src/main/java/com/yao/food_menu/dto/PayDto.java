@@ -29,4 +29,9 @@ public class PayDto {
      * 备注说明
      */
     private String remark;
+
+    /**
+     * 支付方式: 1=余额支付, 2=模拟支付
+     */
+    private Integer payMethod;
 }

@@ -372,14 +372,48 @@ const toggleCartPopup = () => {
 }
 
 // 去结算
-const goToCheckout = () => {
+const goToCheckout = async () => {
   if (cartStore.totalCount === 0) return
 
-  // 将当前购物车商品作为 items 传递给确认订单页
-  const selectedItems = cartStore.cartList
-  uni.navigateTo({
-    url: '/pages/order/confirm?items=' + encodeURIComponent(JSON.stringify(selectedItems))
-  })
+  try {
+    uni.showLoading({ title: '创建订单中...' })
+    
+    // 1. 构建订单数据
+    const selectedItems = cartStore.cartList
+    const orderData = {
+      remark: '',
+      payMethod: null,
+      payPassword: null, 
+      orderItems: selectedItems.map(item => ({
+        dishId: item.id,
+        quantity: item.quantity
+      }))
+    }
+
+    // 2. 立即创建订单
+    const { createOrder } = await import('@/api/index')
+    const res = await createOrder(orderData)
+    
+    uni.hideLoading()
+    
+    const orderId = res.data
+    if (orderId) {
+      // 创建成功，清空购物车
+      cartStore.clearCart()
+      
+      // 跳转到确认页（实际是支付页），携带 orderId
+      uni.navigateTo({
+        url: `/pages/order/confirm?orderId=${orderId}`
+      })
+    }
+  } catch (error) {
+    uni.hideLoading()
+    console.error('创建订单失败:', error)
+    uni.showToast({
+      title: error.message || '创建订单失败',
+      icon: 'none'
+    })
+  }
 }
 
 const ensureLogin = () => {

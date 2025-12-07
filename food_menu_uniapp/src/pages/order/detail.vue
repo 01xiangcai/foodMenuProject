@@ -70,9 +70,12 @@
     </view>
 
     <!-- 底部操作 -->
-    <view class="bottom-bar" v-if="order.status === 0">
+    <view class="bottom-bar" v-if="order.status === 0 || order.status === 5">
       <view class="btn-cancel" @tap="cancelOrder">
         <text>取消订单</text>
+      </view>
+      <view class="btn-pay" v-if="order.status === 5" @tap="handlePay">
+        <text>立即支付</text>
       </view>
     </view>
 
@@ -109,20 +112,89 @@
         </view>
       </view>
     </view>
+    <!-- 支付方式选择弹窗 -->
+    <view class="pay-method-popup" :class="{ visible: showPayMethodSelect }">
+      <view class="popup-mask" @tap="closePayMethodSelect"></view>
+      <view class="popup-content">
+        <view class="popup-header">
+          <text class="popup-title">选择支付方式</text>
+          <view class="popup-close" @tap="closePayMethodSelect">×</view>
+        </view>
+        
+        <view class="method-list">
+          <!-- 余额支付 -->
+          <view 
+            class="method-item" 
+            :class="{ active: selectedPayMethod === 1, disabled: walletBalance < order.totalAmount }"
+            @tap="selectPayMethod(1)"
+          >
+            <view class="method-left">
+              <text class="method-icon">💰</text>
+              <view class="method-info">
+                <text class="method-name">余额支付</text>
+                <text 
+                  class="method-desc"
+                  :class="{ 
+                    'text-error': walletBalance < order.totalAmount,
+                    'text-gray': walletBalance >= order.totalAmount
+                  }"
+                >
+                  余额: ¥{{ walletBalance.toFixed(2) }}
+                  {{ walletBalance < order.totalAmount ? '(余额不足)' : '' }}
+                </text>
+              </view>
+            </view>
+            <view class="radio-circle"></view>
+          </view>
+          
+          <!-- 模拟支付 -->
+          <view 
+            class="method-item" 
+            :class="{ active: selectedPayMethod === 2 }"
+            @tap="selectPayMethod(2)"
+          >
+            <view class="method-left">
+              <text class="method-icon">🎮</text>
+              <view class="method-info">
+                <text class="method-name">模拟支付</text>
+                <text class="method-desc text-gray">开发测试使用</text>
+              </view>
+            </view>
+            <view class="radio-circle"></view>
+          </view>
+        </view>
+        
+        <view class="popup-footer">
+          <view class="btn-confirm-pay" @tap="confirmPayMethod">
+            <text>确认支付 ¥{{ order.totalAmount }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 支付密码弹窗 -->
+    <PayPasswordPopup
+      v-model:visible="showPayPassword"
+      :title="'请输入支付密码'"
+      @confirm="onPayPasswordConfirm"
+      @cancel="showPayPassword = false"
+    />
   </view>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue' // Added computed
 import { onLoad, onShow } from '@dcloudio/uni-app'
-import { getOrderDetail, updateOrderStatus, updateOrderRemark } from '@/api/index'
+import { getOrderDetail, updateOrderStatus, updateOrderRemark, payOrder, getWalletInfo } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 import { getDishImage } from '@/utils/image'
+import PayPasswordPopup from '@/components/PayPasswordPopup.vue'
 
 const order = ref({
   id: 0,
   orderNumber: '',
   status: 0,
+  payStatus: 0,
   totalAmount: 0,
   remark: '',
   items: []
@@ -130,6 +202,15 @@ const order = ref({
 
 const showModal = ref(false)
 const tempRemark = ref('')
+const showPayPassword = ref(false)
+const isPaying = ref(false)
+const walletBalance = ref(0)
+const hasPayPassword = ref(false)
+const autoPay = ref(false)
+
+// 支付方式选择相关
+const showPayMethodSelect = ref(false)
+const selectedPayMethod = ref(1) // 默认余额支付
 
 const getStatusIcon = (status) => {
   const iconMap = {
@@ -137,18 +218,23 @@ const getStatusIcon = (status) => {
     1: '👨‍🍳', // 准备中
     2: '🛵', // 配送中
     3: '🎉', // 已完成
-    4: '❌'  // 已取消
+    4: '❌', // 已取消
+    5: '💳'  // 待支付
   }
   return iconMap[status] || '📋'
 }
 
 const getStatusText = (status) => {
+  if (status === 5) {
+    return '待支付'
+  }
   const textMap = {
     0: '待接单',
     1: '准备中',
     2: '配送中',
     3: '已完成',
-    4: '已取消'
+    4: '已取消',
+    5: '待支付'
   }
   return textMap[status] || '未知状态'
 }
@@ -159,7 +245,8 @@ const getStatusDesc = (status) => {
     1: '商家正在准备餐品',
     2: '骑手正在配送中',
     3: '订单已完成，期待下次光临',
-    4: '订单已取消'
+    4: '订单已取消',
+    5: '请尽快完成支付'
   }
   return descMap[status] || ''
 }
@@ -170,7 +257,8 @@ const getStatusClass = (status) => {
     1: 'status-preparing',
     2: 'status-delivering',
     3: 'status-completed',
-    4: 'status-cancelled'
+    4: 'status-cancelled',
+    5: 'status-unpaid'
   }
   return classMap[status] || ''
 }
@@ -200,6 +288,7 @@ const loadOrderDetail = async (id) => {
         address: data.address,
         createTime: data.createTime,
         payMethod: data.payMethod,
+        payStatus: data.payStatus,
         remark: data.remark || '',
         items: (data.orderItems || []).map(item => ({
           id: item.id,
@@ -319,15 +408,141 @@ const navigateToDishDetail = (dishId, dishStatus) => {
   })
 }
 
+// 获取钱包信息
+const loadWalletInfo = async () => {
+  try {
+    const res = await getWalletInfo()
+    if (res.data) {
+      walletBalance.value = res.data.balance || 0
+      hasPayPassword.value = res.data.hasPayPassword || false
+    }
+  } catch (error) {
+    console.error('获取钱包信息失败:', error)
+  }
+}
+
+// 支付订单（打开选择弹窗）
+const handlePay = async () => {
+  if (isPaying.value) return
+  showPayMethodSelect.value = true
+}
+
+// 关闭支付选择
+const closePayMethodSelect = () => {
+  showPayMethodSelect.value = false
+}
+
+// 选择支付方式
+const selectPayMethod = (method) => {
+  if (method === 1 && walletBalance.value < order.value.totalAmount) {
+     // 余额不足也可以选，但在支付时拦截，或者这里就不让选？
+     // 用户体验：还是让选，然后显示不足提示
+  }
+  selectedPayMethod.value = method
+}
+
+// 确认支付方式
+const confirmPayMethod = () => {
+  if (selectedPayMethod.value === 1) {
+     if (walletBalance.value < order.value.totalAmount) {
+        uni.showToast({
+          title: '余额不足，请充值',
+          icon: 'none'
+        })
+        return
+     }
+     
+     if (!hasPayPassword.value) {
+       uni.showModal({
+        title: '提示',
+        content: '您尚未设置支付密码，请先设置支付密码',
+        confirmText: '去设置',
+        success: (res) => {
+          if (res.confirm) {
+            uni.navigateTo({
+              url: '/pages/wallet/index'
+            })
+          }
+        }
+      })
+      return
+     }
+     
+     // 关闭选择弹窗，打开密码弹窗
+     showPayMethodSelect.value = false
+     // 稍微延迟一下
+     setTimeout(() => {
+        showPayPassword.value = true
+     }, 100)
+     
+  } else {
+    // 模拟支付
+    showPayMethodSelect.value = false
+    processPay(null)
+  }
+}
+
+const onPayPasswordConfirm = (password) => {
+  showPayPassword.value = false
+  processPay(password)
+}
+
+const processPay = async (password) => {
+  if (isPaying.value) return
+  isPaying.value = true
+  
+  try {
+    const payData = {
+      orderNo: order.value.orderNumber,
+      payMethod: selectedPayMethod.value, // 使用选择的支付方式
+      payPassword: password,
+      remark: '订单支付'
+    }
+    
+    await payOrder(payData)
+    
+    uni.showToast({
+      title: '支付成功',
+      icon: 'success'
+    })
+    
+    // 刷新订单详情
+    loadOrderDetail(order.value.id)
+    
+  } catch (error) {
+    console.error('支付失败:', error)
+    uni.showToast({
+      title: error.message || '支付失败',
+      icon: 'none'
+    })
+  } finally {
+    isPaying.value = false
+  }
+}
+
 onLoad((options) => {
   loadTheme()
   if (options.id) {
     loadOrderDetail(options.id)
   }
+  if (options.autoPay == 1) {
+    autoPay.value = true
+  }
 })
 
 onShow(() => {
   loadTheme()
+  loadWalletInfo()
+  // 如果是自动支付且数据已加载，尝试支付
+  if (autoPay.value && order.value.id) {
+    autoPay.value = false // 防止重复触发
+    // 稍微延迟确保数据加载
+    setTimeout(() => {
+        if (order.value.status === 5) {
+            handlePay() // 这会打开选择弹窗，符合逻辑
+        }
+    }, 500)
+  }
 })
 </script>
 
@@ -373,6 +588,10 @@ onShow(() => {
     
     .status-text { color: #fff; }
     .status-desc { color: #eee; }
+  }
+  
+  &.status-unpaid {
+    background: linear-gradient(135deg, #FF9966 0%, #FF5E62 100%); /* 醒目红橙色 */
   }
 }
 
@@ -599,6 +818,26 @@ onShow(() => {
   }
 }
 
+.btn-pay {
+  padding: 20rpx 60rpx;
+  border-radius: 40rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(90deg, #ff6b6b 0%, #ff4757 100%);
+  box-shadow: 0 8rpx 20rpx rgba(255, 71, 87, 0.3);
+  transition: all 0.3s;
+  display: flex; /* Ensure centering if needed */
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    opacity: 0.9;
+    transform: translateY(2rpx);
+    box-shadow: 0 4rpx 10rpx rgba(255, 71, 87, 0.2);
+  }
+}
+
 /* 自定义备注弹窗样式 */
 .remark-modal {
   position: fixed;
@@ -752,6 +991,189 @@ onShow(() => {
   
   &:active {
     box-shadow: 0 4rpx 12rpx rgba(255, 107, 107, 0.3);
+  }
+}
+</style>
+<style lang="scss" scoped>
+/* 支付方式弹窗 */
+.pay-method-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+  visibility: hidden;
+  transition: visibility 0.3s;
+
+  &.visible {
+    visibility: visible;
+  }
+}
+
+.popup-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  transition: opacity 0.3s;
+
+  .visible & {
+    opacity: 1;
+  }
+}
+
+.popup-content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: v-bind('themeConfig.bgSecondary');
+  border-radius: 32rpx 32rpx 0 0;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding-bottom: env(safe-area-inset-bottom);
+
+  .visible & {
+    transform: translateY(0);
+  }
+}
+
+.popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30rpx;
+  border-bottom: 1px solid v-bind('themeConfig.borderColor');
+  position: relative;
+}
+
+.popup-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: v-bind('themeConfig.textPrimary');
+}
+
+.popup-close {
+  position: absolute;
+  right: 30rpx;
+  top: 30rpx;
+  font-size: 40rpx;
+  color: v-bind('themeConfig.textSecondary');
+  line-height: 1;
+  padding: 10rpx;
+}
+
+.method-list {
+  padding: 30rpx;
+}
+
+.method-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+  background: v-bind('themeConfig.bgTertiary');
+  border-radius: 20rpx;
+  border: 2px solid transparent;
+  transition: all 0.3s;
+
+  &.active {
+    border-color: #ff6b6b;
+    background: rgba(255, 107, 107, 0.05);
+  }
+
+  &.disabled {
+    opacity: 0.6;
+    filter: grayscale(1);
+  }
+}
+
+.method-left {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+}
+
+.method-icon {
+  font-size: 48rpx;
+}
+
+.method-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.method-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: v-bind('themeConfig.textPrimary');
+}
+
+.method-desc {
+  font-size: 24rpx;
+  color: #34d399;
+
+  &.text-error {
+    color: #ff6b6b;
+  }
+
+  &.text-gray {
+    color: v-bind('themeConfig.textSecondary');
+  }
+}
+
+.radio-circle {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  border: 2px solid v-bind('themeConfig.borderColor');
+  position: relative;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    width: 20rpx;
+    height: 20rpx;
+    background: #ff6b6b;
+    border-radius: 50%;
+    transition: transform 0.2s;
+  }
+
+  .active & {
+    border-color: #ff6b6b;
+    &::after {
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+}
+
+.popup-footer {
+  padding: 20rpx 40rpx 40rpx;
+}
+
+.btn-confirm-pay {
+  height: 88rpx;
+  border-radius: 44rpx;
+  background: linear-gradient(90deg, #ff6b6b 0%, #ff4757 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  font-weight: 600;
+  box-shadow: 0 8rpx 20rpx rgba(255, 71, 87, 0.3);
+
+  &:active {
+    transform: scale(0.98);
   }
 }
 </style>
