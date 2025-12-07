@@ -106,7 +106,7 @@ const banners = ref([])
 const quickActions = ref([
   { label: '一键叫饭', desc: '告诉家人开饭啦', link: '/pages/order/list' },
   { label: '今日菜单', desc: '挑选 3 道拿手菜', link: '/pages/menu/menu' },
-  { label: '口味心愿', desc: '记录家人偏好', link: '/pages/menu/menu' }
+  { label: '营销活动', desc: '参与抽奖赢好礼', link: '/pages/marketing/activity-list' }
 ])
 const featuredDishes = ref([])
 

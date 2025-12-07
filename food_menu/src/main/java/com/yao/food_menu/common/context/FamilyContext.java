@@ -29,6 +29,13 @@ public class FamilyContext {
     }
 
     /**
+     * 获取当前家庭ID (getFamilyId的别名)
+     */
+    public static Long getCurrentFamilyId() {
+        return getFamilyId();
+    }
+
+    /**
      * 设置用户角色
      */
     public static void setUserRole(Integer role) {

@@ -103,6 +103,12 @@
             "style": {
                 "navigationBarTitleText": "我的钱包"
             }
+        },
+        {
+            "path": "pages/marketing/activity-list",
+            "style": {
+                "navigationBarTitleText": "营销活动"
+            }
         }
     ],
     "globalStyle": {

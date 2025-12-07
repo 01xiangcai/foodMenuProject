@@ -410,4 +410,137 @@ CREATE TABLE `wx_wallet_transaction`  (
   INDEX `idx_family_id`(`family_id` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 6 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '钱包流水表' ROW_FORMAT = Dynamic;
 
+-- ----------------------------
+-- Table structure for marketing_activity
+-- ----------------------------
+DROP TABLE IF EXISTS `marketing_activity`;
+CREATE TABLE `marketing_activity` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '活动ID',
+  `family_id` bigint NOT NULL COMMENT '家庭ID',
+  `activity_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '活动名称',
+  `activity_type` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '活动类型: LOTTERY(抽奖), WHEEL(大转盘), COUPON(优惠券), POINTS_EXCHANGE(积分兑换), SIGN_IN(签到), GROUP_BUY(拼团)',
+  `activity_desc` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci COMMENT '活动描述',
+  `banner_image` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '活动横幅图片',
+  `local_banner_image` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '本地横幅图片路径',
+  `start_time` datetime NOT NULL COMMENT '开始时间',
+  `end_time` datetime NOT NULL COMMENT '结束时间',
+  `status` tinyint NOT NULL DEFAULT 0 COMMENT '状态: 0-未开始, 1-进行中, 2-已结束, 3-已暂停',
+  `participate_limit` int NOT NULL DEFAULT 0 COMMENT '参与次数限制(0表示不限制)',
+  `limit_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'DAILY' COMMENT '限制类型: DAILY(每日), TOTAL(总计), UNLIMITED(不限)',
+  `participate_condition` json COMMENT '参与条件配置(JSON格式)',
+  `activity_config` json NOT NULL COMMENT '活动配置(JSON格式,不同活动类型配置不同)',
+  `sort_order` int NOT NULL DEFAULT 0 COMMENT '排序权重',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `create_by` bigint NULL DEFAULT NULL COMMENT '创建人',
+  `update_by` bigint NULL DEFAULT NULL COMMENT '更新人',
+  `deleted` int NOT NULL DEFAULT 0 COMMENT '逻辑删除 0:未删除 1:已删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_family_id` (`family_id` ASC) USING BTREE,
+  INDEX `idx_activity_type` (`activity_type` ASC) USING BTREE,
+  INDEX `idx_status` (`status` ASC) USING BTREE,
+  INDEX `idx_time` (`start_time` ASC, `end_time` ASC) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='营销活动主表' ROW_FORMAT=Dynamic;
+
+-- ----------------------------
+-- Table structure for activity_prize
+-- ----------------------------
+DROP TABLE IF EXISTS `activity_prize`;
+CREATE TABLE `activity_prize` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '奖品ID',
+  `activity_id` bigint NOT NULL COMMENT '活动ID',
+  `prize_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '奖品名称',
+  `prize_type` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '奖品类型: COUPON(优惠券), POINTS(积分), DISH(菜品), PHYSICAL(实物), THANK_YOU(谢谢参与)',
+  `prize_image` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '奖品图片',
+  `local_prize_image` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '本地奖品图片路径',
+  `prize_value` decimal(10,2) NULL DEFAULT NULL COMMENT '奖品价值',
+  `prize_config` json COMMENT '奖品配置(如优惠券ID、菜品ID等)',
+  `total_quantity` int NOT NULL DEFAULT -1 COMMENT '总数量(-1表示无限)',
+  `remain_quantity` int NOT NULL DEFAULT -1 COMMENT '剩余数量',
+  `win_probability` decimal(5,4) NULL DEFAULT NULL COMMENT '中奖概率(0.0001-1.0000)',
+  `prize_level` int NOT NULL DEFAULT 0 COMMENT '奖品等级(用于排序展示)',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` int NOT NULL DEFAULT 0 COMMENT '逻辑删除 0:未删除 1:已删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_activity_id` (`activity_id` ASC) USING BTREE,
+  CONSTRAINT `fk_prize_activity` FOREIGN KEY (`activity_id`) REFERENCES `marketing_activity` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='活动奖品表' ROW_FORMAT=Dynamic;
+
+-- ----------------------------
+-- Table structure for activity_participate_record
+-- ----------------------------
+DROP TABLE IF EXISTS `activity_participate_record`;
+CREATE TABLE `activity_participate_record` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '记录ID',
+  `activity_id` bigint NOT NULL COMMENT '活动ID',
+  `wx_user_id` bigint NOT NULL COMMENT '参与用户ID',
+  `participate_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '参与时间',
+  `prize_id` bigint NULL DEFAULT NULL COMMENT '中奖奖品ID(NULL表示未中奖)',
+  `is_win` tinyint NOT NULL DEFAULT 0 COMMENT '是否中奖: 0-未中奖, 1-已中奖',
+  `prize_status` tinyint NOT NULL DEFAULT 0 COMMENT '奖品状态: 0-未领取, 1-已领取, 2-已使用, 3-已过期',
+  `claim_time` datetime NULL DEFAULT NULL COMMENT '领取时间',
+  `use_time` datetime NULL DEFAULT NULL COMMENT '使用时间',
+  `expire_time` datetime NULL DEFAULT NULL COMMENT '过期时间',
+  `extra_data` json COMMENT '额外数据(如抽奖结果详情)',
+  `family_id` bigint NULL DEFAULT NULL COMMENT '家庭ID',
+  `deleted` int NOT NULL DEFAULT 0 COMMENT '逻辑删除 0:未删除 1:已删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_activity_user` (`activity_id` ASC, `wx_user_id` ASC) USING BTREE,
+  INDEX `idx_user_id` (`wx_user_id` ASC) USING BTREE,
+  INDEX `idx_participate_time` (`participate_time` ASC) USING BTREE,
+  INDEX `idx_family_id` (`family_id` ASC) USING BTREE,
+  CONSTRAINT `fk_record_activity` FOREIGN KEY (`activity_id`) REFERENCES `marketing_activity` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT `fk_record_prize` FOREIGN KEY (`prize_id`) REFERENCES `activity_prize` (`id`) ON DELETE SET NULL ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='活动参与记录表' ROW_FORMAT=Dynamic;
+
+-- ----------------------------
+-- Table structure for user_coupon
+-- ----------------------------
+DROP TABLE IF EXISTS `user_coupon`;
+CREATE TABLE `user_coupon` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '优惠券ID',
+  `wx_user_id` bigint NOT NULL COMMENT '用户ID',
+  `coupon_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '优惠券名称',
+  `coupon_type` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '优惠券类型: DISCOUNT(折扣券), CASH(代金券), FREE_DISH(免费菜品券)',
+  `coupon_value` decimal(10,2) NOT NULL COMMENT '优惠券面值',
+  `min_order_amount` decimal(10,2) NOT NULL DEFAULT 0 COMMENT '最低消费金额',
+  `source_type` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '来源类型: ACTIVITY(活动), MANUAL(手动发放), SYSTEM(系统赠送)',
+  `source_id` bigint NULL DEFAULT NULL COMMENT '来源ID(如活动ID)',
+  `status` tinyint NOT NULL DEFAULT 0 COMMENT '状态: 0-未使用, 1-已使用, 2-已过期',
+  `receive_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '领取时间',
+  `use_time` datetime NULL DEFAULT NULL COMMENT '使用时间',
+  `expire_time` datetime NOT NULL COMMENT '过期时间',
+  `order_id` bigint NULL DEFAULT NULL COMMENT '使用的订单ID',
+  `family_id` bigint NULL DEFAULT NULL COMMENT '家庭ID',
+  `deleted` int NOT NULL DEFAULT 0 COMMENT '逻辑删除 0:未删除 1:已删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_user_id` (`wx_user_id` ASC) USING BTREE,
+  INDEX `idx_status` (`status` ASC) USING BTREE,
+  INDEX `idx_expire_time` (`expire_time` ASC) USING BTREE,
+  INDEX `idx_family_id` (`family_id` ASC) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户优惠券表' ROW_FORMAT=Dynamic;
+
+-- ----------------------------
+-- Table structure for activity_statistics
+-- ----------------------------
+DROP TABLE IF EXISTS `activity_statistics`;
+CREATE TABLE `activity_statistics` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '统计ID',
+  `activity_id` bigint NOT NULL COMMENT '活动ID',
+  `stat_date` date NOT NULL COMMENT '统计日期',
+  `total_participants` int NOT NULL DEFAULT 0 COMMENT '总参与人数',
+  `total_participations` int NOT NULL DEFAULT 0 COMMENT '总参与次数',
+  `total_winners` int NOT NULL DEFAULT 0 COMMENT '总中奖人数',
+  `total_wins` int NOT NULL DEFAULT 0 COMMENT '总中奖次数',
+  `total_prize_value` decimal(10,2) NOT NULL DEFAULT 0 COMMENT '总奖品价值',
+  `conversion_rate` decimal(5,4) NOT NULL DEFAULT 0 COMMENT '转化率',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` int NOT NULL DEFAULT 0 COMMENT '逻辑删除 0:未删除 1:已删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `uk_activity_date` (`activity_id` ASC, `stat_date` ASC) USING BTREE,
+  CONSTRAINT `fk_statistics_activity` FOREIGN KEY (`activity_id`) REFERENCES `marketing_activity` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='活动统计表' ROW_FORMAT=Dynamic;
+
 SET FOREIGN_KEY_CHECKS = 1;

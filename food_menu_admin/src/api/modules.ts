@@ -311,4 +311,70 @@ export const fetchWalletTransactions = (params: { wxUserId: string; page: number
 export const resetWalletPassword = (wxUserId: string) =>
   http.post('/admin/wallet/password/reset', null, { params: { wxUserId } });
 
+// 营销活动管理
+export type ActivityQuery = {
+  pageNum: number;
+  pageSize: number;
+  activityType?: string;
+  status?: number;
+};
 
+
+export type ActivityCreatePayload = {
+  activityName: string;
+  activityType: string;
+  activityDesc?: string;
+  bannerImage?: string;
+  startTime: string;
+  endTime: string;
+  participateLimit: number;
+  limitType: string;
+  participateCondition?: string;
+  activityConfig: string;
+  sortOrder?: number;
+};
+
+export type ActivityDetail = {
+  id: number;
+  activityName: string;
+  activityType: string;
+  activityDesc?: string;
+  bannerImage?: string;
+  startTime: string;
+  endTime: string;
+  status: number;
+  participateLimit: number;
+  limitType: string;
+  participateCondition?: string;
+  activityConfig: string;
+  sortOrder: number;
+  createTime: string;
+  updateTime: string;
+};
+
+export type PrizeConfigPayload = {
+  id?: number;
+  prizeName: string;
+  prizeType: string;
+  prizeImage?: string;
+  prizeValue?: number;
+  prizeConfig?: string;
+  totalQuantity: number;
+  winProbability: number;
+  prizeLevel: number;
+};
+
+export const fetchActivities = (params: ActivityQuery) => http.get('/admin/marketing/activity/page', { params });
+export const fetchActivityDetail = (id: number) => http.get(`/admin/marketing/activity/${id}`);
+export const createActivity = (data: ActivityCreatePayload) => http.post('/admin/marketing/activity', data);
+export const updateActivity = (id: number, data: ActivityCreatePayload) => http.put(`/admin/marketing/activity/${id}`, data);
+export const deleteActivity = (id: number) => http.delete(`/admin/marketing/activity/${id}`);
+export const updateActivityStatus = (id: number, status: number) =>
+  http.put(`/admin/marketing/activity/${id}/status`, null, { params: { status } });
+
+export const fetchActivityPrizes = (activityId: number) => http.get(`/admin/marketing/activity/${activityId}/prizes`);
+export const addActivityPrize = (activityId: number, data: PrizeConfigPayload) =>
+  http.post(`/admin/marketing/activity/${activityId}/prize`, data);
+export const updateActivityPrize = (prizeId: number, data: PrizeConfigPayload) =>
+  http.put(`/admin/marketing/activity/prize/${prizeId}`, data);
+export const deleteActivityPrize = (prizeId: number) => http.delete(`/admin/marketing/activity/prize/${prizeId}`);
