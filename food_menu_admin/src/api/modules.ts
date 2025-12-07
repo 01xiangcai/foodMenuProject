@@ -46,6 +46,7 @@ export type OrdersQuery = {
   page: number;
   pageSize: number;
   familyId?: number | null; // 家庭ID（超级管理员可以筛选特定家庭）
+  status?: number | null;
 };
 
 export type BannerPayload = {

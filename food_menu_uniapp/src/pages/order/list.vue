@@ -1,7 +1,33 @@
 <template>
   <view class="page">
+    <!-- 顶部状态页签 -->
+    <scroll-view 
+      class="status-tabs" 
+      scroll-x 
+      :scroll-into-view="'tab-' + currentTab" 
+      scroll-with-animation
+      enable-flex
+      :show-scrollbar="false"
+    >
+      <view class="tabs-wrapper">
+        <view 
+          class="tab-item" 
+          v-for="tab in statusTabs" 
+          :key="tab.value"
+          :id="'tab-' + tab.value"
+          :class="{ active: currentTab === tab.value }"
+          @tap="switchTab(tab.value)"
+        >
+          <text class="tab-text">{{ tab.label }}</text>
+          <view class="tab-line-container" v-if="currentTab === tab.value">
+             <view class="tab-line"></view>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
     <!-- 订单列表 -->
-    <scroll-view class="order-scroll" scroll-y @scrolltolower="loadMore">
+    <scroll-view class="order-scroll" scroll-y @scrolltolower="loadMore" :style="{ height: 'calc(100vh - 88rpx)' }">
       <view class="order-list">
         <view 
           class="order-card"
@@ -90,6 +116,11 @@
         <text>加载中...</text>
       </view>
 
+      <!-- 没有更多数据 -->
+      <view class="no-more" v-if="!loading && noMore && orders.length > 0">
+        <text>没有更多订单了</text>
+      </view>
+
       <!-- 空状态 -->
       <view class="empty" v-if="!loading && orders.length === 0">
         <text class="icon">📋</text>
@@ -116,6 +147,23 @@ const page = ref(1)
 const pageSize = ref(10)
 const noMore = ref(false)
 const cancellingId = ref(null)
+const currentTab = ref(-1)
+
+const statusTabs = [
+  { label: '全部', value: -1 },
+  { label: '待接单', value: 0 },
+  { label: '准备中', value: 1 },
+  { label: '配送中', value: 2 },
+  { label: '已完成', value: 3 },
+  { label: '已取消', value: 4 }
+]
+
+// 切换Tab
+const switchTab = (value) => {
+  if (currentTab.value === value) return
+  currentTab.value = value
+  loadOrders(true)
+}
 
 // 获取订单状态文本
 const getStatusText = (status) => {
@@ -155,7 +203,8 @@ const toggleExpand = (order) => {
 
 // 加载订单列表
 const loadOrders = async (reset = false) => {
-  if (loading.value || noMore.value) return
+  if (loading.value) return
+  if (!reset && noMore.value) return
 
   // 未登录则跳转到登录页，不请求全部订单
   const token = uni.getStorageSync('fm_token')
@@ -175,10 +224,17 @@ const loadOrders = async (reset = false) => {
   loading.value = true
   
   try {
-    const res = await getOrderList({
+    const params = {
       page: page.value,
       pageSize: pageSize.value
-    })
+    }
+    
+    // 如果不是全部状态，则添加状态筛选
+    if (currentTab.value !== -1) {
+      params.status = currentTab.value
+    }
+
+    const res = await getOrderList(params)
     
     const list = res.data?.records || []
     
@@ -610,6 +666,17 @@ onShow(() => {
   transition: color 0.3s ease;
 }
 
+.no-more {
+  padding: 30rpx 0 50rpx;
+  text-align: center;
+  
+  text {
+    font-size: 24rpx;
+    color: v-bind('themeConfig.textSecondary');
+    opacity: 0.6;
+  }
+}
+
 .empty {
   .icon {
     display: block;
@@ -639,6 +706,66 @@ onShow(() => {
   &:active {
     transform: scale(0.95);
     opacity: 0.9;
+  }
+}
+
+/* 顶部状态页签样式 */
+.status-tabs {
+  width: 100%;
+  height: 96rpx;
+  background: v-bind('themeConfig.cardBg');
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.03);
+  position: relative;
+  z-index: 10;
+}
+
+.tabs-wrapper {
+  display: flex;
+  flex-wrap: nowrap;
+  height: 100%;
+  padding: 0 10rpx;
+  align-items: center;
+}
+
+.tab-item {
+  position: relative;
+  flex-shrink: 0; /* 防止挤压换行 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 32rpx;
+  height: 100%;
+  white-space: nowrap;
+  
+  .tab-text {
+    font-size: 28rpx;
+    color: v-bind('themeConfig.textSecondary');
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  &.active .tab-text {
+    color: v-bind('themeConfig.primaryColor');
+    font-weight: 600;
+    font-size: 32rpx;
+    transform: scale(1.05);
+  }
+  
+  .tab-line-container {
+    position: absolute;
+    bottom: 12rpx;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+  }
+  
+  .tab-line {
+    width: 32rpx;
+    height: 8rpx;
+    background: v-bind('themeConfig.primaryColor'); /* 或使用 primaryGradient */
+    border-radius: 999px;
+    box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.1);
   }
 }
 </style>

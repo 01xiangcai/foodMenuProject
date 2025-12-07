@@ -66,13 +66,7 @@ public class OrdersController {
     @Operation(summary = "提交订单", description = "提交订单,自动生成订单号并计算总金额")
     @com.yao.food_menu.common.annotation.RateLimiter(qps = 3, timeout = 500, message = "订单提交过于频繁，请稍后再试", limitType = com.yao.food_menu.common.annotation.RateLimiter.LimitType.USER)
     @com.yao.food_menu.common.annotation.PreventDuplicateSubmit(interval = 3000, message = "订单已提交")
-    @com.yao.food_menu.common.annotation.OperationLog(
-        operationType = com.yao.food_menu.common.annotation.OperationLog.OperationType.INSERT,
-        operationModule = "订单",
-        operationDesc = "提交订单",
-        recordParams = true,
-        recordResult = true
-    )
+    @com.yao.food_menu.common.annotation.OperationLog(operationType = com.yao.food_menu.common.annotation.OperationLog.OperationType.INSERT, operationModule = "订单", operationDesc = "提交订单", recordParams = true, recordResult = true)
     @PostMapping("/submit")
     public Result<Long> submit(@RequestBody OrdersDto ordersDto, @RequestHeader("Authorization") String token) {
         log.info("Submit order: {}", ordersDto);
@@ -103,8 +97,9 @@ public class OrdersController {
     @GetMapping("/page")
     public Result<Page<OrdersDto>> page(int page, int pageSize,
             @RequestParam(value = "familyId", required = false) Long familyId,
+            @RequestParam(value = "status", required = false) Integer status,
             @RequestHeader(value = "Authorization", required = false) String token) {
-        log.info("Query orders: page={}, pageSize={}, familyId={}", page, pageSize, familyId);
+        log.info("Query orders: page={}, pageSize={}, familyId={}, status={}", page, pageSize, familyId, status);
 
         try {
             Page<Orders> pageInfo = new Page<>(page, pageSize);
@@ -113,6 +108,11 @@ public class OrdersController {
             // 如果指定了家庭ID，按家庭筛选
             if (familyId != null) {
                 queryWrapper.eq(Orders::getFamilyId, familyId);
+            }
+
+            // 如果指定了状态，按状态筛选
+            if (status != null && status != -1) {
+                queryWrapper.eq(Orders::getStatus, status);
             }
 
             // 后台和小程序管理员默认查看全部订单，不按用户过滤
@@ -172,8 +172,9 @@ public class OrdersController {
     @Operation(summary = "查询我的订单", description = "小程序用户查询自己的订单列表")
     @GetMapping("/my")
     public Result<Page<OrdersDto>> myOrders(int page, int pageSize,
+            @RequestParam(value = "status", required = false) Integer status,
             @RequestHeader("Authorization") String token) {
-        log.info("Query my orders: page={}, pageSize={}", page, pageSize);
+        log.info("Query my orders: page={}, pageSize={}, status={}", page, pageSize, status);
 
         try {
             // Remove "Bearer " prefix if exists
@@ -189,6 +190,12 @@ public class OrdersController {
 
             // Filter by current user's ID (wx_user)
             queryWrapper.eq(Orders::getUserId, userId);
+
+            // 如果指定了状态，按状态筛选
+            if (status != null && status != -1) {
+                queryWrapper.eq(Orders::getStatus, status);
+            }
+
             queryWrapper.orderByDesc(Orders::getCreateTime);
 
             ordersService.page(pageInfo, queryWrapper);
@@ -288,8 +295,9 @@ public class OrdersController {
     @Operation(summary = "管理员查询所有订单", description = "小程序管理员查看所有订单")
     @GetMapping("/admin")
     public Result<Page<OrdersDto>> adminOrders(int page, int pageSize,
+            @RequestParam(value = "status", required = false) Integer status,
             @RequestHeader("Authorization") String token) {
-        log.info("Query admin orders: page={}, pageSize={}", page, pageSize);
+        log.info("Query admin orders: page={}, pageSize={}, status={}", page, pageSize, status);
 
         try {
             // Remove "Bearer " prefix if exists
@@ -304,6 +312,12 @@ public class OrdersController {
 
             Page<Orders> pageInfo = new Page<>(page, pageSize);
             LambdaQueryWrapper<Orders> queryWrapper = new LambdaQueryWrapper<>();
+
+            // 如果指定了状态，按状态筛选
+            if (status != null && status != -1) {
+                queryWrapper.eq(Orders::getStatus, status);
+            }
+
             queryWrapper.orderByDesc(Orders::getCreateTime);
 
             ordersService.page(pageInfo, queryWrapper);
@@ -403,12 +417,7 @@ public class OrdersController {
      * Update order status
      */
     @Operation(summary = "更新订单状态", description = "更新订单状态:0-待接单,1-准备中,2-配送中,3-已完成,4-已取消。仅管理员可操作，普通用户仅可取消")
-    @com.yao.food_menu.common.annotation.OperationLog(
-        operationType = com.yao.food_menu.common.annotation.OperationLog.OperationType.UPDATE,
-        operationModule = "订单",
-        operationDesc = "更新订单状态",
-        recordParams = true
-    )
+    @com.yao.food_menu.common.annotation.OperationLog(operationType = com.yao.food_menu.common.annotation.OperationLog.OperationType.UPDATE, operationModule = "订单", operationDesc = "更新订单状态", recordParams = true)
     @PutMapping("/status")
     public Result<String> updateStatus(@RequestParam Long id, @RequestParam Integer status,
             @RequestHeader(value = "Authorization", required = false) String token) {
@@ -537,7 +546,8 @@ public class OrdersController {
      * This prevents frontend issues such as expired OSS URLs or missing domain
      * prefixes.
      * Also checks dish status to prevent viewing details of discontinued dishes.
-     * Priority: Use latest image from dish table, fallback to order item's stored image.
+     * Priority: Use latest image from dish table, fallback to order item's stored
+     * image.
      */
     private void enrichOrderItemImages(List<OrderItem> orderItems) {
         if (orderItems == null || orderItems.isEmpty()) {
@@ -547,16 +557,16 @@ public class OrdersController {
             if (item == null) {
                 continue;
             }
-            
+
             String imageToUse = null; // 最终使用的图片路径或URL
-            
+
             // 优先从菜品表中查询最新图片
             if (item.getDishId() != null) {
                 Dish dish = dishService.getById(item.getDishId());
                 if (dish != null) {
                     // 设置菜品状态：1-在售, 0-停售
                     item.setDishStatus(dish.getStatus() != null ? dish.getStatus() : 0);
-                    
+
                     // 优先使用菜品表中的最新图片
                     if (fileStorageProperties.isLocal()) {
                         // 本地存储模式：优先使用 localImage
@@ -578,24 +588,24 @@ public class OrdersController {
             } else {
                 item.setDishStatus(0);
             }
-            
+
             // 如果菜品表中没有图片，使用订单项中存储的图片作为兜底
             if (!StringUtils.hasText(imageToUse)) {
                 imageToUse = item.getDishImage();
             }
-            
+
             // 如果还是没有图片，使用默认图片
             if (!StringUtils.hasText(imageToUse)) {
                 item.setDishImage(DEFAULT_DISH_IMAGE);
                 continue;
             }
-            
+
             // 处理图片URL：转换为完整URL或预签名URL
             String finalImageUrl = processImageUrl(imageToUse);
             item.setDishImage(finalImageUrl);
         }
     }
-    
+
     /**
      * 处理图片URL，根据存储方式转换为完整URL或预签名URL
      * 与 DishController 中的逻辑保持一致
@@ -604,12 +614,12 @@ public class OrdersController {
         if (!StringUtils.hasText(image)) {
             return DEFAULT_DISH_IMAGE;
         }
-        
+
         // 如果已经是完整URL，直接返回
         if (image.startsWith("http://") || image.startsWith("https://")) {
             return image;
         }
-        
+
         // 根据存储方式处理
         if (fileStorageProperties.isLocal()) {
             // 本地存储模式：拼接URL前缀

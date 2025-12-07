@@ -133,7 +133,7 @@ const cartStore = useCartStore()
 
 const items = ref([])
 const remark = ref('')
-const payMethod = ref(2) // 默认模拟支付
+const payMethod = ref(1) // 默认余额支付
 const walletBalance = ref(0)
 const hasPayPassword = ref(false)
 const showPayPassword = ref(false)

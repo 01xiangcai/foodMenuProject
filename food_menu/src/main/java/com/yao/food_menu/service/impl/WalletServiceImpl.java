@@ -48,6 +48,22 @@ public class WalletServiceImpl extends ServiceImpl<UserWalletMapper, UserWallet>
             wrapper.like(UserWallet::getWxUserId, queryDto.getWxUserId());
         }
 
+        // 家庭数据隔离
+        Long currentFamilyId = com.yao.food_menu.common.context.FamilyContext.getFamilyId();
+        boolean isSuperAdmin = com.yao.food_menu.common.context.FamilyContext.isSuperAdmin();
+
+        if (isSuperAdmin) {
+            // 超级管理员：如果指定了家庭ID则按该家庭过滤，否则查看全部
+            if (queryDto.getFamilyId() != null) {
+                wrapper.eq(UserWallet::getFamilyId, queryDto.getFamilyId());
+            }
+        } else {
+            // 非超级管理员：只能查看自己家庭的数据
+            if (currentFamilyId != null) {
+                wrapper.eq(UserWallet::getFamilyId, currentFamilyId);
+            }
+        }
+
         // 按更新时间倒序
         wrapper.orderByDesc(UserWallet::getUpdateTime);
 
@@ -99,6 +115,7 @@ public class WalletServiceImpl extends ServiceImpl<UserWalletMapper, UserWallet>
         transaction.setBalanceAfter(newBalance);
         transaction.setRemark(StringUtils.hasText(rechargeDto.getRemark()) ? rechargeDto.getRemark() : "管理员充值");
         transaction.setCreateTime(LocalDateTime.now());
+        transaction.setFamilyId(wallet.getFamilyId()); // 设置家庭ID
 
         transactionMapper.insert(transaction);
     }
@@ -106,6 +123,8 @@ public class WalletServiceImpl extends ServiceImpl<UserWalletMapper, UserWallet>
     @Override
     public UserWallet getOrCreateWallet(String wxUserId) {
         UserWallet wallet = getWalletByUserId(wxUserId);
+        WxUser wxUser = wxUserMapper.selectById(wxUserId);
+
         if (wallet == null) {
             wallet = new UserWallet();
             wallet.setWxUserId(wxUserId);
@@ -114,7 +133,19 @@ public class WalletServiceImpl extends ServiceImpl<UserWalletMapper, UserWallet>
             wallet.setVersion(1);
             wallet.setCreateTime(LocalDateTime.now());
             wallet.setUpdateTime(LocalDateTime.now());
+
+            if (wxUser != null && wxUser.getFamilyId() != null) {
+                wallet.setFamilyId(wxUser.getFamilyId());
+            }
             this.save(wallet);
+        } else {
+            // 同步家庭ID (如果用户切换了家庭)
+            if (wxUser != null && wxUser.getFamilyId() != null
+                    && !wxUser.getFamilyId().equals(wallet.getFamilyId())) {
+                wallet.setFamilyId(wxUser.getFamilyId());
+                wallet.setUpdateTime(LocalDateTime.now());
+                this.updateById(wallet);
+            }
         }
         return wallet;
     }
@@ -136,10 +167,7 @@ public class WalletServiceImpl extends ServiceImpl<UserWalletMapper, UserWallet>
         }
 
         // 获取钱包
-        UserWallet wallet = getWalletByUserId(wxUserId);
-        if (wallet == null) {
-            throw new RuntimeException("钱包不存在");
-        }
+        UserWallet wallet = getOrCreateWallet(wxUserId);
 
         // 校验支付密码
         if (StringUtils.hasText(wallet.getPayPassword())) {
@@ -181,6 +209,7 @@ public class WalletServiceImpl extends ServiceImpl<UserWalletMapper, UserWallet>
         transaction.setRelatedOrderNo(payDto.getOrderNo());
         transaction.setRemark(StringUtils.hasText(payDto.getRemark()) ? payDto.getRemark() : "订单消费");
         transaction.setCreateTime(LocalDateTime.now());
+        transaction.setFamilyId(wallet.getFamilyId()); // 设置家庭ID
 
         transactionMapper.insert(transaction);
 
@@ -191,9 +220,22 @@ public class WalletServiceImpl extends ServiceImpl<UserWalletMapper, UserWallet>
     public Page<WalletTransaction> pageTransactions(String wxUserId, Integer page, Integer pageSize) {
         Page<WalletTransaction> pageParam = new Page<>(page, pageSize);
 
+        // 获取用户当前家庭ID
+        Long currentFamilyId = null;
+        WxUser wxUser = wxUserMapper.selectById(wxUserId);
+        if (wxUser != null) {
+            currentFamilyId = wxUser.getFamilyId();
+        }
+
         LambdaQueryWrapper<WalletTransaction> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(WalletTransaction::getWxUserId, wxUserId)
-                .orderByDesc(WalletTransaction::getCreateTime);
+        wrapper.eq(WalletTransaction::getWxUserId, wxUserId);
+
+        // 只显示当前家庭的流水
+        if (currentFamilyId != null) {
+            wrapper.eq(WalletTransaction::getFamilyId, currentFamilyId);
+        }
+
+        wrapper.orderByDesc(WalletTransaction::getCreateTime);
 
         return transactionMapper.selectPage(pageParam, wrapper);
     }
@@ -291,10 +333,7 @@ public class WalletServiceImpl extends ServiceImpl<UserWalletMapper, UserWallet>
         }
 
         // 获取钱包
-        UserWallet wallet = getWalletByUserId(wxUserId);
-        if (wallet == null) {
-            throw new RuntimeException("钱包不存在");
-        }
+        UserWallet wallet = getOrCreateWallet(wxUserId);
 
         // 增加余额
         java.math.BigDecimal newBalance = wallet.getBalance().add(amount);
@@ -317,6 +356,7 @@ public class WalletServiceImpl extends ServiceImpl<UserWalletMapper, UserWallet>
         transaction.setRelatedOrderNo(orderNo);
         transaction.setRemark("订单取消退款: " + orderNo);
         transaction.setCreateTime(java.time.LocalDateTime.now());
+        transaction.setFamilyId(wallet.getFamilyId()); // 设置家庭ID
 
         transactionMapper.insert(transaction);
     }

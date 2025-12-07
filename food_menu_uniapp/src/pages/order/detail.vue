@@ -59,7 +59,7 @@
         </view>
         <view class="info-row">
           <text class="label">支付方式</text>
-          <text class="value">{{ order.payMethod || '微信支付' }}</text>
+          <text class="value">{{ getPayMethodText(order.payMethod) }}</text>
         </view>
         <view class="divider"></view>
         <view class="info-row total">
@@ -173,6 +173,14 @@ const getStatusClass = (status) => {
     4: 'status-cancelled'
   }
   return classMap[status] || ''
+}
+
+const getPayMethodText = (method) => {
+  const map = {
+    1: '余额支付',
+    2: '模拟支付'
+  }
+  return map[method] || (method ? '未知支付' : '微信支付')
 }
 
 const { themeConfig, loadTheme } = useTheme()

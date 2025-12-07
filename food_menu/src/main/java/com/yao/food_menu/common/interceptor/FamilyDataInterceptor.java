@@ -23,7 +23,8 @@ public class FamilyDataInterceptor implements TenantLineHandler {
     private static final List<String> FAMILY_TABLES = Arrays.asList(
             "user", "wx_user", "dish", "orders", "category",
             "banner", "dish_comment", "dish_favorite", "dish_flavor",
-            "dish_tag", "dish_statistics", "order_items");
+            "dish_tag", "dish_statistics", "order_items",
+            "wx_user_wallet", "wx_wallet_transaction");
 
     @Override
     public Expression getTenantId() {
@@ -48,8 +49,8 @@ public class FamilyDataInterceptor implements TenantLineHandler {
 
         // 如果是查询当前用户自己的信息，跳过user和wx_user表的数据隔离
         // 这样可以允许用户查询自己的信息，即使还没有绑定家庭
-        if (FamilyContext.isQueryCurrentUser() && 
-            ("user".equalsIgnoreCase(tableName) || "wx_user".equalsIgnoreCase(tableName))) {
+        if (FamilyContext.isQueryCurrentUser() &&
+                ("user".equalsIgnoreCase(tableName) || "wx_user".equalsIgnoreCase(tableName))) {
             return true;
         }
 
@@ -57,8 +58,8 @@ public class FamilyDataInterceptor implements TenantLineHandler {
         // 这样可以防止恶意调用其他接口绕过数据隔离
         if (FamilyContext.getFamilyId() == null) {
             // 只有登录操作时，user和wx_user表才跳过隔离（登录时需要查询所有用户进行验证）
-            if (FamilyContext.isLoginOperation() && 
-                ("user".equalsIgnoreCase(tableName) || "wx_user".equalsIgnoreCase(tableName))) {
+            if (FamilyContext.isLoginOperation() &&
+                    ("user".equalsIgnoreCase(tableName) || "wx_user".equalsIgnoreCase(tableName))) {
                 return true;
             }
             // 其他情况（非登录操作或非登录相关表）都应该被隔离

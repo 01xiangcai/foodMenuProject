@@ -11,7 +11,7 @@
  Target Server Version : 80042 (8.0.42)
  File Encoding         : 65001
 
- Date: 07/12/2025 15:46:14
+ Date: 07/12/2025 16:14:14
 */
 
 SET NAMES utf8mb4;
@@ -243,7 +243,7 @@ CREATE TABLE `operation_log`  (
   INDEX `idx_operation_module`(`operation_module` ASC) USING BTREE,
   INDEX `idx_create_time`(`create_time` ASC) USING BTREE,
   INDEX `idx_family_id`(`family_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 15 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 18 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for order_items
@@ -306,8 +306,10 @@ CREATE TABLE `system_config`  (
   `create_time` datetime NULL DEFAULT NULL COMMENT '创建时间',
   `update_time` datetime NULL DEFAULT NULL COMMENT '更新时间',
   `deleted` int NULL DEFAULT 0 COMMENT '逻辑删除 0:未删除 1:已删除',
+  `family_id` bigint NULL DEFAULT NULL COMMENT '家庭ID',
   PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `uk_config_key`(`config_key` ASC) USING BTREE
+  UNIQUE INDEX `uk_config_key`(`config_key` ASC) USING BTREE,
+  INDEX `idx_family_id`(`family_id` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '系统配置表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
@@ -381,8 +383,10 @@ CREATE TABLE `wx_user_wallet`  (
   `deleted` tinyint NOT NULL DEFAULT 0 COMMENT '逻辑删除: 0-未删除, 1-已删除',
   `pay_password_error_count` int NULL DEFAULT 0 COMMENT '支付密码当日错误次数',
   `pay_password_error_date` date NULL DEFAULT NULL COMMENT '支付密码错误日期(用于每日重置)',
+  `family_id` bigint NULL DEFAULT NULL COMMENT '家庭ID',
   PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `uk_wx_user_id`(`wx_user_id` ASC) USING BTREE
+  UNIQUE INDEX `uk_wx_user_id`(`wx_user_id` ASC) USING BTREE,
+  INDEX `idx_family_id`(`family_id` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 8 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户钱包表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
@@ -398,10 +402,12 @@ CREATE TABLE `wx_wallet_transaction`  (
   `related_order_no` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '关联业务单号',
   `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '备注说明',
   `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `family_id` bigint NULL DEFAULT NULL COMMENT '家庭ID',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_wx_user_id`(`wx_user_id` ASC) USING BTREE,
   INDEX `idx_trans_type`(`trans_type` ASC) USING BTREE,
-  INDEX `idx_create_time`(`create_time` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 5 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '钱包流水表' ROW_FORMAT = Dynamic;
+  INDEX `idx_create_time`(`create_time` ASC) USING BTREE,
+  INDEX `idx_family_id`(`family_id` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 6 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '钱包流水表' ROW_FORMAT = Dynamic;
 
 SET FOREIGN_KEY_CHECKS = 1;

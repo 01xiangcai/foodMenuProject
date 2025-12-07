@@ -79,6 +79,11 @@ public class UserWallet implements Serializable {
     private Integer deleted;
 
     /**
+     * 家庭ID
+     */
+    private Long familyId;
+
+    /**
      * 非数据库字段: 用户昵称(查询时关联)
      */
     @TableField(exist = false)

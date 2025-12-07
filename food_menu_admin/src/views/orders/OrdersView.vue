@@ -37,7 +37,24 @@
     </div>
 
     <!-- 筛选栏 -->
+    <!-- 筛选栏 -->
     <div class="glass-card filter-section">
+      <!-- 状态页签 -->
+      <NTabs
+        v-model:value="filters.status"
+        type="line"
+        animated
+        class="status-tabs"
+        @update:value="handleSearch"
+      >
+        <NTabPane
+          v-for="option in statusOptions"
+          :key="option.value"
+          :name="option.value"
+          :tab="option.label"
+        />
+      </NTabs>
+
       <div class="filter-bar">
         <NInput
           v-model:value="filters.keyword"
@@ -59,14 +76,6 @@
           :actions="['clear', 'confirm']"
           update-value-on-close
           style="width: 280px"
-        />
-
-        <NSelect
-          v-model:value="filters.status"
-          :options="statusOptions"
-          placeholder="订单状态"
-          clearable
-          style="width: 140px"
         />
 
         <NSelect
@@ -336,6 +345,8 @@ import {
   NTag,
   NTimeline,
   NTimelineItem,
+  NTabs,
+  NTabPane,
   useDialog,
   useMessage
 } from 'naive-ui';
@@ -398,7 +409,7 @@ const hasMore = ref(true);
 const filters = reactive<OrderFilters>({
   keyword: '',
   dateRange: null,
-  status: null
+  status: -1
 });
 
 const detailModal = reactive({
@@ -512,7 +523,7 @@ const handleSearch = () => {
 const handleReset = () => {
   filters.keyword = '';
   filters.dateRange = null;
-  filters.status = null;
+  filters.status = -1;
   selectedFamilyId.value = null;
 };
 
@@ -546,7 +557,8 @@ const loadOrders = async (reset = true) => {
     const result = await fetchOrders({ 
       page: currentPage.value, 
       pageSize,
-      familyId: isSuperAdmin.value ? (selectedFamilyId.value ?? undefined) : undefined
+      familyId: isSuperAdmin.value ? (selectedFamilyId.value ?? undefined) : undefined,
+      status: filters.status
     });
     const newOrders = result.data?.records || [];
     
