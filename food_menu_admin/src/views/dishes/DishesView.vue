@@ -29,7 +29,7 @@
           @click="selectCategory(category.id)"
         >
           <div>
-            <strong>{{ category.name }}</strong>
+            <strong>{{ category.name }} ({{ category.dishCount || 0 }})</strong>
             <p>排序 {{ category.sort ?? '-' }}</p>
           </div>
           <div class="category-actions">
@@ -329,6 +329,7 @@ type Category = {
   id: number;
   name: string;
   sort?: number;
+  dishCount?: number;
 };
 
 type DishFlavor = {
@@ -751,6 +752,7 @@ const refreshDishes = () => {
 const handleFamilyFilterChange = () => {
   pagination.page = 1;
   loadDishes();
+  loadCategories();
 };
 
 const resetDishForm = () => {
@@ -1294,7 +1296,8 @@ const removeImage = (index: number) => {
 };
 
 const loadCategories = async () => {
-  const result = await fetchCategories();
+  const familyId = isSuperAdmin.value ? (selectedFamilyId.value ?? undefined) : undefined;
+  const result = await fetchCategories({ familyId });
   categories.value = result.data || [];
   // 默认选中"全部"(null),不自动选中第一个分类
   if (selectedCategoryId.value !== null && !categories.value.some((item) => item.id === selectedCategoryId.value)) {

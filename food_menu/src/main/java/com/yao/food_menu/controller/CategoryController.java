@@ -59,10 +59,8 @@ public class CategoryController {
     @Operation(summary = "查询分类列表", description = "查询所有分类或按类型筛选")
     @GetMapping("/list")
     public Result<List<Category>> list(Category category) {
-        LambdaQueryWrapper<Category> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(category.getType() != null, Category::getType, category.getType());
-        queryWrapper.orderByAsc(Category::getSort).orderByDesc(Category::getUpdateTime);
-        List<Category> list = categoryService.list(queryWrapper);
+        // 使用带有统计功能的服务方法
+        List<Category> list = categoryService.listWithDishCount(category);
         return Result.success(list);
     }
 }

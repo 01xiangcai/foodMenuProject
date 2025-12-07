@@ -115,7 +115,7 @@ export const login = (data: LoginPayload) => http.post('/user/login', data);
 
 export const fetchProfile = () => http.get('/user/info');
 
-export const fetchCategories = () => http.get('/category/list', { params: { type: 1 } });
+export const fetchCategories = (params?: any) => http.get('/category/list', { params: { type: 1, ...params } });
 export const createCategory = (data: CategoryPayload) => http.post('/category', data);
 export const updateCategory = (data: CategoryPayload) => http.put('/category', data);
 export const removeCategory = (id: number) => http.delete('/category', { params: { id } });
