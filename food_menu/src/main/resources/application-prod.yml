@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: 9090
 
 spring:
   application:
@@ -8,9 +8,8 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/food_menu?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: root
-    # 生产环境使用加密密码，启动时通过环境变量JASYPT_ENCRYPTOR_PASSWORD传入解密密钥
-    # 使用JasyptEncryptorTest生成加密值，然后替换为: ENC(加密后的密码)
-    password: ENC(fTAwMDizF8ExjTGH)  # 请替换为实际加密后的值
+    # 开发环境可以使用明文，生产环境建议加密: ENC(加密后的密码)
+    password: ENC(ksT+7GYK/Fhr4/Z6YMlPAPVU8iYazDWr/zSDDDfzXvU=)
     hikari:
       # 连接池名称
       pool-name: FoodMenuHikariPool
@@ -18,7 +17,7 @@ spring:
       minimum-idle: 5
       # 最大连接池大小
       maximum-pool-size: 20
-      # 连接超时时间（毫秒），增加到30秒
+      # 连接超时时间（毫秒），增加到30秒，给数据库更多启动时间
       connection-timeout: 30000
       # 空闲连接存活最大时间（毫秒）
       idle-timeout: 600000
@@ -30,7 +29,7 @@ spring:
       validate-on-connect: true
       # 自动提交
       auto-commit: true
-      # 初始化超时时间（毫秒），-1表示不超时，等待连接池初始化完成
+      # 初始化超时时间（毫秒），等待连接池初始化完成
       initialization-fail-timeout: -1
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
@@ -45,13 +44,14 @@ mybatis-plus:
   configuration:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
     map-underscore-to-camel-case: true
+  mapper-locations: classpath*:/mapper/**/*.xml
   global-config:
     db-config:
       logic-delete-field: deleted
       logic-delete-value: 1
       logic-not-delete-value: 0
 
-# 关闭 Swagger（生产环境）
+# 关闭 Swagger(生产环境)
 knife4j:
   enable: false
 springdoc:
@@ -60,51 +60,70 @@ springdoc:
   swagger-ui:
     enabled: false
 
-# JWT配置（生产环境）
+
+# File Storage Configuration
+# 文件存储配置(本地存储)
+file:
+  storage:
+    type: local  # oss 或 local
+    local:
+      base-path: /www/wwwroot/food-menu-backend/uploads
+      url-prefix: https://www.one2order.top/uploads
+      folder: food-menu
+      avatar-folder: avatars
+  upload:
+    path: /www/wwwroot/food-menu-backend/uploads
+    image-path: /www/wwwroot/food-menu-backend/uploads/images
+    avatar-path: /www/wwwroot/food-menu-backend/uploads/avatars
+    url-prefix: /uploads
+
+# JWT配置
 jwt:
-  # 生产环境JWT密钥，使用加密配置
-  # 使用JasyptEncryptorTest生成加密值
-  secret: ENC(YourJWTSecretKeyEncrypted)  # 请替换为实际加密后的值
+  # JWT密钥（生产环境建议64位以上，并使用加密）
+  secret: ENC(yehd6sN4fxaSkDWix7RoOBcvByf6+vOFSHzwbg/GWZGIEx8+f5lAyLdiSqOb2KfIFdiaGk3/+cOk8tC/UgBZQ49YK6H5TZSGesaTZCdNVe8=)
+  # Token过期时间（毫秒），默认7天
   expiration-time: 604800000
 
-# Jasypt加密配置（生产环境）
-# 必须通过环境变量或启动参数传入加密密钥
-# export JASYPT_ENCRYPTOR_PASSWORD=FoodMenuSecretKey2024!@#
-# 或: java -jar -Djasypt.encryptor.password=FoodMenuSecretKey2024!@# app.jar
+# Jasypt加密配置
+# 加密密钥通过环境变量或启动参数传入
+# 环境变量: JASYPT_ENCRYPTOR_PASSWORD
+# 启动参数: -Djasypt.encryptor.password=your_password
 jasypt:
   encryptor:
+    # 加密算法
     algorithm: PBEWithMD5AndDES
 
-# Aliyun OSS Configuration（生产环境）
-aliyun:
-  oss:
-    endpoint: https://food-menu-yao.oss-cn-shenzhen.aliyuncs.com
-    # 生产环境使用加密配置
-    access-key-id: ENC(LTAI5tMRyKmbt7EZRgXjJRTk)  # 请替换为实际加密后的值
-    access-key-secret: ENC(ueDZl8rmIIl4aVWzC7vM751eCZv0nf)  # 请替换为实际加密后的值
-    bucket-name: food-menu-yao
-    folder: food-menu/
-    avatar-folder: avatars/
-    presigned-url-expiration-hours: 24
+# Aliyun OSS Configuration
+# aliyun:
+#   oss:
+#     endpoint: https://food-menu-yao.oss-cn-shenzhen.aliyuncs.com
+#     # 开发环境可以使用明文，生产环境建议加密: ENC(加密后的key)
+#     access-key-id: LTAI5tMRyKmbt7EZRgXjJRTk
+#     access-key-secret: ueDZl8rmIIl4aVWzC7vM751eCZv0nf
+#     bucket-name: food-menu-yao
+#     folder: food-menu/
+#     avatar-folder: avatars/
+#     presigned-url-expiration-hours: 24
 
-# 日志配置（生产环境）
+# 日志配置
 logging:
-  # 日志文件路径
+  # 日志文件路径(使用项目目录,避免权限问题)
   file:
-    path: /var/log/food_menu
+    path: /www/wwwroot/food-menu-backend/logs
   # 日志级别配置
   level:
-    # 根日志级别（生产环境使用INFO）
+    # 根日志级别
     root: INFO
-    # 应用日志级别
-    com.yao.food_menu: INFO
-    # MyBatis日志级别（生产环境关闭SQL日志）
-    com.yao.food_menu.mapper: WARN
-    # 框架日志级别（减少框架日志）
-    org.springframework: WARN
-    org.springframework.web: WARN
-    org.apache.ibatis: WARN
-    com.baomidou: WARN
-  # 日志输出格式（生产环境不输出到控制台）
+    # 应用日志级别（开发环境使用DEBUG）
+    com.yao.food_menu: DEBUG
+    # MyBatis日志级别（显示SQL）
+    com.yao.food_menu.mapper: DEBUG
+    # 框架日志级别
+    org.springframework: INFO
+    org.springframework.web: DEBUG
+    org.apache.ibatis: DEBUG
+    com.baomidou: INFO
+  # 日志输出格式
   pattern:
+    # 文件输出格式
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"

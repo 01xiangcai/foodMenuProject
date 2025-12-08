@@ -55,16 +55,16 @@ public class JasyptEncryptorTest {
     public void testEncrypt() {
         // 需要加密的明文列表
         String[] plainTexts = {
-            // JWT密钥（建议64位以上）
-            "YourJWTSecretKeyForProductionMustBeLongEnoughAndComplexMin64Chars!",
-            // 数据库密码（开发环境）
-            "root",
-            // 数据库密码（生产环境）
-            "fTAwMDizF8ExjTGH",
-            // OSS Access Key ID
-            "LTAI5tMRyKmbt7EZRgXjJRTk",
-            // OSS Access Key Secret
-            "ueDZl8rmIIl4aVWzC7vM751eCZv0nf"
+                // JWT密钥（建议64位以上）
+                "YourJWTSecretKeyForProductionMustBeLongEnoughAndComplexMin64Chars!",
+                // 数据库密码（开发环境）
+                // "root",
+                // 数据库密码（生产环境）
+                "69fda4ae6385fde7"
+                // OSS Access Key ID
+                // "LTAI5tMRyKmbt7EZRgXjJRTk",
+                // OSS Access Key Secret
+                // "ueDZl8rmIIl4aVWzC7vM751eCZv0nf"
         };
 
         System.out.println("=== Jasypt加密结果 ===");
@@ -76,7 +76,7 @@ public class JasyptEncryptorTest {
             System.out.println("明文: " + plainText);
             System.out.println("密文: " + encrypted);
             System.out.println("配置文件格式: ENC(" + encrypted + ")");
-            
+
             // 验证解密
             String decrypted = decrypt(encrypted);
             System.out.println("解密验证: " + (decrypted.equals(plainText) ? "✓ 成功" : "✗ 失败"));
@@ -90,4 +90,3 @@ public class JasyptEncryptorTest {
         System.out.println("4. 建议：生产环境使用更强的密钥，并妥善保管！");
     }
 }
-

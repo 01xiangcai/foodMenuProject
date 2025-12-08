@@ -183,7 +183,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getWxUserInfo, getCurrentFamily, getWalletInfo } from '@/api/index'
+import { getWxUserInfo, getCurrentFamily, getWalletInfo, updateWxUserInfo, uploadFile } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 
 const userInfo = ref({
@@ -403,7 +403,6 @@ const handleSave = async () => {
       mask: true
     })
     
-    const { updateWxUserInfo, uploadFile } = await import('@/api/index')
     const updateData = {
       nickname: formData.value.nickname
     }

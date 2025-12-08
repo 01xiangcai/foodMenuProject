@@ -182,7 +182,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { getCategoryList, getDishList, addFavorite, removeFavorite, checkFavoriteBatch, getTagIconMap } from '@/api/index'
+import { getCategoryList, getDishList, addFavorite, removeFavorite, checkFavoriteBatch, getTagIconMap, createOrder } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 import { useCartStore } from '@/stores/cart'
 import CartPopup from '@/components/CartPopup.vue'
@@ -391,7 +391,6 @@ const goToCheckout = async () => {
     }
 
     // 2. 立即创建订单
-    const { createOrder } = await import('@/api/index')
     const res = await createOrder(orderData)
     
     uni.hideLoading()

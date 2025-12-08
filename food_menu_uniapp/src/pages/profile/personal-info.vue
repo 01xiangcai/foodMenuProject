@@ -196,7 +196,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getWxUserInfo, getCurrentFamily } from '@/api/index'
+import { getWxUserInfo, getCurrentFamily, getWxOtherUserInfo, uploadFile, updateWxUserInfo, updateLoginPassword } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 import { onLoad } from '@dcloudio/uni-app'
 
@@ -301,7 +301,6 @@ const loadPageData = async (optionId) => {
     } else {
       // --- 查看他人 ---
       // 加载他人信息
-      const { getWxOtherUserInfo } = await import('@/api/index')
       const otherRes = await getWxOtherUserInfo(targetId)
       if (otherRes.data) {
         userInfo.value = otherRes.data
@@ -399,15 +398,14 @@ const chooseAvatar = () => {
       })
 
       try {
-        const { uploadFile } = await import('@/api/index')
         const uploadRes = await uploadFile(tempFilePath)
         
         if (uploadRes.data) {
           formData.value.avatar = uploadRes.data.objectKey
           hasChanges.value = true
           
-          // 立即更新显示
-          userInfo.value.avatar = tempFilePath
+          // 立即更新显示 - 使用后端返回的完整 URL
+          userInfo.value.avatar = uploadRes.data.presignedUrl || tempFilePath
           
           uni.hideLoading()
           uni.showToast({
@@ -480,7 +478,6 @@ const saveChanges = async () => {
   })
 
   try {
-    const { updateWxUserInfo } = await import('@/api/index')
     const updateData = {
       nickname: formData.value.nickname,
       phone: formData.value.phone,
@@ -592,7 +589,6 @@ const submitPasswordChange = async () => {
   })
   
   try {
-    const { updateLoginPassword } = await import('@/api/index')
     await updateLoginPassword(oldPassword, newPassword)
     
     uni.hideLoading()

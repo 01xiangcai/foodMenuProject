@@ -316,9 +316,23 @@ export const updateWxUserInfo = (data) => {
  */
 export const uploadFile = (filePath) => {
     const token = uni.getStorageSync('fm_token')
+
+    // 获取环境变量
+    const ENV_API_URL = import.meta.env.VITE_API_URL
+
+    // 根据平台设置 BASE_URL
+    let BASE_URL = ''
+    // #ifdef H5
+    BASE_URL = '/api'
+    // #endif
+
+    // #ifdef MP-WEIXIN
+    BASE_URL = ENV_API_URL
+    // #endif
+
     return new Promise((resolve, reject) => {
         uni.uploadFile({
-            url: '/api/wx/user/avatar', // H5 代理路径
+            url: `${BASE_URL}/wx/user/avatar`,
             filePath: filePath,
             name: 'file',
             header: {

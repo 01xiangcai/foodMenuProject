@@ -1,7 +1,8 @@
 /* 全局样式 */
 @import '@/uni.scss';
 
-* {
+/* 基础盒模型 - 使用具体选择器以兼容小程序 */
+view, text, image, button, input, textarea, scroll-view {
     box-sizing: border-box;
 }
 
