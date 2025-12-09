@@ -167,6 +167,8 @@ export const deleteUser = (id: number) => http.delete(`/user/${id}`);
 export const updateUserStatus = (id: number, status: number) =>
   http.put('/user/status', null, { params: { id, status } });
 export const resetUserPassword = (id: number) => http.put(`/user/reset-password/${id}`);
+export const updateUserPassword = (userId: number, newPassword: string) =>
+  http.put('/user/update-password', { userId, newPassword });
 
 export const fetchWxUsers = (params: WxUserQuery) => http.get('/wx/user/page', { params });
 export const createWxUser = (data: WxUserPayload) => http.post('/wx/user/register', data);
@@ -175,6 +177,8 @@ export const deleteWxUser = (id: number) => http.delete(`/wx/user/${id}`);
 export const updateWxUserStatus = (id: number, status: number) =>
   http.put('/wx/user/status', null, { params: { id, status } });
 export const resetWxUserPassword = (id: number) => http.put(`/wx/user/reset-password/${id}`);
+export const updateWxUserPassword = (userId: number, newPassword: string) =>
+  http.put('/wx/user/update-password', { userId, newPassword });
 
 export type DishTagQuery = {
   page: number;

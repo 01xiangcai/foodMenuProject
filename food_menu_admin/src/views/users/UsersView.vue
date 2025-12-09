@@ -64,6 +64,15 @@
           <NInput v-model:value="userModal.form.username" placeholder="用户名" :disabled="!!userModal.form.id" />
         </NFormItem>
         
+        <!-- 编辑时显示用户名,根据权限控制是否可编辑 -->
+        <NFormItem label="用户名" required v-if="userModal.form.id">
+          <NInput
+            v-model:value="userModal.form.username"
+            placeholder="用户名"
+            :disabled="!canEditUsername"
+          />
+        </NFormItem>
+        
         <NFormItem label="密码" :required="!userModal.form.id" v-if="!userModal.form.id">
           <NInput
             v-model:value="userModal.form.password"
@@ -89,7 +98,8 @@
             <NFormItem label="角色" required>
               <NSelect
                 v-model:value="userModal.form.role"
-                :options="adminRoleOptions"
+                :options="currentRoleOptions"
+                :disabled="userModal.form.role === 2"
                 placeholder="请选择角色"
               />
             </NFormItem>
@@ -136,30 +146,37 @@
       </template>
     </NModal>
 
-    <!-- Reset Password Modal -->
-    <NModal v-model:show="passwordModal.show" preset="card" style="max-width: 420px">
-      <template #header>重置密码</template>
-      <div style="padding: 20px 0">
-        <p style="margin-bottom: 16px">确定要重置该用户的密码吗？</p>
-        <p v-if="passwordModal.newPassword" style="padding: 12px; background: rgba(20, 184, 255, 0.1); border-radius: 8px; font-family: monospace">
-          新密码：<strong style="color: #14b8ff; font-size: 18px">{{ passwordModal.newPassword }}</strong>
-        </p>
-        <p v-if="passwordModal.newPassword" style="margin-top: 12px; font-size: 12px; opacity: 0.7">
-          请将此密码告知用户，关闭后将无法再次查看
-        </p>
-      </div>
+    <!-- Update Password Modal -->
+    <NModal v-model:show="passwordModal.show" preset="card" style="max-width: 480px">
+      <template #header>修改密码</template>
+      <NForm :model="passwordModal.form" label-placement="left" label-width="100" @submit.prevent>
+        <NFormItem label="新密码" required>
+          <NInput
+            v-model:value="passwordModal.form.newPassword"
+            type="password"
+            placeholder="请输入新密码(至少6位)"
+            show-password-on="click"
+          />
+        </NFormItem>
+        <NFormItem label="确认密码" required>
+          <NInput
+            v-model:value="passwordModal.form.confirmPassword"
+            type="password"
+            placeholder="请再次输入新密码"
+            show-password-on="click"
+          />
+        </NFormItem>
+      </NForm>
       <template #action>
         <div class="modal-actions">
-          <NButton quaternary @click="passwordModal.show = false">
-            {{ passwordModal.newPassword ? '关闭' : '取消' }}
-          </NButton>
+          <NButton quaternary @click="passwordModal.show = false">取消</NButton>
           <NButton
-            v-if="!passwordModal.newPassword"
-            type="warning"
+            class="primary-soft"
+            type="primary"
             :loading="passwordModal.loading"
-            @click="handleResetPassword"
+            @click="handleUpdatePassword"
           >
-            确认重置
+            确认修改
           </NButton>
         </div>
       </template>
@@ -195,11 +212,11 @@ import {
   deleteWxUser,
   fetchUsers,
   fetchWxUsers,
-  resetUserPassword,
-  resetWxUserPassword,
   updateUser,
+  updateUserPassword,
   updateUserStatus,
   updateWxUser,
+  updateWxUserPassword,
   updateWxUserStatus,
   type UserPayload,
   type WxUserPayload,
@@ -239,7 +256,48 @@ const filters = reactive({
 // 家庭相关
 const families = ref<any[]>([]);
 const currentUserRole = ref<number | null>(null);
+const currentUserId = ref<number | null>(null);
 const isSuperAdmin = computed(() => currentUserRole.value === 2);
+const canEditUsername = computed(() => {
+  // 只有超级管理员和家庭管理员可以修改用户名
+  return currentUserRole.value === 2 || currentUserRole.value === 1;
+});
+
+// 判断是否可以禁用某个用户
+const canDisableUser = (targetUser: any) => {
+  // 不能禁用自己
+  if (targetUser.id === currentUserId.value) {
+    return false;
+  }
+  
+  const myRole = currentUserRole.value ?? 0;
+  
+  // 普通管理员(role=0)没有禁用权限
+  if (myRole === 0) {
+    return false;
+  }
+  
+  // 超级管理员(role=2)可以禁用所有用户
+  if (myRole === 2) {
+    return true;
+  }
+  
+  // 家庭管理员(role=1)的权限
+  if (myRole === 1) {
+    // 对于管理员用户: 只能禁用普通管理员(role=0)
+    if (targetUser.userType === 'admin') {
+      const targetRole = targetUser.role ?? 0;
+      return targetRole === 0;
+    }
+    // 对于小程序用户: 只能禁用本家庭的用户
+    else if (targetUser.userType === 'wxuser') {
+      // 需要检查家庭ID是否匹配(这里假设家庭管理员只能看到自己家庭的用户)
+      return true;
+    }
+  }
+  
+  return false;
+};
 
 const pagination = reactive<PaginationProps>({
   page: 1,
@@ -283,7 +341,10 @@ const passwordModal = reactive({
   loading: false,
   userId: null as number | null,
   userType: 'admin' as 'admin' | 'wxuser',
-  newPassword: ''
+  form: {
+    newPassword: '',
+    confirmPassword: ''
+  }
 });
 
 const userTypeOptions = [
@@ -317,11 +378,22 @@ const familyFilterOptions = computed(() => {
   ];
 });
 
-// 管理员角色选项
+// 管理员角色选项(不包含超级管理员,超级管理员需要直接在数据库修改)
 const adminRoleOptions = [
   { label: '普通管理员', value: 0 },
   { label: '家庭管理员', value: 1 }
 ];
+
+// 当前角色选项(如果用户已经是超级管理员,则包含该选项但会被禁用)
+const currentRoleOptions = computed(() => {
+  if (userModal.form.role === 2) {
+    return [
+      ...adminRoleOptions,
+      { label: '超级管理员', value: 2 }
+    ];
+  }
+  return adminRoleOptions;
+});
 
 const columns: DataTableColumns<UnifiedUserRecord> = [
   { title: 'ID', key: 'id', width: 80 },
@@ -369,11 +441,21 @@ const columns: DataTableColumns<UnifiedUserRecord> = [
   {
     title: '角色',
     key: 'role',
-    width: 100,
-    render: (row) =>
-      row.userType === 'wxuser'
-        ? (row.role === 1 ? '小程序管理员' : '普通用户')
-        : '—'
+    width: 120,
+    render: (row) => {
+      if (row.userType === 'admin') {
+        // 管理员用户角色: 0-普通管理员, 1-家庭管理员, 2-超级管理员
+        const roleMap: Record<number, string> = {
+          0: '普通管理员',
+          1: '家庭管理员',
+          2: '超级管理员'
+        };
+        return roleMap[row.role ?? 0] || '—';
+      } else {
+        // 小程序用户角色: 0-普通用户, 1-小程序管理员
+        return row.role === 1 ? '小程序管理员' : '普通用户';
+      }
+    }
   },
   {
     title: '状态',
@@ -417,6 +499,7 @@ const columns: DataTableColumns<UnifiedUserRecord> = [
                 size: 'small',
                 tertiary: true,
                 type: row.status === 1 ? 'warning' : 'success',
+                disabled: !canDisableUser(row),
                 onClick: () => toggleUserStatus(row)
               },
               { default: () => (row.status === 1 ? '禁用' : '启用') }
@@ -424,7 +507,7 @@ const columns: DataTableColumns<UnifiedUserRecord> = [
             h(
               NButton,
               { size: 'small', tertiary: true, onClick: () => openPasswordModal(row.id, row.userType) },
-              { default: () => '重置密码' }
+              { default: () => '修改密码' }
             ),
             h(
               NButton,
@@ -603,26 +686,39 @@ const handleDeleteUser = (id: number, userType: 'admin' | 'wxuser') => {
 const openPasswordModal = (userId: number, userType: 'admin' | 'wxuser') => {
   passwordModal.userId = userId;
   passwordModal.userType = userType;
-  passwordModal.newPassword = '';
+  passwordModal.form.newPassword = '';
+  passwordModal.form.confirmPassword = '';
   passwordModal.show = true;
 };
 
-const handleResetPassword = async () => {
+const handleUpdatePassword = async () => {
   if (!passwordModal.userId) return;
+
+  // 验证密码
+  if (!passwordModal.form.newPassword.trim()) {
+    message.warning('请输入新密码');
+    return;
+  }
+  if (passwordModal.form.newPassword.length < 6) {
+    message.warning('密码长度至少6位');
+    return;
+  }
+  if (passwordModal.form.newPassword !== passwordModal.form.confirmPassword) {
+    message.warning('两次输入的密码不一致');
+    return;
+  }
 
   passwordModal.loading = true;
   try {
-    let result;
     if (passwordModal.userType === 'admin') {
-      result = await resetUserPassword(passwordModal.userId);
+      await updateUserPassword(passwordModal.userId, passwordModal.form.newPassword);
     } else {
-      result = await resetWxUserPassword(passwordModal.userId);
+      await updateWxUserPassword(passwordModal.userId, passwordModal.form.newPassword);
     }
-    passwordModal.newPassword = result.data;
-    message.success('密码已重置');
-  } catch (error) {
-    message.error((error as Error).message || '重置失败');
+    message.success('密码修改成功');
     passwordModal.show = false;
+  } catch (error) {
+    message.error((error as Error).message || '修改失败');
   } finally {
     passwordModal.loading = false;
   }
@@ -777,6 +873,7 @@ const loadCurrentUser = async () => {
   try {
     const result = await fetchProfile();
     currentUserRole.value = result.data?.role ?? null;
+    currentUserId.value = result.data?.id ?? null;
   } catch (error) {
     console.error('加载用户信息失败:', error);
   }

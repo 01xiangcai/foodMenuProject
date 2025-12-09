@@ -82,4 +82,12 @@ public interface WxUserService extends IService<WxUser> {
      * @param newPassword 新密码
      */
     void updateLoginPassword(Long userId, String oldPassword, String newPassword);
+
+    /**
+     * 修改用户密码(管理员操作)
+     * 
+     * @param userId      用户ID
+     * @param newPassword 新密码
+     */
+    void updatePassword(Long userId, String newPassword);
 }

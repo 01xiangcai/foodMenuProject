@@ -550,4 +550,21 @@ public class WxUserController {
             return Result.error("重置失败");
         }
     }
+
+    /**
+     * 修改用户密码(管理员)
+     */
+    @Operation(summary = "修改用户密码", description = "管理员修改小程序用户密码,需要权限验证")
+    @PutMapping("/update-password")
+    public Result<String> updatePassword(@RequestBody com.yao.food_menu.dto.UpdatePasswordDto dto) {
+        log.info("管理员修改小程序用户密码: userId={}", dto.getUserId());
+
+        try {
+            wxUserService.updatePassword(dto.getUserId(), dto.getNewPassword());
+            return Result.success("密码修改成功");
+        } catch (Exception e) {
+            log.error("修改密码失败: {}", e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
 }

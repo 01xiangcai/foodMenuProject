@@ -250,7 +250,7 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
             existingUser.setNickname(wxUser.getNickname());
         }
         if (StringUtils.hasText(wxUser.getPhone())) {
-            // 检查手机号是否已被其他用户使用（需要跳过数据隔离，因为手机号是全局唯一的）
+            // 手机号唯一性验证 - 检查手机号是否已被其他用户使用（需要跳过数据隔离，因为手机号是全局唯一的）
             com.yao.food_menu.common.context.FamilyContext.setQueryCurrentUser(true);
             try {
                 LambdaQueryWrapper<WxUser> phoneWrapper = new LambdaQueryWrapper<>();
@@ -279,13 +279,40 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
 
     @Override
     public void updateUserStatus(Long id, Integer status) {
-        WxUser user = this.getById(id);
-        if (user == null) {
+        // 获取当前操作者的角色和ID
+        Integer currentUserRole = com.yao.food_menu.common.context.FamilyContext.getUserRole();
+        Long currentUserId = com.yao.food_menu.common.context.FamilyContext.getUserId();
+        Long currentUserFamilyId = com.yao.food_menu.common.context.FamilyContext.getFamilyId();
+
+        // 不能禁用自己
+        if (id.equals(currentUserId)) {
+            throw new RuntimeException("不能禁用自己");
+        }
+
+        // 获取目标用户
+        WxUser targetUser = this.getById(id);
+        if (targetUser == null) {
             throw new RuntimeException("用户不存在");
         }
 
-        user.setStatus(status);
-        this.updateById(user);
+        // 权限验证
+        boolean isSuperAdmin = currentUserRole != null && currentUserRole == 2;
+        boolean isFamilyAdmin = currentUserRole != null && currentUserRole == 1;
+
+        // 普通管理员(role=0)没有禁用权限
+        if (!isSuperAdmin && !isFamilyAdmin) {
+            throw new RuntimeException("权限不足,您没有禁用用户的权限");
+        }
+
+        // 家庭管理员只能禁用本家庭的小程序用户
+        if (isFamilyAdmin && !isSuperAdmin) {
+            if (currentUserFamilyId == null || !currentUserFamilyId.equals(targetUser.getFamilyId())) {
+                throw new RuntimeException("权限不足,只能禁用本家庭的用户");
+            }
+        }
+
+        targetUser.setStatus(status);
+        this.updateById(targetUser);
     }
 
     @Override
@@ -425,5 +452,48 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
             // 清除查询当前用户的标记
             com.yao.food_menu.common.context.FamilyContext.setQueryCurrentUser(false);
         }
+    }
+
+    @Override
+    public void updatePassword(Long userId, String newPassword) {
+        // 获取当前操作者的角色和家庭ID
+        Integer currentUserRole = com.yao.food_menu.common.context.FamilyContext.getUserRole();
+        Long currentUserFamilyId = com.yao.food_menu.common.context.FamilyContext.getFamilyId();
+
+        // 获取目标用户
+        WxUser targetUser = this.getById(userId);
+        if (targetUser == null) {
+            throw new RuntimeException("用户不存在");
+        }
+
+        // 权限验证
+        boolean isSuperAdmin = currentUserRole != null && currentUserRole == 2;
+        boolean isFamilyAdmin = currentUserRole != null && currentUserRole == 1;
+
+        if (!isSuperAdmin && !isFamilyAdmin) {
+            // 普通管理员无权修改密码
+            throw new RuntimeException("权限不足,无法修改用户密码");
+        }
+
+        if (!isSuperAdmin) {
+            // 家庭管理员只能修改同家庭的用户密码
+            if (currentUserFamilyId == null || !currentUserFamilyId.equals(targetUser.getFamilyId())) {
+                throw new RuntimeException("权限不足,只能修改本家庭用户的密码");
+            }
+        }
+
+        // 验证新密码
+        if (newPassword == null || newPassword.trim().isEmpty()) {
+            throw new RuntimeException("新密码不能为空");
+        }
+        if (newPassword.length() < 6) {
+            throw new RuntimeException("密码长度至少6位");
+        }
+
+        // 加密并保存新密码
+        targetUser.setPassword(passwordEncoder.encode(newPassword));
+        this.updateById(targetUser);
+
+        log.info("管理员修改小程序用户密码成功: operatorRole={}, targetUserId={}", currentUserRole, userId);
     }
 }

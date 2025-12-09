@@ -52,21 +52,32 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             Integer type = resolveLoginType(loginDto);
 
             if (type == 1) {
-                // 用户名/密码登录
-                String username = loginDto.getUsername();
-                if (username == null || username.trim().isEmpty()) {
-                    throw new RuntimeException("用户名不能为空");
+                // 用户名/密码登录 - 支持用户名或手机号
+                String loginInput = loginDto.getUsername();
+                if (loginInput == null || loginInput.trim().isEmpty()) {
+                    throw new RuntimeException("用户名或手机号不能为空");
                 }
-                username = username.trim();
+                loginInput = loginInput.trim();
 
-                log.info("用户尝试密码登录，用户名: {}", username);
+                log.info("用户尝试密码登录，输入: {}", loginInput);
+
+                // 判断输入的是手机号还是用户名（手机号是11位数字）
+                boolean isPhone = loginInput.matches("^1[3-9]\\d{9}$");
 
                 LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
-                queryWrapper.eq(User::getUsername, username);
+                if (isPhone) {
+                    // 按手机号查询
+                    queryWrapper.eq(User::getPhone, loginInput);
+                    log.info("识别为手机号登录");
+                } else {
+                    // 按用户名查询
+                    queryWrapper.eq(User::getUsername, loginInput);
+                    log.info("识别为用户名登录");
+                }
                 user = this.getOne(queryWrapper);
 
                 if (user == null) {
-                    log.warn("用户登录失败-用户不存在: {}", username);
+                    log.warn("用户登录失败-用户不存在: {}", loginInput);
                     // 尝试直接查询数据库，绕过逻辑删除，用于调试
                     try {
                         User debugUser = this.baseMapper.selectOne(queryWrapper);
@@ -81,23 +92,23 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                     throw new RuntimeException("用户不存在");
                 }
 
-                log.debug("找到用户，ID: {}, 用户名: {}, 状态: {}", 
+                log.debug("找到用户，ID: {}, 用户名: {}, 状态: {}",
                         user.getId(), user.getUsername(), user.getStatus());
 
                 if (!passwordEncoder.matches(loginDto.getPassword(), user.getPassword())) {
-                    log.warn("用户登录失败-密码错误: userId={}, username={}", user.getId(), username);
+                    log.warn("用户登录失败-密码错误: userId={}, username={}", user.getId(), loginInput);
                     throw new RuntimeException("密码错误");
                 }
 
             } else if (type == 2) {
                 // 手机号/验证码登录
-                log.info("用户尝试验证码登录，手机号: {}", 
-                    loginDto.getPhone().substring(0, 3) + "****" + loginDto.getPhone().substring(7));
-                
+                log.info("用户尝试验证码登录，手机号: {}",
+                        loginDto.getPhone().substring(0, 3) + "****" + loginDto.getPhone().substring(7));
+
                 String cachedCode = CODE_CACHE.get(loginDto.getPhone());
                 if (cachedCode == null || !cachedCode.equals(loginDto.getCode())) {
-                    log.warn("验证码登录失败-验证码无效: phone={}", 
-                        loginDto.getPhone().substring(0, 3) + "****" + loginDto.getPhone().substring(7));
+                    log.warn("验证码登录失败-验证码无效: phone={}",
+                            loginDto.getPhone().substring(0, 3) + "****" + loginDto.getPhone().substring(7));
                     throw new RuntimeException("验证码无效");
                 }
 
@@ -107,8 +118,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
                 // 如果用户不存在则自动注册
                 if (user == null) {
-                    log.info("新用户通过验证码登录，自动注册: phone={}", 
-                        loginDto.getPhone().substring(0, 3) + "****" + loginDto.getPhone().substring(7));
+                    log.info("新用户通过验证码登录，自动注册: phone={}",
+                            loginDto.getPhone().substring(0, 3) + "****" + loginDto.getPhone().substring(7));
                     user = new User();
                     user.setPhone(loginDto.getPhone());
                     user.setName("用户_" + loginDto.getPhone().substring(7));
@@ -130,10 +141,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             }
 
             // 生成JWT token（包含familyId和role信息）
-            log.info("用户登录成功: userId={}, username={}, familyId={}, role={}", 
-                user.getId(), user.getUsername() != null ? user.getUsername() : "手机用户", 
-                user.getFamilyId(), user.getRole());
-            
+            log.info("用户登录成功: userId={}, username={}, familyId={}, role={}",
+                    user.getId(), user.getUsername() != null ? user.getUsername() : "手机用户",
+                    user.getFamilyId(), user.getRole());
+
             return jwtUtil.generateToken(
                     user.getId(),
                     user.getUsername() != null ? user.getUsername() : user.getPhone(),
@@ -210,23 +221,18 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         // 检查用户名是否已存在
         LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(User::getUsername, userDto.getUsername());
-        User existingUser = this.getOne(queryWrapper);
-
-        if (existingUser != null) {
+        if (this.count(queryWrapper) > 0) {
             throw new RuntimeException("用户名已存在");
         }
 
-        // 创建新用户
         User user = new User();
-        BeanUtils.copyProperties(userDto, user);
-
-        // 加密密码
+        user.setUsername(userDto.getUsername());
         user.setPassword(passwordEncoder.encode(userDto.getPassword()));
-
-        // 设置默认值
-        if (user.getStatus() == null) {
-            user.setStatus(1); // 默认启用
-        }
+        user.setName(userDto.getName());
+        // 手机号可选,如果为空则设置为空字符串(数据库字段可能不允许null)
+        user.setPhone(StringUtils.hasText(userDto.getPhone()) ? userDto.getPhone() : "");
+        user.setAvatar(userDto.getAvatar());
+        user.setStatus(userDto.getStatus() != null ? userDto.getStatus() : 1);
 
         // 处理家庭ID和角色
         // 获取当前用户角色
@@ -256,37 +262,64 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     @org.springframework.transaction.annotation.Transactional
     public void updateUser(UserDto userDto) {
-        User user = this.getById(userDto.getId());
-        if (user == null) {
+        User existingUser = this.getById(userDto.getId());
+        if (existingUser == null) {
             throw new RuntimeException("用户不存在");
         }
 
-        // 获取当前用户角色
+        // 获取当前操作者的角色
         Integer currentUserRole = com.yao.food_menu.common.context.FamilyContext.getUserRole();
         boolean isSuperAdmin = currentUserRole != null && currentUserRole == 2;
+        boolean isFamilyAdmin = currentUserRole != null && currentUserRole == 1;
 
-        // 更新允许的字段
-        if (StringUtils.hasText(userDto.getName())) {
-            user.setName(userDto.getName());
+        // 用户名修改权限验证
+        if (userDto.getUsername() != null && !userDto.getUsername().equals(existingUser.getUsername())) {
+            // 只有超级管理员和家庭管理员可以修改用户名
+            if (!isSuperAdmin && !isFamilyAdmin) {
+                throw new RuntimeException("权限不足,只有超级管理员和家庭管理员可以修改用户名");
+            }
+
+            // 检查新用户名是否已被使用
+            LambdaQueryWrapper<User> usernameWrapper = new LambdaQueryWrapper<>();
+            usernameWrapper.eq(User::getUsername, userDto.getUsername());
+            usernameWrapper.ne(User::getId, userDto.getId());
+            if (this.count(usernameWrapper) > 0) {
+                throw new RuntimeException("用户名已被使用");
+            }
+
+            existingUser.setUsername(userDto.getUsername());
         }
-        if (StringUtils.hasText(userDto.getPhone())) {
-            user.setPhone(userDto.getPhone());
+
+        // 手机号唯一性验证
+        if (StringUtils.hasText(userDto.getPhone()) && !userDto.getPhone().equals(existingUser.getPhone())) {
+            // 检查新手机号是否已被其他用户使用
+            LambdaQueryWrapper<User> phoneWrapper = new LambdaQueryWrapper<>();
+            phoneWrapper.eq(User::getPhone, userDto.getPhone());
+            phoneWrapper.ne(User::getId, userDto.getId());
+            if (this.count(phoneWrapper) > 0) {
+                throw new RuntimeException("手机号已被使用");
+            }
+            existingUser.setPhone(userDto.getPhone());
+        }
+
+        // 更新其他允许的字段
+        if (StringUtils.hasText(userDto.getName())) {
+            existingUser.setName(userDto.getName());
+        }
+        if (StringUtils.hasText(userDto.getAvatar())) {
+            existingUser.setAvatar(userDto.getAvatar());
+        }
+        if (userDto.getRole() != null) {
+            existingUser.setRole(userDto.getRole());
         }
         if (userDto.getStatus() != null) {
-            user.setStatus(userDto.getStatus());
+            existingUser.setStatus(userDto.getStatus());
+        }
+        if (userDto.getFamilyId() != null) {
+            existingUser.setFamilyId(userDto.getFamilyId());
         }
 
-        // 只有超级管理员可以修改familyId和role
-        if (isSuperAdmin) {
-            if (userDto.getFamilyId() != null) {
-                user.setFamilyId(userDto.getFamilyId());
-            }
-            if (userDto.getRole() != null) {
-                user.setRole(userDto.getRole());
-            }
-        }
-
-        this.updateById(user);
+        this.updateById(existingUser);
     }
 
     @Override
@@ -305,13 +338,32 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     @org.springframework.transaction.annotation.Transactional
     public void updateUserStatus(Long id, Integer status) {
-        User user = this.getById(id);
-        if (user == null) {
+        // 获取当前操作者的角色和ID
+        Integer currentUserRole = com.yao.food_menu.common.context.FamilyContext.getUserRole();
+        Long currentUserId = com.yao.food_menu.common.context.FamilyContext.getUserId();
+
+        // 不能禁用自己
+        if (id.equals(currentUserId)) {
+            throw new RuntimeException("不能禁用自己");
+        }
+
+        // 获取目标用户
+        User targetUser = this.getById(id);
+        if (targetUser == null) {
             throw new RuntimeException("用户不存在");
         }
 
-        user.setStatus(status);
-        this.updateById(user);
+        // 权限验证: 只有角色权限高的可以禁用角色权限低的
+        // 角色等级: 超级管理员(2) > 家庭管理员(1) > 普通管理员(0)
+        Integer targetUserRole = targetUser.getRole() != null ? targetUser.getRole() : 0;
+        Integer myRole = currentUserRole != null ? currentUserRole : 0;
+
+        if (myRole <= targetUserRole) {
+            throw new RuntimeException("权限不足,只能禁用角色权限低于您的用户");
+        }
+
+        targetUser.setStatus(status);
+        this.updateById(targetUser);
     }
 
     @Override
@@ -331,5 +383,49 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
         // 返回明文密码供管理员通知用户
         return newPassword;
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void updatePassword(Long userId, String newPassword) {
+        // 获取当前操作者的角色和家庭ID
+        Integer currentUserRole = com.yao.food_menu.common.context.FamilyContext.getUserRole();
+        Long currentUserFamilyId = com.yao.food_menu.common.context.FamilyContext.getFamilyId();
+
+        // 获取目标用户
+        User targetUser = this.getById(userId);
+        if (targetUser == null) {
+            throw new RuntimeException("用户不存在");
+        }
+
+        // 权限验证
+        boolean isSuperAdmin = currentUserRole != null && currentUserRole == 2;
+        boolean isFamilyAdmin = currentUserRole != null && currentUserRole == 1;
+
+        if (!isSuperAdmin && !isFamilyAdmin) {
+            // 普通管理员无权修改密码
+            throw new RuntimeException("权限不足,无法修改用户密码");
+        }
+
+        if (!isSuperAdmin) {
+            // 家庭管理员只能修改同家庭的用户密码
+            if (currentUserFamilyId == null || !currentUserFamilyId.equals(targetUser.getFamilyId())) {
+                throw new RuntimeException("权限不足,只能修改本家庭用户的密码");
+            }
+        }
+
+        // 验证新密码
+        if (newPassword == null || newPassword.trim().isEmpty()) {
+            throw new RuntimeException("新密码不能为空");
+        }
+        if (newPassword.length() < 6) {
+            throw new RuntimeException("密码长度至少6位");
+        }
+
+        // 加密并保存新密码
+        targetUser.setPassword(passwordEncoder.encode(newPassword));
+        this.updateById(targetUser);
+
+        log.info("管理员修改用户密码成功: operatorRole={}, targetUserId={}", currentUserRole, userId);
     }
 }

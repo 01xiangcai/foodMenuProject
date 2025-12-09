@@ -53,4 +53,12 @@ public interface UserService extends IService<User> {
      * Reset user password
      */
     String resetPassword(Long id);
+
+    /**
+     * 修改用户密码(管理员操作)
+     * 
+     * @param userId      用户ID
+     * @param newPassword 新密码
+     */
+    void updatePassword(Long userId, String newPassword);
 }

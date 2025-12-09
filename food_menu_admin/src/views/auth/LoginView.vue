@@ -162,13 +162,13 @@
         
         <form @submit.prevent="handleLogin" class="login-form">
           <div class="form-item">
-            <label>用户名</label>
+            <label>用户名/手机号</label>
             <div class="input-wrapper">
               <i class="i-tabler-user input-icon"></i>
               <input 
                 v-model="username" 
                 type="text" 
-                placeholder="请输入用户名" 
+                placeholder="请输入用户名或手机号" 
                 required 
                 @focus="focusState = 'username'"
                 @blur="focusState = 'none'"
@@ -202,13 +202,6 @@
             <span>{{ userStore.loading ? '登录中...' : '进入家庭工作台' }}</span>
           </button>
         </form>
-        
-        <div class="tips">
-          <div class="tip-item">
-            <i class="i-tabler-info-circle"></i>
-            <span>默认账号: admin / 123456</span>
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -222,8 +215,8 @@ import ThemeToggle from '@/components/ThemeToggle.vue';
 import { useMessage } from 'naive-ui';
 
 const userStore = useUserStore();
-const username = ref('admin');
-const password = ref('123456');
+const username = ref('');
+const password = ref('');
 const showPassword = ref(false);
 const router = useRouter();
 const message = useMessage();
