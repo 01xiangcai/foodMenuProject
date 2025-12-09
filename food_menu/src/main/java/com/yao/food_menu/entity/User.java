@@ -1,6 +1,7 @@
 package com.yao.food_menu.entity;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -26,7 +27,8 @@ public class User implements Serializable {
     // 密码(加密存储)
     private String password;
 
-    // 手机号
+    // 手机号(允许为null，强制插入以避免数据库默认值错误)
+    @TableField(insertStrategy = FieldStrategy.ALWAYS)
     private String phone;
 
     // 姓名

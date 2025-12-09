@@ -110,6 +110,7 @@ export type WxUserPayload = {
   gender?: number;
   status?: number;
   role?: number;
+  familyId?: number; // 家庭ID（超级管理员可以设置）
 };
 
 export const login = (data: LoginPayload) => http.post('/user/login', data);
@@ -168,10 +169,10 @@ export const updateUserStatus = (id: number, status: number) =>
   http.put('/user/status', null, { params: { id, status } });
 export const resetUserPassword = (id: number) => http.put(`/user/reset-password/${id}`);
 export const updateUserPassword = (userId: number, newPassword: string) =>
-  http.put('/user/update-password', { userId, newPassword });
+  http.put('/user/admin/user/update-password', { userId, newPassword });
 
 export const fetchWxUsers = (params: WxUserQuery) => http.get('/wx/user/page', { params });
-export const createWxUser = (data: WxUserPayload) => http.post('/wx/user/register', data);
+export const createWxUser = (data: WxUserPayload) => http.post('/wx/user/admin/create', data);
 export const updateWxUser = (data: WxUserPayload) => http.put('/wx/user/admin/update', data);
 export const deleteWxUser = (id: number) => http.delete(`/wx/user/${id}`);
 export const updateWxUserStatus = (id: number, status: number) =>

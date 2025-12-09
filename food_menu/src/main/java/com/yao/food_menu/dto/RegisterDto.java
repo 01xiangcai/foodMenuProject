@@ -15,4 +15,6 @@ public class RegisterDto {
     private String nickname;
     // 手机号
     private String phone;
+    // 家庭ID（超级管理员可以设置）
+    private Long familyId;
 }

@@ -30,7 +30,7 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
 
     private static final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    // 模拟验证码存储(生产环境应使用Redis)
+    // 模拟验证码存储，生产环境应使用Redis
     private static final Map<String, String> CODE_CACHE = new HashMap<>();
 
     @Override
@@ -50,13 +50,13 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
             Integer type = resolveLoginType(loginDto);
 
             if (type == 1) {
-                // 用户名/手机号+密码登录
+                // 用户名或手机号?密码登录
                 String loginInput = loginDto.getUsername();
                 if (!StringUtils.hasText(loginInput)) {
                     throw new RuntimeException("请输入用户名或手机号");
                 }
 
-                // 判断输入的是手机号还是用户名（手机号是11位数字）
+                // 判断输入的是手机号还是用户名（手机号?1位数字）
                 boolean isPhone = loginInput.matches("^1[3-9]\\d{9}$");
 
                 LambdaQueryWrapper<WxUser> queryWrapper = new LambdaQueryWrapper<>();
@@ -83,7 +83,7 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
                 }
 
             } else if (type == 2) {
-                // 手机号/验证码登录
+                // 手机号?验证码登录
                 String cachedCode = CODE_CACHE.get(loginDto.getPhone());
                 if (cachedCode == null || !cachedCode.equals(loginDto.getCode())) {
                     throw new RuntimeException("验证码无效");
@@ -125,7 +125,7 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
     }
 
     /**
-     * 从请求中解析登录类型,当未指定时回退到推断类型
+     * 从请求中解析登录类型,当未指定时回退到推断类?
      */
     private Integer resolveLoginType(LoginDto loginDto) {
         if (loginDto.getType() != null) {
@@ -165,7 +165,7 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
             throw new RuntimeException("用户名已存在");
         }
 
-        // 检查手机号是否已存在(如果提供)
+        // 检查手机号是否已存在（如果提供）
         if (StringUtils.hasText(registerDto.getPhone())) {
             LambdaQueryWrapper<WxUser> phoneWrapper = new LambdaQueryWrapper<>();
             phoneWrapper.eq(WxUser::getPhone, registerDto.getPhone());
@@ -185,6 +185,21 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
         user.setRole(0);
         user.setGender(0); // 未知性别
         user.setStatus(1); // 默认状态为启用
+
+        // 处理家庭ID（管理员创建用户时会自动设置，用户自主注册时为null）
+        Integer currentUserRole = com.yao.food_menu.common.context.FamilyContext.getUserRole();
+        Long currentFamilyId = com.yao.food_menu.common.context.FamilyContext.getFamilyId();
+
+        if (currentUserRole != null && currentUserRole == 2) {
+            // 超级管理员可以设置familyId（如果提供）
+            if (registerDto.getFamilyId() != null) {
+                user.setFamilyId(registerDto.getFamilyId());
+            }
+        } else if (currentFamilyId != null) {
+            // 普通管理员创建的用户自动使用创建者的familyId
+            user.setFamilyId(currentFamilyId);
+        }
+        // 用户自主注册时，FamilyContext为空，familyId保持null
 
         this.save(user);
 
@@ -232,7 +247,7 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
             queryWrapper.eq(WxUser::getFamilyId, queryDto.getFamilyId());
         }
 
-        // 按创建时间降序排序
+        // 按创建时间降序排列
         queryWrapper.orderByDesc(WxUser::getCreateTime);
 
         return this.page(page, queryWrapper);
@@ -250,7 +265,7 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
             existingUser.setNickname(wxUser.getNickname());
         }
         if (StringUtils.hasText(wxUser.getPhone())) {
-            // 手机号唯一性验证 - 检查手机号是否已被其他用户使用（需要跳过数据隔离，因为手机号是全局唯一的）
+            // 手机号唯一性验证- 检查手机号是否已被其他用户使用（需要跳过数据隔离，因为手机号是全局唯一的）
             com.yao.food_menu.common.context.FamilyContext.setQueryCurrentUser(true);
             try {
                 LambdaQueryWrapper<WxUser> phoneWrapper = new LambdaQueryWrapper<>();
@@ -347,7 +362,7 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
         if (user == null) {
             return false;
         }
-        // 角色为1表示管理员
+        // 角色1表示管理员
         return user.getRole() != null && user.getRole() == 1;
     }
 
@@ -380,7 +395,7 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
 
             log.info("用户 {} 已加入家庭 {}", userId, familyId);
         } finally {
-            // 清除查询当前用户的标记
+            // 清除查询当前用户的标志
             com.yao.food_menu.common.context.FamilyContext.setQueryCurrentUser(false);
         }
     }
@@ -449,7 +464,7 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
 
             log.info("用户 {} 修改登录密码成功", userId);
         } finally {
-            // 清除查询当前用户的标记
+            // 清除查询当前用户的标志
             com.yao.food_menu.common.context.FamilyContext.setQueryCurrentUser(false);
         }
     }
@@ -462,7 +477,7 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
         Long currentUserId = com.yao.food_menu.common.context.FamilyContext.getUserId();
         Long currentUserFamilyId = com.yao.food_menu.common.context.FamilyContext.getFamilyId();
 
-        // 不能修改自己的密码(应该使用修改个人密码功能)
+        // 不能修改自己的密码，应该使用修改个人密码功能
         if (userId.equals(currentUserId)) {
             throw new RuntimeException("不能通过此功能修改自己的密码,请使用修改个人密码功能");
         }

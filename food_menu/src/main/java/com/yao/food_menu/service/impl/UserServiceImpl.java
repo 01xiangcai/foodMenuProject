@@ -239,8 +239,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         user.setUsername(userDto.getUsername());
         user.setPassword(passwordEncoder.encode(userDto.getPassword()));
         user.setName(userDto.getName());
-        // 手机号可选,如果为空则设置为空字符串(数据库字段可能不允许null)
-        user.setPhone(StringUtils.hasText(userDto.getPhone()) ? userDto.getPhone() : "");
+        // 手机号可选,如果为空则设置为null(允许多个用户不填手机号)
+        user.setPhone(StringUtils.hasText(userDto.getPhone()) ? userDto.getPhone() : null);
         user.setAvatar(userDto.getAvatar());
         user.setStatus(userDto.getStatus() != null ? userDto.getStatus() : 1);
 

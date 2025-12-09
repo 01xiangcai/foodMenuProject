@@ -100,6 +100,27 @@ public class WxUserController {
     }
 
     /**
+     * 管理员创建微信用户（需要JWT验证，FamilyContext会被正确设置）
+     */
+    @Operation(summary = "管理员创建微信用户", description = "管理员创建微信用户，会自动分配家庭ID")
+    @PostMapping("/admin/create")
+    public Result<String> adminCreate(@RequestBody com.yao.food_menu.dto.RegisterDto registerDto) {
+        log.info("管理员创建微信用户: {}", registerDto);
+
+        try {
+            if (!StringUtils.hasText(registerDto.getUsername()) || !StringUtils.hasText(registerDto.getPassword())) {
+                return Result.error("用户名和密码不能为空");
+            }
+
+            wxUserService.register(registerDto);
+            return Result.success("用户创建成功");
+        } catch (Exception e) {
+            log.error("创建用户失败: {}", e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
      * 微信一键登录（预留）
      */
     @Operation(summary = "微信一键登录", description = "使用微信授权code登录(预留)")

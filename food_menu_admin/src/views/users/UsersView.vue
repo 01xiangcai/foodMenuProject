@@ -118,6 +118,15 @@
               <NRadio :value="2">女</NRadio>
             </NRadioGroup>
           </NFormItem>
+          <!-- 超级管理员可以选择家庭 -->
+          <NFormItem v-if="isSuperAdmin" label="所属家庭" required>
+            <NSelect
+              v-model:value="userModal.form.familyId"
+              :options="familyOptions"
+              placeholder="请选择家庭"
+              clearable
+            />
+          </NFormItem>
         </template>
 
         <NFormItem label="手机号">
@@ -626,7 +635,8 @@ const saveUser = async () => {
         phone: userModal.form.phone || undefined,
         gender: userModal.form.gender,
         status: userModal.form.status,
-        role: userModal.form.role
+        role: userModal.form.role,
+        familyId: userModal.form.familyId || undefined
       };
       
       if (userModal.form.id) {
