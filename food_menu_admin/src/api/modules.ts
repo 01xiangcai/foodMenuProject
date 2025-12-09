@@ -177,8 +177,19 @@ export const deleteWxUser = (id: number) => http.delete(`/wx/user/${id}`);
 export const updateWxUserStatus = (id: number, status: number) =>
   http.put('/wx/user/status', null, { params: { id, status } });
 export const resetWxUserPassword = (id: number) => http.put(`/wx/user/reset-password/${id}`);
-export const updateWxUserPassword = (userId: number, newPassword: string) =>
-  http.put('/wx/user/update-password', { userId, newPassword });
+export const updateWxUserPassword = (userId: number, newPassword: string) => {
+  return http.post('/admin/wx-user/update-password', { userId, newPassword })
+}
+
+// 更新个人信息
+export const updateProfile = (data: { name?: string; phone?: string; avatar?: string }) => {
+  return http.put('/user/profile', data)
+}
+
+// 修改个人密码
+export const updateOwnPassword = (oldPassword: string, newPassword: string) => {
+  return http.put('/user/profile/password', { oldPassword, newPassword })
+}
 
 export type DishTagQuery = {
   page: number;

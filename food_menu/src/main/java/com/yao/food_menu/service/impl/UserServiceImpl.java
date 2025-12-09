@@ -27,6 +27,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @org.springframework.beans.factory.annotation.Autowired
     private JwtUtil jwtUtil;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.yao.food_menu.service.FamilyService familyService;
+
     private static final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     // 模拟验证码存储(生产环境应使用Redis)
@@ -186,7 +189,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public User getCurrentUser(Long userId) {
-        return this.getById(userId);
+        User user = this.getById(userId);
+        if (user != null && user.getFamilyId() != null) {
+            com.yao.food_menu.entity.Family family = familyService.getById(user.getFamilyId());
+            if (family != null) {
+                user.setFamilyName(family.getName());
+            }
+        }
+        return user;
     }
 
     @Override
@@ -388,9 +398,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     @org.springframework.transaction.annotation.Transactional
     public void updatePassword(Long userId, String newPassword) {
-        // 获取当前操作者的角色和家庭ID
+        // 获取当前操作者的角色、ID和家庭ID
         Integer currentUserRole = com.yao.food_menu.common.context.FamilyContext.getUserRole();
+        Long currentUserId = com.yao.food_menu.common.context.FamilyContext.getUserId();
         Long currentUserFamilyId = com.yao.food_menu.common.context.FamilyContext.getFamilyId();
+
+        // 不能修改自己的密码(应该使用修改个人密码功能)
+        if (userId.equals(currentUserId)) {
+            throw new RuntimeException("不能通过此功能修改自己的密码,请使用修改个人密码功能");
+        }
 
         // 获取目标用户
         User targetUser = this.getById(userId);
@@ -402,15 +418,22 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         boolean isSuperAdmin = currentUserRole != null && currentUserRole == 2;
         boolean isFamilyAdmin = currentUserRole != null && currentUserRole == 1;
 
+        // 普通管理员(role=0)没有修改密码的权限
         if (!isSuperAdmin && !isFamilyAdmin) {
-            // 普通管理员无权修改密码
-            throw new RuntimeException("权限不足,无法修改用户密码");
+            throw new RuntimeException("权限不足,您没有修改用户密码的权限");
         }
 
-        if (!isSuperAdmin) {
-            // 家庭管理员只能修改同家庭的用户密码
+        // 家庭管理员的权限限制
+        if (isFamilyAdmin && !isSuperAdmin) {
+            // 只能修改本家庭的用户
             if (currentUserFamilyId == null || !currentUserFamilyId.equals(targetUser.getFamilyId())) {
                 throw new RuntimeException("权限不足,只能修改本家庭用户的密码");
+            }
+
+            // 只能修改普通管理员(role=0)的密码,不能修改同级或更高级别的管理员
+            Integer targetUserRole = targetUser.getRole() != null ? targetUser.getRole() : 0;
+            if (targetUserRole >= 1) {
+                throw new RuntimeException("权限不足,只能修改普通管理员的密码");
             }
         }
 
@@ -422,10 +445,87 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             throw new RuntimeException("密码长度至少6位");
         }
 
-        // 加密并保存新密码
+        // 加密并更新密码
         targetUser.setPassword(passwordEncoder.encode(newPassword));
         this.updateById(targetUser);
 
         log.info("管理员修改用户密码成功: operatorRole={}, targetUserId={}", currentUserRole, userId);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void updateProfile(com.yao.food_menu.dto.UpdateProfileDto updateProfileDto) {
+        // 获取当前用户ID
+        Long currentUserId = com.yao.food_menu.common.context.FamilyContext.getUserId();
+        if (currentUserId == null) {
+            throw new RuntimeException("未登录");
+        }
+
+        // 获取当前用户
+        User currentUser = this.getById(currentUserId);
+        if (currentUser == null) {
+            throw new RuntimeException("用户不存在");
+        }
+
+        // 更新姓名
+        if (StringUtils.hasText(updateProfileDto.getName())) {
+            currentUser.setName(updateProfileDto.getName());
+        }
+
+        // 更新手机号(需要检查唯一性)
+        if (StringUtils.hasText(updateProfileDto.getPhone())
+                && !updateProfileDto.getPhone().equals(currentUser.getPhone())) {
+            // 检查新手机号是否已被其他用户使用
+            LambdaQueryWrapper<User> phoneWrapper = new LambdaQueryWrapper<>();
+            phoneWrapper.eq(User::getPhone, updateProfileDto.getPhone());
+            phoneWrapper.ne(User::getId, currentUserId);
+            if (this.count(phoneWrapper) > 0) {
+                throw new RuntimeException("手机号已被使用");
+            }
+            currentUser.setPhone(updateProfileDto.getPhone());
+        }
+
+        // 更新头像
+        if (StringUtils.hasText(updateProfileDto.getAvatar())) {
+            currentUser.setAvatar(updateProfileDto.getAvatar());
+        }
+
+        this.updateById(currentUser);
+        log.info("用户更新个人信息成功: userId={}", currentUserId);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void updateOwnPassword(String oldPassword, String newPassword) {
+        // 获取当前用户ID
+        Long currentUserId = com.yao.food_menu.common.context.FamilyContext.getUserId();
+        if (currentUserId == null) {
+            throw new RuntimeException("未登录");
+        }
+
+        // 获取当前用户
+        User currentUser = this.getById(currentUserId);
+        if (currentUser == null) {
+            throw new RuntimeException("用户不存在");
+        }
+
+        // 验证旧密码
+        if (!passwordEncoder.matches(oldPassword, currentUser.getPassword())) {
+            throw new RuntimeException("旧密码错误");
+        }
+
+        // 验证新密码
+        if (newPassword == null || newPassword.trim().isEmpty()) {
+            throw new RuntimeException("新密码不能为空");
+        }
+        if (newPassword.length() < 6) {
+            throw new RuntimeException("密码长度至少6位");
+        }
+
+        // 加密并更新密码
+        currentUser.setPassword(passwordEncoder.encode(newPassword));
+        this.updateById(currentUser);
+
+        log.info("用户修改个人密码成功: userId={}", currentUserId);
     }
 }

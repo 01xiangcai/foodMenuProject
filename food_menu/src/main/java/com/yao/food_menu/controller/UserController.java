@@ -260,18 +260,46 @@ public class UserController {
     }
 
     /**
-     * 修改用户密码(管理员)
+     * 管理员修改用户密码
      */
-    @Operation(summary = "修改用户密码", description = "管理员修改用户密码,需要权限验证")
-    @PutMapping("/update-password")
+    @Operation(summary = "修改用户密码", description = "管理员修改指定用户的密码")
+    @PutMapping("/admin/user/update-password")
     public Result<String> updatePassword(@RequestBody com.yao.food_menu.dto.UpdatePasswordDto dto) {
-        log.info("管理员修改用户密码: userId={}", dto.getUserId());
-
         try {
             userService.updatePassword(dto.getUserId(), dto.getNewPassword());
             return Result.success("密码修改成功");
         } catch (Exception e) {
-            log.error("修改密码失败: {}", e.getMessage());
+            log.error("修改用户密码失败: {}", e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
+     * 更新个人信息
+     */
+    @Operation(summary = "更新个人信息", description = "更新当前登录用户的个人信息")
+    @PutMapping("/profile")
+    public Result<String> updateProfile(@RequestBody com.yao.food_menu.dto.UpdateProfileDto updateProfileDto) {
+        try {
+            userService.updateProfile(updateProfileDto);
+            return Result.success("个人信息更新成功");
+        } catch (Exception e) {
+            log.error("更新个人信息失败: {}", e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
+     * 修改个人密码
+     */
+    @Operation(summary = "修改个人密码", description = "修改当前登录用户的密码")
+    @PutMapping("/profile/password")
+    public Result<String> updateOwnPassword(@RequestBody com.yao.food_menu.dto.UpdateOwnPasswordDto dto) {
+        try {
+            userService.updateOwnPassword(dto.getOldPassword(), dto.getNewPassword());
+            return Result.success("密码修改成功");
+        } catch (Exception e) {
+            log.error("修改个人密码失败: {}", e.getMessage());
             return Result.error(e.getMessage());
         }
     }

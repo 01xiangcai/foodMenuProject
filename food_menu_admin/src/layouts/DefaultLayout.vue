@@ -68,7 +68,7 @@
              <span>{{ now }}</span>
           </div>
           
-          <n-dropdown :options="userOptions" @select="handleUserSelect">
+          <n-dropdown :options="userDropdownOptions" @select="handleUserDropdownSelect">
             <div class="flex items-center gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 px-2 py-1 rounded-lg transition-colors">
               <n-avatar
                 round
@@ -146,19 +146,21 @@ const currentRouteTitle = computed(() => (route.meta.title as string) || '未来
 const userName = computed(() => profile.value?.name || profile.value?.username || '家人');
 const userAvatar = computed(() => userName.value.charAt(0).toUpperCase());
 
-const userOptions = [
-  { label: '同步家庭信息', key: 'sync', icon: renderIcon('i-tabler-refresh') },
+const userDropdownOptions = [
+  { label: '个人信息', key: 'profile', icon: renderIcon('i-tabler-user') },
   { label: '退出登录', key: 'logout', icon: renderIcon('i-tabler-logout') }
 ];
 
-const handleUserSelect = async (key: string) => {
-  if (key === 'logout') {
+const handleUserDropdownSelect = (key: string) => {
+  if (key === 'profile') {
+    router.push('/profile');
+  } else if (key === 'logout') {
     userStore.logout();
     router.push('/login');
     message.success('已退出登录');
   } else if (key === 'sync') {
     try {
-      await userStore.loadProfile();
+      userStore.loadProfile();
       message.success('家庭信息已更新');
     } catch (error) {
       message.error('同步失败');

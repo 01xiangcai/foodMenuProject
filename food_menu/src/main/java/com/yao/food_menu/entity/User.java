@@ -53,4 +53,10 @@ public class User implements Serializable {
 
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
+
+    /**
+     * 家庭名称(非数据库字段)
+     */
+    @TableField(exist = false)
+    private String familyName;
 }

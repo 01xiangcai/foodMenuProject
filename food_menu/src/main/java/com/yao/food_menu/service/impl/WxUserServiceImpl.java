@@ -455,10 +455,17 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public void updatePassword(Long userId, String newPassword) {
-        // 获取当前操作者的角色和家庭ID
+        // 获取当前操作者的角色、ID和家庭ID
         Integer currentUserRole = com.yao.food_menu.common.context.FamilyContext.getUserRole();
+        Long currentUserId = com.yao.food_menu.common.context.FamilyContext.getUserId();
         Long currentUserFamilyId = com.yao.food_menu.common.context.FamilyContext.getFamilyId();
+
+        // 不能修改自己的密码(应该使用修改个人密码功能)
+        if (userId.equals(currentUserId)) {
+            throw new RuntimeException("不能通过此功能修改自己的密码,请使用修改个人密码功能");
+        }
 
         // 获取目标用户
         WxUser targetUser = this.getById(userId);
@@ -470,13 +477,13 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
         boolean isSuperAdmin = currentUserRole != null && currentUserRole == 2;
         boolean isFamilyAdmin = currentUserRole != null && currentUserRole == 1;
 
+        // 普通管理员(role=0)没有修改密码的权限
         if (!isSuperAdmin && !isFamilyAdmin) {
-            // 普通管理员无权修改密码
-            throw new RuntimeException("权限不足,无法修改用户密码");
+            throw new RuntimeException("权限不足,您没有修改用户密码的权限");
         }
 
-        if (!isSuperAdmin) {
-            // 家庭管理员只能修改同家庭的用户密码
+        // 家庭管理员只能修改本家庭的小程序用户密码
+        if (isFamilyAdmin && !isSuperAdmin) {
             if (currentUserFamilyId == null || !currentUserFamilyId.equals(targetUser.getFamilyId())) {
                 throw new RuntimeException("权限不足,只能修改本家庭用户的密码");
             }
@@ -490,7 +497,7 @@ public class WxUserServiceImpl extends ServiceImpl<WxUserMapper, WxUser> impleme
             throw new RuntimeException("密码长度至少6位");
         }
 
-        // 加密并保存新密码
+        // 加密并更新密码
         targetUser.setPassword(passwordEncoder.encode(newPassword));
         this.updateById(targetUser);
 

@@ -13,6 +13,7 @@ import FamiliesView from '@/views/families/FamiliesView.vue';
 import OperationLogsView from '@/views/operationLogs/OperationLogsView.vue';
 import WalletListView from '@/views/finance/WalletListView.vue';
 import MarketingView from '@/views/marketing/MarketingView.vue';
+import ProfileView from '@/views/profile/ProfileView.vue';
 
 
 const routes: RouteRecordRaw[] = [
@@ -100,6 +101,12 @@ const routes: RouteRecordRaw[] = [
         name: 'marketing',
         component: MarketingView,
         meta: { title: '营销活动' }
+      },
+      {
+        path: 'profile',
+        name: 'profile',
+        component: ProfileView,
+        meta: { title: '个人信息' }
       }
     ]
   }
