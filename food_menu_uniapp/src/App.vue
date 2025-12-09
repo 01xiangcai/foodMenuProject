@@ -14,6 +14,14 @@ export default {
   },
   onHide() {
     console.log('App Hide')
+  },
+  // 全局转发配置
+  onShareAppMessage(res) {
+    return {
+      title: '美食菜单 - 发现美味生活',
+      path: '/pages/index/index',
+      imageUrl: '' // 可选:使用自定义分享图片
+    }
   }
 }
 </script>

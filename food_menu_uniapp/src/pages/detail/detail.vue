@@ -397,6 +397,17 @@ onMounted(() => {
   loadTheme()
   loadTagIconMap()
 })
+
+// 页面转发配置
+import { onShareAppMessage } from '@dcloudio/uni-app'
+
+onShareAppMessage((res) => {
+  return {
+    title: `${dish.value.name} - ¥${dish.value.price}`,
+    path: `/pages/detail/detail?id=${dish.value.id}`,
+    imageUrl: displayImages.value[0] || '' // 使用菜品的第一张图片
+  }
+})
 </script>
 
 <style lang="scss" scoped>

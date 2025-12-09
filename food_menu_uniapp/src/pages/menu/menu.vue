@@ -525,6 +525,20 @@ onShow(() => {
   loadCategories()
   loadDishes(true)
 })
+
+// 页面转发配置
+import { onShareAppMessage } from '@dcloudio/uni-app'
+
+onShareAppMessage((res) => {
+  // 获取当前分类名称
+  const currentCategoryName = categories.value.find(cat => cat.id === currentCategory.value)?.name || '全部'
+  
+  return {
+    title: `美食菜单 - ${currentCategoryName}分类`,
+    path: `/pages/menu/menu?categoryId=${currentCategory.value}`,
+    imageUrl: '' // 可选:使用当前分类的代表图片
+  }
+})
 </script>
 
 <style lang="scss" scoped>

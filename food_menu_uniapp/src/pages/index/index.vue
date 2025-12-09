@@ -216,6 +216,17 @@ onUnmounted(() => {
     clearInterval(timer)
   }
 })
+
+// 页面转发配置
+import { onShareAppMessage } from '@dcloudio/uni-app'
+
+onShareAppMessage((res) => {
+  return {
+    title: '美食菜单 - 家宴能量中心',
+    path: '/pages/index/index',
+    imageUrl: banners.value.length > 0 ? banners.value[0].image : '' // 使用第一张轮播图作为分享图
+  }
+})
 </script>
 
 <style lang="scss" scoped>
