@@ -154,12 +154,15 @@ public class OrdersController {
                 token = token.substring(7);
             }
             Long currentUserId = jwtUtil.getUserId(token);
-            User currentUser = userService.getById(currentUserId);
 
-            // If not super admin (role 2), force familyId to user's family
-            if (currentUser.getRole() != 2) {
-                familyId = currentUser.getFamilyId();
+            // 小程序端管理员是wx_user,需要查询wx_user表
+            WxUser wxUser = wxUserService.getById(currentUserId);
+            if (wxUser == null) {
+                return Result.error("用户不存在");
             }
+
+            // 小程序端管理员只能查看自己家庭的订单统计
+            familyId = wxUser.getFamilyId();
 
             java.util.Map<Integer, Long> counts = ordersService.getAdminOrderCounts(familyId);
             return Result.success(counts);

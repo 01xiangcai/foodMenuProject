@@ -34,7 +34,7 @@
               <input 
                 class="input password-input" 
                 v-model="password"
-                :type="showPassword ? 'text' : 'password'"
+                :password="!showPassword"
                 placeholder="请输入密码"
                 placeholder-class="placeholder"
                 :style="{ background: themeConfig.inputBg, border: `1px solid ${themeConfig.inputBorder}`, color: themeConfig.textPrimary }"

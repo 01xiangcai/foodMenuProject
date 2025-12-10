@@ -141,6 +141,9 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
 
         BigDecimal amount = order.getTotalAmount();
 
+        // 保存用户填写的订单备注(如果有)
+        String userRemark = payDto.getRemark();
+
         if (payMethod == Orders.PAY_METHOD_WALLET) {
             // 余额支付
             String wxUserId = order.getUserId().toString();
@@ -156,9 +159,9 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
                 throw new RuntimeException("余额不足，请充值或者联系管理员");
             }
 
-            // 设置支付金额
+            // 设置支付金额和钱包交易备注
             payDto.setAmount(amount);
-            payDto.setRemark("订单消费: " + orderNumber);
+            payDto.setRemark("订单消费: " + orderNumber); // 这是钱包交易记录的备注
 
             boolean paySuccess = walletService.pay(wxUserId, payDto);
             if (!paySuccess) {
@@ -166,15 +169,20 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
             }
         }
 
-        // 更新订单支付状态
-        order.setPayMethod(payMethod);
-        order.setPayStatus(Orders.PAY_STATUS_PAID);
-        order.setPayTime(LocalDateTime.now());
+        // 更新订单支付状态 - 使用选择性更新,避免覆盖备注等字段
+        com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<Orders> updateWrapper = new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<>();
+        updateWrapper.eq(Orders::getId, order.getId())
+                .set(Orders::getPayMethod, payMethod)
+                .set(Orders::getPayStatus, Orders.PAY_STATUS_PAID)
+                .set(Orders::getPayTime, LocalDateTime.now())
+                .set(Orders::getStatus, Orders.STATUS_PENDING);
 
-        // 支付成功后，状态流转为待接单
-        order.setStatus(Orders.STATUS_PENDING);
+        // 如果用户填写了订单备注,更新到订单
+        if (userRemark != null && !userRemark.trim().isEmpty()) {
+            updateWrapper.set(Orders::getRemark, userRemark);
+        }
 
-        this.updateById(order);
+        this.update(updateWrapper);
 
         log.info("Order paid successfully: {}", orderNumber);
     }
