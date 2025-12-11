@@ -1,92 +1,107 @@
 <template>
   <view class="wheel-page">
-    <!-- 背景装饰 -->
+    <!-- 背景装饰 (改为fixed定位) -->
     <view class="bg-decoration">
       <view class="circle circle-1"></view>
       <view class="circle circle-2"></view>
       <view class="circle circle-3"></view>
     </view>
 
-    <!-- 顶部信息 -->
-    <view class="header">
-      <view class="back-btn" @click="goBack">
-        <text class="icon">←</text>
-      </view>
-      <view class="header-info">
-        <text class="title">{{ activity.activityName }}</text>
-        <text class="subtitle">{{ activity.activityDesc }}</text>
-      </view>
-      <view class="header-right">
-        <view class="remain-times">
-          <text class="label">剩余次数</text>
-          <text class="count">{{ remainTimes === null ? '∞' : remainTimes }}</text>
+    <!-- 自定义导航栏 -->
+    <view class="custom-nav" :class="{ 'nav-scrolled': showNavTitle }" :style="{ height: navHeight + 'px' }">
+      <view class="nav-content" :style="{ marginTop: menuButtonTop + 'px', height: menuButtonHeight + 'px', lineHeight: menuButtonHeight + 'px' }">
+        <view class="back-btn" @click="goBack" :style="{ width: menuButtonHeight + 'px', height: menuButtonHeight + 'px' }">
+          <text class="icon">←</text>
         </view>
-        <view class="my-prizes-btn" @click="showMyPrizes">
-          <text class="icon">🎁</text>
-          <text class="text">我的奖品</text>
-        </view>
+        <text class="nav-title" :style="{ opacity: showNavTitle ? 1 : 0 }">{{ activity.activityName || '幸运大转盘' }}</text>
       </view>
     </view>
 
-    <!-- 大转盘容器 -->
-    <view class="wheel-container">
-      <!-- 外圈装饰 -->
-      <view class="outer-ring">
-        <view v-for="i in 12" :key="i" class="ring-dot" :style="{ transform: `rotate(${i * 30}deg) translateY(-180rpx)` }"></view>
+    <!-- 页面主体内容 (增加顶部padding占位) -->
+    <view class="page-content" :style="{ paddingTop: navHeight + 'px' }">
+      
+      <!-- 活动头部信息 (重构布局) -->
+      <view class="activity-header">
+        <text class="main-title">{{ activity.activityName }}</text>
+        <text class="subtitle">{{ activity.activityDesc }}</text>
+        
+        <!-- 操作栏 -->
+        <view class="action-bar">
+          <view class="remain-times">
+            <text class="label">剩余次数</text>
+            <text class="count">{{ remainTimes === null ? '∞' : remainTimes }}</text>
+          </view>
+          <view class="my-prizes-btn" @click="showMyPrizes">
+            <text class="icon">🎁</text>
+            <text class="text">我的奖品</text>
+          </view>
+        </view>
       </view>
 
-      <!-- 转盘主体 -->
-      <view class="wheel-wrapper" :style="{ transform: `rotate(${rotation}deg)` }">
-        <view class="wheel" :style="getWheelStyle()">
-          <!-- 奖品文字层 -->
-          <view 
-            v-for="(prize, index) in prizes" 
-            :key="prize.id"
-            class="prize-item"
-            :style="getPrizeItemStyle(index)"
-          >
-            <view class="prize-content">
-              <text class="prize-name">{{ prize.prizeName }}</text>
-              <text class="prize-value" v-if="prize.prizeValue">{{ prize.prizeValue }}元</text>
+      <!-- 大转盘容器 -->
+      <view class="wheel-container">
+        <!-- 外圈装饰 -->
+        <view class="outer-ring">
+          <view v-for="i in 12" :key="i" class="ring-dot" :style="{ transform: `rotate(${i * 30}deg) translateY(-180rpx)` }"></view>
+        </view>
+
+        <!-- 转盘主体 -->
+        <view class="wheel-wrapper" :style="{ transform: `rotate(${rotation}deg)` }">
+          <view class="wheel" :style="getWheelStyle()">
+            <!-- 奖品文字层 -->
+            <view 
+              v-for="(prize, index) in prizes" 
+              :key="prize.id"
+              class="prize-item"
+              :style="getPrizeItemStyle(index)"
+            >
+              <view class="prize-content">
+                <text class="prize-name">{{ prize.prizeName }}</text>
+                <text class="prize-value" v-if="prize.prizeValue">{{ prize.prizeValue }}元</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 中心指针 -->
+        <view class="pointer-wrapper" @click="startSpin">
+          <view class="pointer">
+            <view class="pointer-arrow"></view>
+          </view>
+          <view class="center-button" :class="{ spinning: isSpinning }">
+            <text class="btn-text">{{ isSpinning ? '抽奖中' : '开始' }}</text>
+            <text class="btn-subtext" v-if="!isSpinning">抽奖</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 奖品列表 -->
+      <view class="prize-list">
+        <view class="list-title">
+          <text class="title-text">奖品列表</text>
+          <view class="title-line"></view>
+        </view>
+        <!-- 改为普通view列表，让页面整体滚动 -->
+        <view class="prize-items-container">
+          <view v-for="prize in prizes" :key="prize.id" class="prize-card-item">
+            <view class="prize-icon">🎁</view>
+            <view class="prize-info">
+              <text class="name">{{ prize.prizeName }}</text>
+              <text class="desc">{{ prize.prizeType === 'COUPON' ? '优惠券' : prize.prizeType === 'POINTS' ? '积分' : '实物奖品' }}</text>
+            </view>
+            <view class="prize-stock">
+              <text class="stock-text">剩余: {{ prize.remainQuantity === -1 ? '∞' : prize.remainQuantity }}</text>
             </view>
           </view>
         </view>
       </view>
 
-      <!-- 中心指针 -->
-      <view class="pointer-wrapper" @click="startSpin">
-        <view class="pointer">
-          <view class="pointer-arrow"></view>
-        </view>
-        <view class="center-button" :class="{ spinning: isSpinning }">
-          <text class="btn-text">{{ isSpinning ? '抽奖中' : '开始' }}</text>
-          <text class="btn-subtext" v-if="!isSpinning">抽奖</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 奖品列表 -->
-    <view class="prize-list">
-      <view class="list-title">
-        <text class="title-text">奖品列表</text>
-        <view class="title-line"></view>
-      </view>
-      <scroll-view scroll-y class="prize-scroll">
-        <view v-for="prize in prizes" :key="prize.id" class="prize-item">
-          <view class="prize-icon">🎁</view>
-          <view class="prize-info">
-            <text class="name">{{ prize.prizeName }}</text>
-            <text class="desc">{{ prize.prizeType === 'COUPON' ? '优惠券' : prize.prizeType === 'POINTS' ? '积分' : '实物奖品' }}</text>
-          </view>
-          <view class="prize-stock">
-            <text class="stock-text">剩余: {{ prize.remainQuantity === -1 ? '∞' : prize.remainQuantity }}</text>
-          </view>
-        </view>
-      </scroll-view>
+      <!-- 底部安全区占位 -->
+      <view class="safe-area-bottom"></view>
     </view>
 
     <!-- 中奖弹窗 -->
-    <view class="prize-modal" v-if="showPrizeModal" @click="closePrizeModal">
+    <view class="prize-modal" v-if="showPrizeModal" @click="closePrizeModal" catchtouchmove="true">
       <view class="modal-content" @click.stop>
         <view class="confetti">
           <view v-for="i in 20" :key="i" class="confetti-piece" :style="getConfettiStyle(i)"></view>
@@ -104,7 +119,7 @@
     </view>
 
     <!-- 我的奖品弹窗 -->
-    <view class="my-prizes-modal" v-if="showMyPrizesModal" @click="closeMyPrizes">
+    <view class="my-prizes-modal" v-if="showMyPrizesModal" @click="closeMyPrizes" catchtouchmove="true">
       <view class="modal-content" @click.stop>
         <view class="modal-header">
           <text class="modal-title">🎁 我的奖品</text>
@@ -153,6 +168,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { onPageScroll, onLoad } from '@dcloudio/uni-app';
 import { request } from '@/utils/request';
 
 const activity = ref({});
@@ -170,14 +186,23 @@ const hasMorePrizes = ref(true);
 const loadingMore = ref(false);
 const allPrizesData = ref([]); // 存储所有奖品数据
 
-// 获取URL参数
-const getUrlParam = (name) => {
-  const pages = getCurrentPages();
-  const currentPage = pages[pages.length - 1];
-  return currentPage.options[name];
-};
+// 导航栏相关
+const navHeight = ref(64);
+const statusBarHeight = ref(20);
+const menuButtonHeight = ref(32);
+const menuButtonTop = ref(24); // 胶囊距顶部距离
+const showNavTitle = ref(false);
 
-const activityId = getUrlParam('id');
+const activityId = ref('');
+
+// onLoad 获取参数
+onLoad((options) => {
+  if (options && options.id) {
+    activityId.value = options.id;
+    loadActivity();
+    loadRemainTimes();
+  }
+});
 
 // 生成转盘背景样式 - 使用conic-gradient
 const getWheelStyle = () => {
@@ -239,7 +264,7 @@ const getConfettiStyle = (index) => {
 const loadActivity = async () => {
   try {
     const res = await request({
-      url: `/uniapp/marketing/activity/${activityId}`,
+      url: `/uniapp/marketing/activity/${activityId.value}`,
       method: 'GET'
     });
     
@@ -266,7 +291,7 @@ const loadActivity = async () => {
 const loadRemainTimes = async () => {
   try {
     const res = await request({
-      url: `/uniapp/marketing/activity/${activityId}/remain-times`,
+      url: `/uniapp/marketing/activity/${activityId.value}/remain-times`,
       method: 'GET'
     });
     
@@ -294,7 +319,7 @@ const startSpin = async () => {
   
   try {
     const res = await request({
-      url: `/uniapp/marketing/activity/${activityId}/participate`,
+      url: `/uniapp/marketing/activity/${activityId.value}/participate`,
       method: 'POST'
     });
     
@@ -498,8 +523,28 @@ const formatTime = (time) => {
 };
 
 onMounted(() => {
-  loadActivity();
-  loadRemainTimes();
+  // 获取系统信息以适配导航栏
+  const systemInfo = uni.getSystemInfoSync();
+  statusBarHeight.value = systemInfo.statusBarHeight;
+  
+  // #ifdef MP-WEIXIN
+  const menuButtonInfo = uni.getMenuButtonBoundingClientRect();
+  menuButtonHeight.value = menuButtonInfo.height || 32;
+  menuButtonTop.value = menuButtonInfo.top || (statusBarHeight.value + 4);
+  
+  // 计算导航栏高度: 胶囊底部 + 间距(胶囊距顶部-状态栏高度)
+  const gap = menuButtonInfo.top - systemInfo.statusBarHeight;
+  navHeight.value = menuButtonInfo.bottom + gap;
+  // #endif
+  
+  // #ifndef MP-WEIXIN
+  navHeight.value = systemInfo.statusBarHeight + 44;
+  menuButtonTop.value = systemInfo.statusBarHeight + 6; // 大致居中
+  // #endif
+});
+
+onPageScroll((e) => {
+  showNavTitle.value = e.scrollTop > 50;
 });
 </script>
 
@@ -508,12 +553,13 @@ onMounted(() => {
   min-height: 100vh;
   background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
   position: relative;
-  overflow: hidden;
+  /* overflow: hidden; Removed to allow scrolling */
+  box-sizing: border-box;
 }
 
 // 背景装饰
 .bg-decoration {
-  position: absolute;
+  position: fixed; /* Fixed to stay in background while scrolling */
   width: 100%;
   height: 100%;
   overflow: hidden;
@@ -562,72 +608,100 @@ onMounted(() => {
   }
 }
 
-// 顶部信息
-.header {
-  position: relative;
-  padding: 80rpx 40rpx 40rpx;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  z-index: 10;
+// 自定义导航栏
+.custom-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 100;
+  pointer-events: none;
+  box-sizing: border-box;
+  transition: background 0.3s;
   
-  .back-btn {
-    width: 80rpx;
-    height: 80rpx;
-    background: rgba(255, 255, 255, 0.1);
+  &.nav-scrolled {
+    background: rgba(22, 33, 62, 0.95);
     backdrop-filter: blur(10px);
-    border-radius: 50%;
+    box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.2);
+  }
+  
+  .nav-content {
+    position: relative;
     display: flex;
     align-items: center;
-    justify-content: center;
+    padding: 0 20rpx;
     
-    .icon {
-      font-size: 40rpx;
-      color: #ffffff;
+    .back-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(10px);
+      border-radius: 50%;
+      pointer-events: auto;
+      
+      .icon {
+        font-size: 36rpx;
+        color: #fff;
+      }
     }
-  }
-  
-  .header-info {
-    flex: 1;
-    margin: 0 30rpx;
     
-    .title {
-      display: block;
-      font-size: 40rpx;
+    .nav-title {
+      flex: 1;
+      text-align: center;
+      font-size: 32rpx;
       font-weight: bold;
-      color: #ffffff;
-      margin-bottom: 10rpx;
-    }
-    
-    .subtitle {
-      display: block;
-      font-size: 24rpx;
-      color: rgba(255, 255, 255, 0.7);
+      color: #fff;
+      margin-right: 32px;
+      transition: opacity 0.3s;
     }
   }
+}
+
+// 页面顶部信息区
+.activity-header {
+  padding: 20rpx 40rpx;
+  text-align: center;
+  position: relative;
+  z-index: 10;
   
-  .header-right {
+  .main-title {
+    display: block;
+    font-size: 48rpx;
+    font-weight: bold;
+    color: #ffffff;
+    margin-bottom: 12rpx;
+    text-shadow: 0 2rpx 4rpx rgba(0, 0, 0, 0.3);
+  }
+  
+  .subtitle {
+    display: block;
+    font-size: 26rpx;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 40rpx;
+  }
+  
+  .action-bar {
     display: flex;
-    flex-direction: column;
-    gap: 20rpx;
+    justify-content: center;
+    gap: 30rpx;
     
     .remain-times {
       background: linear-gradient(135deg, #667eea, #764ba2);
-      padding: 20rpx 30rpx;
-      border-radius: 40rpx;
-      text-align: center;
-      box-shadow: 0 8rpx 24rpx rgba(102, 126, 234, 0.4);
+      padding: 12rpx 30rpx;
+      border-radius: 30rpx;
+      display: flex;
+      align-items: center;
+      gap: 10rpx;
+      box-shadow: 0 4rpx 12rpx rgba(102, 126, 234, 0.4);
       
       .label {
-        display: block;
-        font-size: 22rpx;
-        color: rgba(255, 255, 255, 0.8);
-        margin-bottom: 5rpx;
+        font-size: 24rpx;
+        color: rgba(255, 255, 255, 0.9);
       }
       
       .count {
-        display: block;
-        font-size: 36rpx;
+        font-size: 32rpx;
         font-weight: bold;
         color: #ffffff;
       }
@@ -636,28 +710,21 @@ onMounted(() => {
     .my-prizes-btn {
       background: rgba(255, 255, 255, 0.15);
       backdrop-filter: blur(10px);
-      padding: 16rpx 24rpx;
-      border-radius: 40rpx;
+      padding: 12rpx 30rpx;
+      border-radius: 30rpx;
       display: flex;
       align-items: center;
-      gap: 8rpx;
-      box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.1);
+      gap: 10rpx;
+      border: 1px solid rgba(255, 255, 255, 0.2);
       transition: all 0.3s;
       
       &:active {
-        transform: scale(0.95);
-        background: rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.25);
+        transform: scale(0.98);
       }
       
-      .icon {
-        font-size: 28rpx;
-      }
-      
-      .text {
-        font-size: 24rpx;
-        color: #ffffff;
-        font-weight: 600;
-      }
+      .icon { font-size: 28rpx; }
+      .text { font-size: 24rpx; color: #fff; font-weight: 600; }
     }
   }
 }
@@ -834,6 +901,7 @@ onMounted(() => {
 // 奖品列表
 .prize-list {
   padding: 40rpx;
+  margin-bottom: 40rpx;
   
   .list-title {
     display: flex;
@@ -854,22 +922,19 @@ onMounted(() => {
     }
   }
   
-  .prize-scroll {
-    max-height: 400rpx;
-  }
-  
-  .prize-item {
-    background: rgba(255, 255, 255, 0.1);
+  .prize-card-item {
+    background: rgba(255, 255, 255, 0.08);
     backdrop-filter: blur(10px);
     border-radius: 20rpx;
     padding: 30rpx;
     margin-bottom: 20rpx;
     display: flex;
     align-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.05);
     
     .prize-icon {
       font-size: 60rpx;
-      margin-right: 20rpx;
+      margin-right: 24rpx;
     }
     
     .prize-info {
@@ -892,11 +957,20 @@ onMounted(() => {
     
     .prize-stock {
       .stock-text {
-        font-size: 22rpx;
-        color: rgba(255, 255, 255, 0.8);
+        font-size: 24rpx;
+        color: #ff6b6b;
+        font-weight: bold;
+        background: rgba(0,0,0,0.2);
+        padding: 4rpx 12rpx;
+        border-radius: 10rpx;
       }
     }
   }
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+  height: 40rpx;
 }
 
 // 中奖弹窗

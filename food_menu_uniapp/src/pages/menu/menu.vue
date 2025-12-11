@@ -218,7 +218,7 @@ const favoriteIds = ref(new Set())
 const cartPopupVisible = ref(false)
 const tagIconMap = ref({})
 const searchKeyword = ref('')
-const isCompactMode = ref(false)
+const isCompactMode = ref(true)
 let searchTimer = null
 
 // 切换视图模式
