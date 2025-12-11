@@ -530,3 +530,14 @@ export const updateLoginPassword = (oldPassword, newPassword) => {
     })
 }
 
+/**
+ * 获取系统配置
+ * @param {String} key 配置键
+ */
+export const getSystemConfig = (key) => {
+    return request({
+        url: `/systemConfig/${key}`,
+        method: 'GET'
+    })
+}
+

@@ -207,11 +207,26 @@ const handleRegister = async () => {
     }, 1500)
   } catch (error) {
     console.error('注册失败:', error)
-    uni.showToast({
-      title: error.message || '注册失败，请重试',
-      icon: 'none',
-      duration: 2000
-    })
+    
+    // 检查是否是注册功能关闭的错误
+    const errorMsg = error.message || '注册失败，请重试'
+    if (errorMsg.includes('注册功能已关闭') || errorMsg.includes('已关闭')) {
+      uni.showModal({
+        title: '提示',
+        content: '用户注册功能已关闭，请联系管理员开通账号',
+        showCancel: false,
+        confirmText: '知道了',
+        success: () => {
+          uni.navigateBack()
+        }
+      })
+    } else {
+      uni.showToast({
+        title: errorMsg,
+        icon: 'none',
+        duration: 2000
+      })
+    }
   }
 }
 

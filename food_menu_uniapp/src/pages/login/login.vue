@@ -61,7 +61,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { wxLogin } from '@/api/index'
+import { wxLogin, getSystemConfig } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 
 // 使用主题
@@ -88,10 +88,34 @@ const switchTheme = () => {
   })
 }
 
-const goToRegister = () => {
-  uni.navigateTo({
-    url: '/pages/register/register'
-  })
+const goToRegister = async () => {
+  try {
+    // 检查注册开关
+    const res = await getSystemConfig('user_register_enabled')
+    const registerEnabled = res.data?.configValue
+    
+    // 如果注册功能已关闭,显示提示
+    if (registerEnabled === 'false' || registerEnabled === '0') {
+      uni.showModal({
+        title: '提示',
+        content: '用户注册功能已关闭，请联系管理员开通账号',
+        showCancel: false,
+        confirmText: '知道了'
+      })
+      return
+    }
+    
+    // 注册功能开启,跳转到注册页面
+    uni.navigateTo({
+      url: '/pages/register/register'
+    })
+  } catch (error) {
+    console.error('检查注册开关失败:', error)
+    // 如果检查失败,仍然允许跳转(降级处理)
+    uni.navigateTo({
+      url: '/pages/register/register'
+    })
+  }
 }
 
 onMounted(() => {

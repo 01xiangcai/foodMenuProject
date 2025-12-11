@@ -41,6 +41,9 @@ public class WxUserController {
     @Autowired
     private com.yao.food_menu.common.util.JwtUtil jwtUtil;
 
+    @Autowired
+    private com.yao.food_menu.service.SystemConfigService systemConfigService;
+
     /**
      * 发送验证码
      */
@@ -87,6 +90,19 @@ public class WxUserController {
         log.info("用户注册: {}", registerDto);
 
         try {
+            // 检查用户注册开关
+            String registerEnabled = systemConfigService.getConfigValue("user_register_enabled");
+            log.info("用户注册开关配置值: {}", registerEnabled);
+
+            // 如果配置值为 "false", "0", 或布尔值 false,则禁止注册
+            if (registerEnabled != null) {
+                String normalizedValue = registerEnabled.trim().toLowerCase();
+                if ("false".equals(normalizedValue) || "0".equals(normalizedValue)) {
+                    log.warn("用户注册功能已关闭");
+                    return Result.error("用户注册功能已关闭，请联系管理员");
+                }
+            }
+
             if (!StringUtils.hasText(registerDto.getUsername()) || !StringUtils.hasText(registerDto.getPassword())) {
                 return Result.error("用户名和密码不能为空");
             }
