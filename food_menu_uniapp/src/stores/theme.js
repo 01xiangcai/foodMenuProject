@@ -180,12 +180,18 @@ const themeConfig = computed(() => {
     }
 })
 
+// 应用当前主题
+const applyCurrentTheme = () => {
+    applyTheme(currentTheme.value)
+}
+
 // 导出主题相关功能
 export const useTheme = () => {
     return {
         currentTheme,
         themeConfig,
         toggleTheme,
-        loadTheme
+        loadTheme,
+        applyCurrentTheme
     }
 }

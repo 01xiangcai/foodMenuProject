@@ -98,7 +98,7 @@ import { useTheme } from '@/stores/theme'
 import { getDishImage } from '@/utils/image'
 
 // 使用主题
-const { themeConfig, loadTheme } = useTheme()
+const { themeConfig, loadTheme, applyCurrentTheme } = useTheme()
 
 // 响应式数据
 const currentTime = ref('')
@@ -218,13 +218,23 @@ onUnmounted(() => {
 })
 
 // 页面转发配置
-import { onShareAppMessage } from '@dcloudio/uni-app'
+import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 
 onShareAppMessage((res) => {
   return {
     title: '美食菜单 - 家宴能量中心',
     path: '/pages/index/index',
     imageUrl: banners.value.length > 0 ? banners.value[0].image : '' // 使用第一张轮播图作为分享图
+  }
+})
+
+// 每次页面显示时重新应用主题（修复Tab页切换导致导航栏颜色重置的问题）
+onShow(() => {
+  applyCurrentTheme()
+  updateClock()
+  // 恢复定时器（如果被清除了）
+  if (!timer) {
+    timer = setInterval(updateClock, 1000)
   }
 })
 </script>
@@ -455,6 +465,7 @@ onShareAppMessage((res) => {
     text-overflow: ellipsis;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     line-height: 1.4;
     transition: color 0.3s ease;

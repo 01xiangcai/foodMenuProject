@@ -11,6 +11,9 @@ export default {
   },
   onShow() {
     console.log('App Show')
+    // 每次显示应用时重新应用当前主题，确保TabBar和导航栏样式正确
+    const { applyCurrentTheme } = useTheme()
+    applyCurrentTheme()
   },
   onHide() {
     console.log('App Hide')
