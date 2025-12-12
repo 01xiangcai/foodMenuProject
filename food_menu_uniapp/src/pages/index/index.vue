@@ -115,7 +115,10 @@ let timer = null
 // 更新时钟
 const updateClock = () => {
   const now = new Date()
-  currentTime.value = now.toLocaleTimeString('zh-CN', { hour12: false })
+  const h = String(now.getHours()).padStart(2, '0')
+  const m = String(now.getMinutes()).padStart(2, '0')
+  const s = String(now.getSeconds()).padStart(2, '0')
+  currentTime.value = `${h}:${m}:${s}`
 }
 
 // 加载明星菜
