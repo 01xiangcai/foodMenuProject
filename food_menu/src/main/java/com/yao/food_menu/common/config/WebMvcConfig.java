@@ -31,6 +31,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
         registry.addResourceHandler("/uploads/**")
                 .addResourceLocations("file:///" + basePath);
+
+        // 静态资源映射
+        registry.addResourceHandler("/static/**")
+                .addResourceLocations("classpath:/static/");
     }
 
     @Override
@@ -48,6 +52,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/wx/user/sendcode",
                         // 静态资源和文档
                         "/uploads/**",
+                        "/static/**",
+                        "/favicon.ico",
+                        "/error",
                         "/doc.html",
                         "/webjars/**",
                         "/swagger-resources/**",

@@ -13,22 +13,22 @@ import org.springframework.stereotype.Component;
 public class LocalStorageProperties {
 
     /**
-     * 本地存储根目录
+     * Local storage root directory (matches 'base-path' in yaml)
      */
     private String basePath = "E:/uploads/food-menu";
 
     /**
-     * 访问URL前缀
+     * Access URL prefix
      */
     private String urlPrefix = "http://localhost:8080/uploads";
 
     /**
-     * 通用文件夹
+     * General folder name
      */
     private String folder = "food-menu";
 
     /**
-     * 头像文件夹
+     * Avatar folder name
      */
     private String avatarFolder = "avatars";
 }

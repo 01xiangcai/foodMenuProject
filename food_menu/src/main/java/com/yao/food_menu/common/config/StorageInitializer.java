@@ -63,7 +63,7 @@ public class StorageInitializer implements ApplicationRunner {
             log.info("✅ 本地存储初始化成功");
         } catch (Exception e) {
             log.error("❌ 本地存储初始化失败: {}", e.getMessage());
-            log.error("请检查配置文件中的 file.storage.local.base-path 设置");
+            log.error("请检查配置文件中的 file.upload.path 设置");
             throw new IllegalStateException("本地存储初始化失败", e);
         }
     }
