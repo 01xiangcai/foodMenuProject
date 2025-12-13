@@ -1,17 +1,20 @@
 <template>
-  <view class="page">
-    <!-- Hero 区域 -->
-    <view class="hero glass-card">
-      <view class="hero-text">
+  <view class="page" :class="'theme-' + currentTheme">
+    <!-- Hero 区域: 能量中心 -->
+    <view class="header-section">
+      <view class="header-content">
         <text class="eyebrow">家宴能量中心</text>
-        <text class="hero-title">现在是 {{ currentTime }}</text>
-        <text class="hero-sub">今晚吃什么？一起投票决定</text>
+        <view class="time-display">
+          <text class="time-text">现在是 {{ currentTime }}</text>
+        </view>
+        <text class="subtitle">今晚吃什么？一起投票决定</text>
       </view>
-      <view class="hero-ring pulse"></view>
+      <!-- 保留一个微妙的装饰圆环，适配深浅模式 -->
+      <view class="decoration-ring"></view>
     </view>
 
     <!-- 轮播图 -->
-    <view class="section glass-card">
+    <view class="section carousel-section">
       <view class="section-header">
         <text class="section-title">美食轮播</text>
         <text class="mini-tip">左右滑动查看更多</text>
@@ -19,12 +22,12 @@
       <swiper 
         class="banner-swiper" 
         :indicator-dots="banners.length > 1"
-        indicator-color="rgba(255,255,255,0.3)"
-        indicator-active-color="#14b8ff"
+        indicator-color="rgba(255,255,255,0.4)"
+        indicator-active-color="var(--accent-orange)"
         :autoplay="banners.length > 1"
         :circular="banners.length > 1"
-        interval="3000"
-        duration="500"
+        interval="4000"
+        duration="600"
       >
         <swiper-item v-for="(item, index) in banners" :key="item.id">
           <view class="banner-card">
@@ -46,44 +49,60 @@
     </view>
 
     <!-- 快捷操作 -->
-    <view class="section glass-card">
-      <view class="section-header">
+    <view class="section actions-section">
+      <!-- 隐藏标题，直接展示卡片，或者保留标题视设计而定，这里保留标题但样式微调 -->
+      <!-- <view class="section-header">
         <text class="section-title">快捷操作</text>
-        <text class="mini-tip">一键触达家人</text>
-      </view>
+      </view> -->
+      
       <view class="quick-grid">
         <view 
           class="quick-card" 
-          v-for="item in quickActions" 
+          v-for="(item, index) in quickActions" 
           :key="item.label"
           @tap="navigateTo(item.link)"
+          :class="'quick-card-' + index"
         >
-          <text class="label">{{ item.label }}</text>
-          <text class="desc">{{ item.desc }}</text>
+          <!-- 这里可以用图标，目前沿用纯文字设计但增加样式 -->
+          <view class="quick-content">
+             <!-- 模拟图标 -->
+            <view class="quick-icon-placeholder">
+               <text v-if="index===0">👆</text>
+               <text v-if="index===1">📋</text>
+               <text v-if="index===2">📣</text>
+            </view>
+            <text class="action-label">{{ item.label }}</text>
+            <!-- <text class="action-desc">{{ item.desc }}</text> -->
+          </view>
         </view>
       </view>
     </view>
 
     <!-- 明星菜 -->
-    <view class="section glass-card">
+    <view class="section menu-section">
       <view class="section-header">
         <text class="section-title">明星菜</text>
-        <text class="mini-tip">AI 推荐 · 适配家庭口味</text>
+        <text class="link-text">AI 推荐 · 适配家庭口味</text>
       </view>
       <view class="dish-list">
-        <view class="dish-card" v-for="item in featuredDishes" :key="item.id" @tap="navigateToDishDetail(item.id)">
+        <view class="dish-card glass-panel" v-for="item in featuredDishes" :key="item.id" @tap="navigateToDishDetail(item.id)">
           <image class="dish-image" :src="item.image" mode="aspectFill" />
           <view class="dish-info">
-            <text class="dish-title">{{ item.title }}</text>
-            <text class="dish-desc" v-if="item.description">{{ item.description }}</text>
+            <view class="dish-main">
+                <text class="dish-title">{{ item.title }}</text>
+                <text class="dish-desc" v-if="item.description">{{ item.description }}</text>
+            </view>
             <view class="dish-meta">
-              <text class="dish-tag">{{ item.tag }}</text>
-              <text class="dish-energy" v-if="item.energy">{{ item.energy }}</text>
+              <text class="dish-tag" :class="getTagClass(item.tag)">{{ item.tag }}</text>
+              <!-- <text class="dish-energy" v-if="item.energy">{{ item.energy }}</text> -->
             </view>
           </view>
-          <view class="dish-count" v-if="item.orderCount !== undefined">
-            <text class="count-icon">🔥</text>
-            <text class="count-number">{{ item.orderCount }}</text>
+          
+          <view class="dish-action">
+            <view class="fire-badge">
+                <text class="fire-icon">🔥</text>
+                <text class="fire-count">{{ item.orderCount }}</text>
+            </view>
           </view>
         </view>
       </view>
@@ -96,9 +115,10 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { getBannerList, getTopDishes } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 import { getDishImage } from '@/utils/image'
+import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 
 // 使用主题
-const { themeConfig, loadTheme, applyCurrentTheme } = useTheme()
+const { currentTheme, loadTheme, applyCurrentTheme } = useTheme()
 
 // 响应式数据
 const currentTime = ref('')
@@ -121,6 +141,12 @@ const updateClock = () => {
   currentTime.value = `${h}:${m}:${s}`
 }
 
+// 获取标签样式类 (可选)
+const getTagClass = (tag) => {
+    // 简单返回统一类名，或根据tag内容返回不同颜色类
+    return 'tag-default'
+}
+
 // 加载明星菜
 const loadFeaturedDishes = async () => {
   try {
@@ -134,10 +160,10 @@ const loadFeaturedDishes = async () => {
           id: item.id,
           title: item.name,
           description: item.description || '',
-          tag: item.tags ? item.tags.split(',')[0] : '热销', // 没有标签时显示"热销"
-          energy: item.calories ? `${item.calories} kcal` : '', // 有卡路里时加单位
-          image: getDishImage(item), // 使用工具函数获取主图
-          orderCount: item.orderCount || 0 // 点菜次数
+          tag: item.tags ? item.tags.split(',')[0] : '热销',
+          energy: item.calories ? `${item.calories} kcal` : '',
+          image: getDishImage(item),
+          orderCount: item.orderCount || 0
         }
       })
     }
@@ -145,9 +171,9 @@ const loadFeaturedDishes = async () => {
     console.error('加载明星菜失败:', error)
     // 失败时显示默认数据
     featuredDishes.value = [
-      { title: '妈妈的招牌番茄牛腩', tag: '暖胃', energy: '482 kcal' },
-      { title: '爸爸的柠檬烤鱼', tag: '低油', energy: '328 kcal' },
-      { title: '可可的芝士焗南瓜', tag: '甜蜜', energy: '266 kcal' }
+      { title: '妈妈的招牌番茄牛腩', tag: '暖胃', energy: '482 kcal', orderCount: 9 },
+      { title: '爸爸的柠檬烤鱼', tag: '低油', energy: '328 kcal', orderCount: 5 },
+      { title: '可可的芝士焗南瓜', tag: '甜蜜', energy: '266 kcal', orderCount: 3 }
     ]
   }
 }
@@ -158,7 +184,7 @@ const loadBanners = async () => {
     const res = await getBannerList()
     const list = (res.data || []).map(item => ({
       id: item.id,
-      image: item.image || 'https://dummyimage.com/800x400/6366f1/ffffff&text=Banner',
+      image: item.image || 'https://dummyimage.com/800x400/FF7D58/ffffff&text=Banner',
       title: item.title,
       description: item.description,
       linkUrl: item.linkUrl
@@ -167,7 +193,7 @@ const loadBanners = async () => {
     if (list.length === 0) {
       list.push({
         id: 1,
-        image: 'https://dummyimage.com/800x400/6366f1/ffffff&text=家庭美食',
+        image: 'https://dummyimage.com/800x400/FF7D58/ffffff&text=家庭美食',
         title: '家庭美食精选',
         description: '每日新鲜食材，用心烹饪每一道菜'
       })
@@ -178,27 +204,24 @@ const loadBanners = async () => {
     console.error('加载轮播图失败:', error)
     banners.value = [{
       id: 1,
-      image: 'https://dummyimage.com/800x400/6366f1/ffffff&text=家庭美食',
+      image: 'https://dummyimage.com/800x400/FF7D58/ffffff&text=家庭美食',
       title: '家庭美食精选',
       description: '每日新鲜食材，用心烹饪每一道菜'
     }]
   }
 }
 
-// 轮播图加载失败
 const onBannerImageError = (index) => {
   console.error('轮播图加载失败:', index)
   if (banners.value[index]) {
-    banners.value[index].image = 'https://dummyimage.com/800x400/6366f1/ffffff&text=图片加载失败'
+    banners.value[index].image = 'https://dummyimage.com/800x400/FF7D58/ffffff&text=图片加载失败'
   }
 }
 
-// 导航
 const navigateTo = (url) => {
   uni.navigateTo({ url })
 }
 
-// 导航到菜品详情
 const navigateToDishDetail = (dishId) => {
   uni.navigateTo({ 
     url: `/pages/detail/detail?id=${dishId}` 
@@ -220,22 +243,17 @@ onUnmounted(() => {
   }
 })
 
-// 页面转发配置
-import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
-
 onShareAppMessage((res) => {
   return {
     title: '美食菜单 - 家宴能量中心',
     path: '/pages/index/index',
-    imageUrl: banners.value.length > 0 ? banners.value[0].image : '' // 使用第一张轮播图作为分享图
+    imageUrl: banners.value.length > 0 ? banners.value[0].image : ''
   }
 })
 
-// 每次页面显示时重新应用主题（修复Tab页切换导致导航栏颜色重置的问题）
 onShow(() => {
   applyCurrentTheme()
   updateClock()
-  // 恢复定时器（如果被清除了）
   if (!timer) {
     timer = setInterval(updateClock, 1000)
   }
@@ -244,290 +262,299 @@ onShow(() => {
 
 <style lang="scss" scoped>
 .page {
-  padding: 20rpx;
+  padding: 0 20rpx; /* 左右间距 20px */
   min-height: 100vh;
-  background-color: v-bind('themeConfig.bgPrimary');
-  transition: background-color 0.3s ease;
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  padding-bottom: 40rpx;
 }
 
-.hero {
-  position: relative;
-  padding: 60rpx 40rpx;
-  margin-bottom: 20rpx;
-  overflow: hidden;
-  background: v-bind('themeConfig.cardBg');
-  backdrop-filter: blur(10px);
-  border: 1px solid v-bind('themeConfig.cardBorder');
-  border-radius: 16rpx;
-  transition: all 0.3s ease;
-  
-  .hero-text {
-    position: relative;
-    z-index: 2;
-    
-    .eyebrow {
-      display: block;
-      font-size: 24rpx;
-      color: v-bind('themeConfig.primaryColor');
-      margin-bottom: 16rpx;
-      font-weight: 600;
-      letter-spacing: 2rpx;
-      transition: color 0.3s ease;
-    }
-    
-    .hero-title {
-      display: block;
-      font-size: 48rpx;
-      font-weight: 700;
-      color: v-bind('themeConfig.textPrimary');
-      margin-bottom: 16rpx;
-      transition: color 0.3s ease;
-    }
-    
-    .hero-sub {
-      display: block;
-      font-size: 28rpx;
-      color: v-bind('themeConfig.textSecondary');
-      transition: color 0.3s ease;
-    }
-  }
-  
-  .hero-ring {
-    position: absolute;
-    right: -100rpx;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 300rpx;
-    height: 300rpx;
-    border-radius: 50%;
-    background: radial-gradient(circle, v-bind('themeConfig.primaryColor + "33"') 0%, transparent 70%);
-    z-index: 1;
-    transition: background 0.3s ease;
-  }
-}
-
+/* 通用部分样式 */
 .section {
-  margin-bottom: 20rpx;
-  padding: 30rpx;
-  background: v-bind('themeConfig.cardBg');
-  backdrop-filter: blur(10px);
-  border: 1px solid v-bind('themeConfig.cardBorder');
-  border-radius: 16rpx;
-  transition: all 0.3s ease;
-  
-  .section-header {
+    margin-bottom: 32rpx; /* 模块间距 */
+}
+
+.section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 24rpx;
-    
+    padding: 0 10rpx;
+
     .section-title {
-      font-size: 32rpx;
-      font-weight: 700;
-      color: v-bind('themeConfig.textPrimary');
-      transition: color 0.3s ease;
-    }
-    
-    .mini-tip {
-      font-size: 24rpx;
-      color: v-bind('themeConfig.textSecondary');
-      transition: color 0.3s ease;
-    }
-  }
-}
-
-.banner-swiper {
-  width: 100%;
-  height: 360rpx;
-  border-radius: 16rpx;
-  overflow: hidden;
-  
-  .banner-card {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    
-    .banner-image {
-      width: 100%;
-      height: 100%;
-    }
-    
-    .banner-overlay {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      padding: 30rpx;
-      background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
-      
-      .banner-title {
-        display: block;
-        font-size: 32rpx;
+        font-size: 34rpx;
         font-weight: 700;
-        color: #fff;
-        margin-bottom: 8rpx;
-      }
-      
-      .banner-desc {
-        display: block;
+        color: var(--text-primary);
+    }
+
+    .mini-tip, .link-text {
         font-size: 24rpx;
-        color: rgba(255, 255, 255, 0.8);
-      }
+        color: var(--text-secondary);
     }
-  }
 }
 
-.quick-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20rpx;
-  
-  .quick-card {
-    background: v-bind('themeConfig.primaryColor + "1a"');
-    border: 1px solid v-bind('themeConfig.primaryColor + "33"');
-    border-radius: 16rpx;
-    padding: 30rpx 20rpx;
+/* Header / 能量中心 */
+.header-section {
+    position: relative;
+    padding: 60rpx 20rpx 40rpx;
+    margin-bottom: 20rpx;
     text-align: center;
-    transition: all 0.3s ease;
-    
-    &:active {
-      transform: scale(0.95);
-      background: v-bind('themeConfig.primaryColor + "33"');
+    overflow: hidden;
+
+    .header-content {
+        position: relative;
+        z-index: 2;
     }
-    
-    .label {
-      display: block;
-      font-size: 28rpx;
-      font-weight: 600;
-      color: v-bind('themeConfig.primaryColor');
-      margin-bottom: 8rpx;
-      transition: color 0.3s ease;
+
+    .eyebrow {
+        font-size: 24rpx;
+        color: var(--accent-orange);
+        letter-spacing: 2rpx;
+        margin-bottom: 10rpx;
+        display: block;
+        font-weight: 600;
     }
-    
-    .desc {
-      display: block;
-      font-size: 22rpx;
-      color: v-bind('themeConfig.textSecondary');
-      transition: color 0.3s ease;
+
+    .time-display {
+        margin: 20rpx 0;
+        
+        .time-text {
+            font-size: 80rpx; /* 48px+ -> 48*2 = 96rpx approx */
+            font-weight: 800;
+            color: var(--text-primary);
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+        }
     }
-  }
+
+    .subtitle {
+        font-size: 28rpx;
+        color: var(--text-secondary);
+    }
+
+    /* 装饰圆环，模拟 Header 区域的柔和背景光效 */
+    .decoration-ring {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 300rpx;
+        height: 300rpx;
+        background: radial-gradient(circle, var(--accent-orange) 0%, transparent 70%);
+        opacity: 0.1;
+        filter: blur(40px);
+        z-index: 1;
+        pointer-events: none;
+    }
 }
 
-.dish-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16rpx;
-  
-  .dish-card {
-    display: flex;
-    gap: 20rpx;
-    padding: 20rpx;
-    background: v-bind('themeConfig.bgSecondary');
-    border-radius: 16rpx;
-    border: 1px solid v-bind('themeConfig.borderColor');
-    transition: all 0.3s ease;
-    
-    &:active {
-      transform: scale(0.98);
-      opacity: 0.9;
+/* 轮播图 */
+.carousel-section {
+    .banner-swiper {
+        height: 360rpx;
+        border-radius: var(--card-radius);
+        overflow: hidden;
+        box-shadow: var(--shadow-soft);
     }
-  }
-  
-  .dish-image {
-    width: 120rpx;
-    height: 120rpx;
-    border-radius: 12rpx;
-    flex-shrink: 0;
-    background: v-bind('themeConfig.bgTertiary');
-  }
-  
-  .dish-info {
-    flex: 1;
+
+    .banner-card {
+        width: 100%;
+        height: 100%;
+        position: relative;
+
+        .banner-image {
+            width: 100%;
+            height: 100%;
+            border-radius: var(--card-radius);
+        }
+
+        .banner-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 40rpx 30rpx 30rpx;
+            background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%);
+            border-bottom-left-radius: var(--card-radius);
+            border-bottom-right-radius: var(--card-radius);
+
+            .banner-title {
+                color: #fff;
+                font-size: 32rpx;
+                font-weight: 700;
+                display: block;
+                margin-bottom: 8rpx;
+            }
+
+            .banner-desc {
+                color: rgba(255,255,255,0.9);
+                font-size: 24rpx;
+            }
+        }
+    }
+}
+
+/* 快捷操作 */
+.quick-grid {
     display: flex;
-    flex-direction: column;
     justify-content: space-between;
-    min-width: 0;
-  }
-  
-  .dish-title {
-    font-size: 30rpx;
-    font-weight: 600;
-    color: v-bind('themeConfig.textPrimary');
-    margin-bottom: 8rpx;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    transition: color 0.3s ease;
-  }
-  
-  .dish-desc {
-    font-size: 24rpx;
-    color: v-bind('themeConfig.textSecondary');
-    margin-bottom: 8rpx;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    line-height: 1.4;
-    transition: color 0.3s ease;
-  }
-  
-  .dish-meta {
-    display: flex;
-    align-items: center;
-    gap: 12rpx;
-    flex-wrap: wrap;
-  }
-  
-  .dish-tag {
-    font-size: 22rpx;
-    color: v-bind('themeConfig.primaryColor');
-    background: v-bind('themeConfig.primaryColor + "1a"');
-    padding: 4rpx 12rpx;
-    border-radius: 8rpx;
-    transition: all 0.3s ease;
-  }
-  
-  .dish-energy {
-    font-size: 22rpx;
-    color: v-bind('themeConfig.textSecondary');
-    transition: color 0.3s ease;
-  }
-  
-  .dish-count {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 8rpx 16rpx;
-    background: v-bind('themeConfig.primaryColor + "1a"');
-    border-radius: 12rpx;
-    min-width: 80rpx;
-    
-    .count-icon {
-      font-size: 32rpx;
-      margin-bottom: 4rpx;
+    gap: 20rpx;
+
+    .quick-card {
+        flex: 1;
+        background: var(--bg-card);
+        /* backdrop-filter: blur(10px); 兼容性注意 */
+        border-radius: 20rpx;
+        padding: 30rpx 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        box-shadow: var(--shadow-soft);
+        transition: transform 0.2s;
+        
+        &:active {
+            transform: scale(0.96);
+        }
+        
+        /* 每个按钮使用不同的淡彩背景 */
+        &.quick-card-0 { /* 一键叫饭 - 蓝/紫 */
+             background: linear-gradient(135deg, rgba(20, 184, 255, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%);
+             .quick-icon-placeholder { background: linear-gradient(135deg, #14b8ff, #a855f7); }
+        }
+        &.quick-card-1 { /* 今日菜单 - 橙/红 */
+            background: linear-gradient(135deg, rgba(255, 159, 67, 0.1) 0%, rgba(255, 125, 88, 0.1) 100%);
+             .quick-icon-placeholder { background: linear-gradient(135deg, #ff9f43, #ff7d58); }
+        }
+        &.quick-card-2 { /* 营销活动 - 绿/青 */
+             background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(52, 211, 153, 0.1) 100%);
+             .quick-icon-placeholder { background: linear-gradient(135deg, #10b981, #34d399); }
+        }
+
+        .quick-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .quick-icon-placeholder {
+            width: 80rpx;
+            height: 80rpx;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16rpx;
+            color: #fff;
+            font-size: 36rpx;
+            box-shadow: 0 4rpx 10rpx rgba(0,0,0,0.1);
+        }
+
+        .action-label {
+            font-size: 26rpx;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
     }
-    
-    .count-number {
-      font-size: 24rpx;
-      font-weight: 600;
-      color: v-bind('themeConfig.primaryColor');
-      transition: color 0.3s ease;
-    }
-  }
 }
 
-// 玻璃拟态卡片样式
-.glass-card {
-  background: v-bind('themeConfig.cardBg');
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid v-bind('themeConfig.cardBorder');
-  box-shadow: v-bind('themeConfig.shadowLight');
-  transition: all 0.3s ease;
+/* 明星菜列表 */
+.dish-list {
+    display: flex;
+    flex-direction: column;
+    gap: 24rpx;
+
+    .dish-card {
+        background: var(--bg-card);
+        border-radius: var(--card-radius);
+        padding: 24rpx;
+        display: flex;
+        align-items: center;
+        gap: 24rpx;
+        box-shadow: var(--shadow-soft);
+        position: relative;
+        overflow: hidden;
+
+        /* 毛玻璃效果强化 深色模式 */
+        .theme-dark & {
+           background: rgba(30, 41, 59, 0.7);
+           border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .dish-image {
+            width: 140rpx;
+            height: 140rpx;
+            border-radius: 20rpx;
+            background-color: var(--bg-input);
+            flex-shrink: 0;
+        }
+
+        .dish-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 120rpx;
+            padding-right: 20rpx;
+        }
+
+        .dish-title {
+            font-size: 32rpx;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8rpx;
+        }
+
+        .dish-desc {
+            font-size: 24rpx;
+            color: var(--text-secondary);
+            display: -webkit-box;
+            -webkit-line-clamp: 1;
+            line-clamp: 1;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-bottom: 12rpx;
+        }
+
+        .dish-tag {
+            align-self: flex-start;
+            font-size: 20rpx;
+            color: #fff;
+            background: var(--accent-orange);
+            padding: 4rpx 12rpx;
+            border-radius: 8rpx;
+            opacity: 0.9;
+        }
+
+        .dish-action {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            
+            .fire-badge {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                /* background: var(--bg-input); */
+                border-radius: 12rpx;
+                padding: 10rpx;
+                min-width: 60rpx;
+
+                .fire-icon {
+                    font-size: 36rpx;
+                    margin-bottom: 4rpx;
+                    filter: drop-shadow(0 2px 4px rgba(255, 69, 0, 0.3));
+                }
+
+                .fire-count {
+                    font-size: 22rpx;
+                    font-weight: 700;
+                    color: var(--accent-orange);
+                }
+            }
+        }
+    }
 }
 </style>
-

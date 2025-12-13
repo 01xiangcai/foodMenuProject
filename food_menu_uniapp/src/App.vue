@@ -33,20 +33,40 @@ export default {
 /* 导入全局样式 */
 @import '@/styles/global.scss';
 
-/* 全局页面背景 - 使用主题色 */
+/* Theme CSS Variables */
+:root, page {
+  /* 默认浅色模式 (Light Mode) */
+  --bg-page: #FDFBF7; /* 暖米色背景 */
+  --bg-card: #FFFFFF; /* 纯白卡片 */
+  --bg-input: #F3F4F6;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-tertiary: #999999;
+  --accent-orange: #FF7D58; /* 活力橙 */
+  --accent-gradient: linear-gradient(135deg, #FF9F43 0%, #FF7D58 100%);
+  --shadow-soft: 0 8px 20px rgba(0, 0, 0, 0.06);
+  --border-color: rgba(0, 0, 0, 0.05);
+  --card-radius: 16px;
+}
+
+/* 深色模式 (Dark Mode) - 通过类名控制 */
+.theme-dark {
+  --bg-page: #0F172A; /* 深邃蓝 */
+  --bg-card: rgba(30, 41, 59, 0.7); /* 磨砂玻璃质感 */
+  --bg-input: rgba(30, 41, 59, 0.5);
+  --text-primary: #E2E8F0;
+  --text-secondary: #94A3B8;
+  --text-tertiary: #64748B;
+  --shadow-soft: 0 8px 20px rgba(0, 0, 0, 0.3);
+  --border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* 全局页面背景 - 使用 CSS 变量 */
 page {
-  background-color: #050a1f;
-  transition: background-color 0.3s ease;
-}
-
-/* 深色主题（科技） */
-page.theme-dark {
-  background-color: #050a1f;
-}
-
-/* 浅色主题（家庭） */
-page.theme-light {
-  background-color: #f8f9fa;
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
 
 /* 底部导航栏圆角样式 - 更圆润 */
@@ -85,5 +105,4 @@ page {
   padding-bottom: env(safe-area-inset-bottom);
 }
 /* #endif */
-
 </style>
