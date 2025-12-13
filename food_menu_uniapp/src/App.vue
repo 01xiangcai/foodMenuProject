@@ -37,6 +37,7 @@ export default {
 :root, page {
   /* 默认浅色模式 (Light Mode) */
   --bg-page: #FDFBF7; /* 暖米色背景 */
+  --bg-gradient-top: #fff7ea; /* 浅色模式顶部光晕 */
   --bg-card: #FFFFFF; /* 纯白卡片 */
   --bg-input: #F3F4F6;
   --text-primary: #333333;
@@ -52,6 +53,7 @@ export default {
 /* 深色模式 (Dark Mode) - 通过类名控制 */
 .theme-dark {
   --bg-page: #0F172A; /* 深邃蓝 */
+  --bg-gradient-top: #1a1c29; /* 深色模式顶部光晕 */
   --bg-card: rgba(30, 41, 59, 0.7); /* 磨砂玻璃质感 */
   --bg-input: rgba(30, 41, 59, 0.5);
   --text-primary: #E2E8F0;
@@ -64,6 +66,9 @@ export default {
 /* 全局页面背景 - 使用 CSS 变量 */
 page {
   background-color: var(--bg-page);
+  /* 全局增加微妙的顶部渐变，打破单调 */
+  background-image: linear-gradient(to bottom, var(--bg-gradient-top) 0%, var(--bg-page) 35%);
+  background-attachment: fixed;
   color: var(--text-primary);
   transition: background-color 0.3s ease, color 0.3s ease;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;

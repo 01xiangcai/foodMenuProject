@@ -1,23 +1,33 @@
 <template>
   <view class="page" :class="'theme-' + currentTheme">
     <!-- Hero 区域: 能量中心 -->
-    <view class="header-section">
-      <view class="header-content">
-        <text class="eyebrow">家宴能量中心</text>
-        <view class="time-display">
-          <text class="time-text">现在是 {{ currentTime }}</text>
+    <!-- Hero 区域: 动态能量卡片 -->
+    <view class="hero-card">
+      <view class="hero-bg"></view>
+      <view class="hero-content">
+        <view class="hero-text">
+          <view class="greeting-row">
+            <text class="greeting-text">{{ timeState.greeting }}</text>
+            <text class="greeting-emoji">{{ timeState.emoji }}</text>
+          </view>
+          <text class="hero-title">今天想吃点什么？</text>
+          <text class="hero-subtitle">家宴能量中心 · {{ currentTime }}</text>
         </view>
-        <text class="subtitle">今晚吃什么？一起投票决定</text>
+        <view class="hero-visual">
+          <text class="hero-icon floated">🥘</text>
+        </view>
       </view>
-      <!-- 保留一个微妙的装饰圆环，适配深浅模式 -->
-      <view class="decoration-ring"></view>
+      <view class="hero-action" @tap="navigateTo('/pages/vote/initiate')">
+        <text class="action-text">开始投票</text>
+        <text class="action-arrow">→</text>
+      </view>
     </view>
 
     <!-- 轮播图 -->
     <view class="section carousel-section">
       <view class="section-header">
-        <text class="section-title">美食轮播</text>
-        <text class="mini-tip">左右滑动查看更多</text>
+        <!-- <text class="section-title">美食轮播</text> -->
+        <!-- <text class="mini-tip">左右滑动查看更多</text> -->
       </view>
       <swiper 
         class="banner-swiper" 
@@ -129,6 +139,10 @@ const quickActions = ref([
   { label: '营销活动', desc: '参与抽奖赢好礼', link: '/pages/marketing/activity-list' }
 ])
 const featuredDishes = ref([])
+const timeState = ref({
+  greeting: '你好',
+  emoji: '👋'
+})
 
 let timer = null
 
@@ -139,6 +153,21 @@ const updateClock = () => {
   const m = String(now.getMinutes()).padStart(2, '0')
   const s = String(now.getSeconds()).padStart(2, '0')
   currentTime.value = `${h}:${m}:${s}`
+}
+
+const updateGreeting = () => {
+    const hour = new Date().getHours()
+    if (hour >= 5 && hour < 11) {
+        timeState.value = { greeting: '早安，开启活力一天', emoji: '🍳' }
+    } else if (hour >= 11 && hour < 14) {
+        timeState.value = { greeting: '午安，记得按时吃饭', emoji: '🍱' }
+    } else if (hour >= 14 && hour < 17) {
+        timeState.value = { greeting: '午后时光，来点下午茶', emoji: '☕' }
+    } else if (hour >= 17 && hour < 22) {
+        timeState.value = { greeting: '晚上好，犒劳一下自己', emoji: '🍷' }
+    } else {
+        timeState.value = { greeting: '夜深了，早点休息', emoji: '🌙' }
+    }
 }
 
 // 获取标签样式类 (可选)
@@ -231,8 +260,14 @@ const navigateToDishDetail = (dishId) => {
 // 生命周期
 onMounted(() => {
   loadTheme()
+  loadTheme()
   updateClock()
-  timer = setInterval(updateClock, 1000)
+  updateGreeting()
+  timer = setInterval(() => {
+    updateClock()
+    // 每分钟更新一次问候语，简单起见放在这里或者单独计时
+    if (new Date().getSeconds() === 0) updateGreeting()
+  }, 1000)
   loadBanners()
   loadFeaturedDishes()
 })
@@ -254,6 +289,7 @@ onShareAppMessage((res) => {
 onShow(() => {
   applyCurrentTheme()
   updateClock()
+  updateGreeting()
   if (!timer) {
     timer = setInterval(updateClock, 1000)
   }
@@ -264,7 +300,8 @@ onShow(() => {
 .page {
   padding: 0 20rpx; /* 左右间距 20px */
   min-height: 100vh;
-  background-color: var(--bg-page);
+  /* 基础背景色 */
+  background-color: var(--bg-page); 
   color: var(--text-primary);
   transition: background-color 0.3s ease, color 0.3s ease;
   padding-bottom: 40rpx;
@@ -294,59 +331,192 @@ onShow(() => {
     }
 }
 
-/* Header / 能量中心 */
-.header-section {
+/* Header / 动态能量卡片 */
+.hero-card {
     position: relative;
-    padding: 60rpx 20rpx 40rpx;
-    margin-bottom: 20rpx;
-    text-align: center;
+    /* height: 320rpx; 高度自适应或固定 */
+    border-radius: 32rpx;
+    margin-bottom: 32rpx;
     overflow: hidden;
+    /* 浅色模式下背景变浅，文字改为深色以保证对比度 */
+    color: #555; 
+    /* 基础阴影 */
+    box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.08);
+}
 
-    .header-content {
-        position: relative;
-        z-index: 2;
-    }
+.theme-dark .hero-card {
+    /* 深色模式保持白字 */
+    color: #fff;
+}
 
-    .eyebrow {
-        font-size: 24rpx;
-        color: var(--accent-orange);
-        letter-spacing: 2rpx;
-        margin-bottom: 10rpx;
-        display: block;
-        font-weight: 600;
-    }
+/* 动态背景 - 极光效果 */
+.hero-bg {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    /* 调浅颜色：柔和杏色/桃色渐变 */
+    background: linear-gradient(135deg, #ffecd2, #fcb69f, #ffecd2);
+    // background: linear-gradient(135deg, #fad0c4, #ffd1ff); /* 备选：糖果粉 */
+    background-size: 200% 200%;
+    animation: aurora 10s ease infinite;
+    z-index: 0;
+}
 
-    .time-display {
-        margin: 20rpx 0;
-        
-        .time-text {
-            font-size: 80rpx; /* 48px+ -> 48*2 = 96rpx approx */
-            font-weight: 800;
-            color: var(--text-primary);
-            line-height: 1;
-            font-variant-numeric: tabular-nums;
-        }
-    }
+/* 深色模式背景调整 - 降低饱和度，更柔和 */
+.theme-dark .hero-bg {
+    /* 柔和的深夜蓝紫 */
+    background: linear-gradient(135deg, #2b5876, #4e4376, #2b5876);
+}
 
-    .subtitle {
-        font-size: 28rpx;
-        color: var(--text-secondary);
-    }
+@keyframes aurora {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
 
-    /* 装饰圆环，模拟 Header 区域的柔和背景光效 */
-    .decoration-ring {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 300rpx;
-        height: 300rpx;
-        background: radial-gradient(circle, var(--accent-orange) 0%, transparent 70%);
-        opacity: 0.1;
-        filter: blur(40px);
-        z-index: 1;
-        pointer-events: none;
-    }
+.hero-content {
+    position: relative;
+    z-index: 2;
+    padding: 40rpx 30rpx;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.hero-text {
+    flex: 1;
+}
+
+.greeting-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12rpx;
+  animation: slideUp 0.6s ease-out;
+}
+
+.greeting-text {
+    font-size: 28rpx;
+    font-weight: 500;
+    opacity: 0.9;
+    margin-right: 10rpx;
+}
+
+.greeting-emoji {
+    font-size: 32rpx;
+}
+
+.hero-title {
+    display: block;
+    font-size: 44rpx; /* 大标题 */
+    font-weight: 800;
+    margin-bottom: 12rpx;
+    letter-spacing: 1rpx;
+    /* 浅色模式阴影减弱 */
+    text-shadow: 0 2rpx 5rpx rgba(255,255,255,0.5);
+    animation: slideUp 0.6s ease-out 0.1s backwards;
+}
+
+.theme-dark .hero-title {
+    text-shadow: 0 2rpx 10rpx rgba(0,0,0,0.1);
+}
+
+.hero-subtitle {
+    display: block;
+    font-size: 22rpx;
+    opacity: 0.8;
+    font-weight: 400;
+    animation: slideUp 0.6s ease-out 0.2s backwards;
+}
+
+.hero-visual {
+    position: absolute;
+    right: 20rpx;
+    top: 20rpx;
+    width: 140rpx;
+    height: 140rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none; /* 穿透点击 */
+}
+
+.hero-icon {
+    font-size: 100rpx;
+    filter: drop-shadow(0 10rpx 10rpx rgba(0,0,0,0.1));
+}
+
+/* 悬浮动画 */
+.floated {
+    animation: float 4s ease-in-out infinite;
+}
+
+@keyframes float {
+    0% { transform: translateY(0px) rotate(0deg); }
+    50% { transform: translateY(-10px) rotate(2deg); }
+    100% { transform: translateY(0px) rotate(0deg); }
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(10rpx); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 行动号召按钮区 */
+.hero-action {
+    position: relative;
+    z-index: 2;
+    margin: 0 30rpx 30rpx;
+    
+    /* 浅色模式按钮：半透明白底 + 深色文字 */
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(10px);
+    border-radius: 50rpx;
+    padding: 16rpx 30rpx;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 240rpx; /* 胶囊宽度 */
+    transition: transform 0.2s;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.theme-dark .hero-action {
+    /* 深色模式按钮 */
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.hero-action:active {
+    transform: scale(0.96);
+    background: rgba(255, 255, 255, 0.8);
+}
+
+.theme-dark .hero-action:active {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.action-text {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #333; /* 浅色模式为深色字 */
+}
+
+.theme-dark .action-text {
+    color: #fff;
+}
+
+.action-arrow {
+    font-size: 28rpx;
+    color: #333;
+    font-weight: 700;
+    transition: transform 0.3s;
+}
+
+.theme-dark .action-arrow {
+    color: #fff;
+}
+
+.hero-action:active .action-arrow {
+    transform: translateX(6rpx);
 }
 
 /* 轮播图 */
