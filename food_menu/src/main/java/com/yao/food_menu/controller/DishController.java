@@ -47,6 +47,9 @@ public class DishController {
     private com.yao.food_menu.service.DishStatisticsService dishStatisticsService;
 
     @Autowired
+    private com.yao.food_menu.service.DishCategoryService dishCategoryService;
+
+    @Autowired
     private ObjectMapper objectMapper;
 
     @Operation(summary = "添加菜品", description = "添加菜品及其口味信息")
@@ -83,14 +86,25 @@ public class DishController {
             return Result.error("菜品名称长度不能超过50个字符");
         }
 
-        // 校验分类ID
-        if (dishDto.getCategoryId() == null) {
+        // 校验分类ID - 支持多分类
+        List<Long> categoryIdsToValidate = new ArrayList<>();
+        if (dishDto.getCategoryIds() != null && !dishDto.getCategoryIds().isEmpty()) {
+            categoryIdsToValidate = dishDto.getCategoryIds();
+        } else if (dishDto.getCategoryId() != null) {
+            // 兼容旧版本单分类
+            categoryIdsToValidate = List.of(dishDto.getCategoryId());
+        }
+
+        if (categoryIdsToValidate.isEmpty()) {
             return Result.error("所属分类不能为空");
         }
-        // 验证分类是否存在
-        Category category = categoryService.getById(dishDto.getCategoryId());
-        if (category == null) {
-            return Result.error("所选分类不存在");
+
+        // 验证所有分类是否存在
+        for (Long categoryId : categoryIdsToValidate) {
+            Category category = categoryService.getById(categoryId);
+            if (category == null) {
+                return Result.error("所选分类不存在");
+            }
         }
 
         // 校验价格
@@ -166,9 +180,21 @@ public class DishController {
 
         LambdaQueryWrapper<Dish> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.like(name != null, Dish::getName, name);
-        queryWrapper.eq(categoryId != null, Dish::getCategoryId, categoryId);
+
+        // 如果指定了分类ID,通过中间表查询属于该分类的菜品
+        if (categoryId != null) {
+            List<Long> dishIds = dishCategoryService.getDishIdsByCategoryId(categoryId);
+            if (dishIds.isEmpty()) {
+                // 如果该分类下没有菜品,返回空结果
+                dishDtoPage.setRecords(new ArrayList<>());
+                dishDtoPage.setTotal(0);
+                return Result.success(dishDtoPage);
+            }
+            queryWrapper.in(Dish::getId, dishIds);
+        }
+
         // 超级管理员可以通过familyId参数筛选特定家庭的数据
-        // 非超级管理员由拦截器自动过滤，这里不需要处理
+        // 非超级管理员由拦截器自动过滤,这里不需要处理
         if (familyId != null && com.yao.food_menu.common.context.FamilyContext.isSuperAdmin()) {
             queryWrapper.eq(Dish::getFamilyId, familyId);
         }
@@ -181,12 +207,22 @@ public class DishController {
         List<DishDto> list = records.stream().map((item) -> {
             DishDto dishDto = new DishDto();
             BeanUtils.copyProperties(item, dishDto);
-            Long dishCategoryId = item.getCategoryId();
-            Category category = categoryService.getById(dishCategoryId);
-            if (category != null) {
-                String categoryName = category.getName();
-                dishDto.setCategoryName(categoryName);
+
+            // 获取所有分类名称
+            List<Long> categoryIds = dishCategoryService.getCategoryIdsByDishId(item.getId());
+            if (categoryIds != null && !categoryIds.isEmpty()) {
+                List<String> categoryNames = categoryIds.stream()
+                        .map(categoryService::getById)
+                        .filter(java.util.Objects::nonNull)
+                        .map(Category::getName)
+                        .collect(Collectors.toList());
+                dishDto.setCategoryNames(categoryNames);
+                // 兼容旧字段,设置第一个分类名称
+                if (!categoryNames.isEmpty()) {
+                    dishDto.setCategoryName(categoryNames.get(0));
+                }
             }
+
             // Convert OSS object key to presigned URL if needed
             convertImageToPresignedUrl(dishDto);
             // 将 localImages JSON 字符串转换为数组
@@ -235,7 +271,7 @@ public class DishController {
         return Result.success("Dish deleted successfully");
     }
 
-    @Operation(summary = "查询分类下的菜品", description = "查询指定分类下所有在售菜品，支持按名称模糊搜索，支持分页")
+    @Operation(summary = "查询分类下的菜品", description = "查询指定分类下所有在售菜品,支持按名称模糊搜索,支持分页")
     @GetMapping("/list")
     public Result<Object> list(
             @RequestParam(required = false) Long categoryId,
@@ -244,12 +280,29 @@ public class DishController {
             @RequestParam(required = false, defaultValue = "10") Integer pageSize) {
 
         LambdaQueryWrapper<Dish> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(categoryId != null, Dish::getCategoryId, categoryId);
+
+        // 如果指定了分类ID,通过中间表查询属于该分类的菜品
+        if (categoryId != null) {
+            // 使用DishCategoryService查询属于该分类的所有菜品ID
+            List<Long> dishIds = dishCategoryService.getDishIdsByCategoryId(categoryId);
+            if (dishIds.isEmpty()) {
+                // 如果该分类下没有菜品,直接返回空结果
+                if (page != null && pageSize != null && page > 0 && pageSize > 0) {
+                    Page<Dish> emptyPage = new Page<>(page, pageSize);
+                    return Result.success(emptyPage);
+                } else {
+                    return Result.success(new ArrayList<>());
+                }
+            }
+            // 查询这些菜品ID对应的菜品
+            queryWrapper.in(Dish::getId, dishIds);
+        }
+
         queryWrapper.like(StringUtils.hasText(name), Dish::getName, name);
         queryWrapper.eq(Dish::getStatus, 1);
         queryWrapper.orderByAsc(Dish::getSort).orderByDesc(Dish::getUpdateTime);
 
-        // 如果提供了分页参数，使用分页查询
+        // 如果提供了分页参数,使用分页查询
         if (page != null && pageSize != null && page > 0 && pageSize > 0) {
             Page<Dish> pageInfo = new Page<>(page, pageSize);
             dishService.page(pageInfo, queryWrapper);
@@ -259,7 +312,7 @@ public class DishController {
 
             return Result.success(pageInfo);
         } else {
-            // 向后兼容：如果没有分页参数，返回所有记录
+            // 向后兼容:如果没有分页参数,返回所有记录
             List<Dish> list = dishService.list(queryWrapper);
             // Convert OSS object keys to presigned URLs for all dishes
             list.forEach(this::convertDishImageToPresignedUrl);

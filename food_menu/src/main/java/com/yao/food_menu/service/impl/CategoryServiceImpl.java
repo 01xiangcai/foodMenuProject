@@ -13,7 +13,7 @@ import java.util.List;
 public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> implements CategoryService {
 
     @Autowired
-    private com.yao.food_menu.service.DishService dishService;
+    private com.yao.food_menu.service.DishCategoryService dishCategoryService;
 
     @Override
     public List<Category> listWithDishCount(Category category) {
@@ -26,12 +26,9 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> i
 
         if (list != null && !list.isEmpty()) {
             for (Category c : list) {
-                LambdaQueryWrapper<com.yao.food_menu.entity.Dish> dishQueryWrapper = new LambdaQueryWrapper<>();
-                dishQueryWrapper.eq(com.yao.food_menu.entity.Dish::getCategoryId, c.getId());
-                // 这里统计所有状态的菜品，如果只想统计在售的，可以加 eq(Dish::getStatus, 1)
-                // 暂时统计所有
-                long count = dishService.count(dishQueryWrapper);
-                c.setDishCount(count);
+                // 使用dish_category中间表统计菜品数量
+                List<Long> dishIds = dishCategoryService.getDishIdsByCategoryId(c.getId());
+                c.setDishCount((long) dishIds.size());
             }
         }
 

@@ -50,6 +50,9 @@ public class RandomDishServiceImpl implements RandomDishService {
     @Autowired
     private com.yao.food_menu.service.OssService ossService;
 
+    @Autowired
+    private com.yao.food_menu.service.DishCategoryService dishCategoryService;
+
     private static final String DEFAULT_IMAGE = "https://dummyimage.com/800x600/0f172a/ffffff&text=family+dish";
 
     @Override
@@ -76,9 +79,21 @@ public class RandomDishServiceImpl implements RandomDishService {
             queryWrapper.le(Dish::getPrice, filter.getPriceMax());
         }
 
-        // 分类筛选
+        // 分类筛选 - 使用dish_category中间表
         if (filter.getCategoryIds() != null && !filter.getCategoryIds().isEmpty()) {
-            queryWrapper.in(Dish::getCategoryId, filter.getCategoryIds());
+            // 通过中间表查询属于这些分类的菜品ID
+            Set<Long> dishIds = new java.util.HashSet<>();
+            for (Long categoryId : filter.getCategoryIds()) {
+                List<Long> ids = dishCategoryService.getDishIdsByCategoryId(categoryId);
+                dishIds.addAll(ids);
+            }
+            if (!dishIds.isEmpty()) {
+                queryWrapper.in(Dish::getId, dishIds);
+            } else {
+                // 如果没有找到任何菜品,返回空
+                log.warn("指定的分类下没有菜品");
+                return null;
+            }
         }
 
         // 排除指定菜品(去重)
@@ -222,11 +237,18 @@ public class RandomDishServiceImpl implements RandomDishService {
         DishDto dishDto = new DishDto();
         BeanUtils.copyProperties((Object) dish, dishDto);
 
-        // 设置分类名称
-        if (dish.getCategoryId() != null) {
-            Category category = categoryService.getById(dish.getCategoryId());
-            if (category != null) {
-                dishDto.setCategoryName(category.getName());
+        // 设置分类名称(获取所有分类)
+        List<Long> categoryIds = dishCategoryService.getCategoryIdsByDishId(dish.getId());
+        if (categoryIds != null && !categoryIds.isEmpty()) {
+            List<String> categoryNames = categoryIds.stream()
+                    .map(categoryService::getById)
+                    .filter(java.util.Objects::nonNull)
+                    .map(Category::getName)
+                    .collect(Collectors.toList());
+            dishDto.setCategoryNames(categoryNames);
+            // 兼容旧字段,设置第一个分类名称
+            if (!categoryNames.isEmpty()) {
+                dishDto.setCategoryName(categoryNames.get(0));
             }
         }
 

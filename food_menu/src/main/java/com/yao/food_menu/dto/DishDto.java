@@ -24,4 +24,10 @@ public class DishDto extends Dish {
 
     // 图片数组（用于前端显示，不存储到数据库）
     private List<String> localImagesArray;
+
+    // 分类ID列表（多对多关系）
+    private List<Long> categoryIds;
+
+    // 分类名称列表（用于前端显示）
+    private List<String> categoryNames;
 }

@@ -29,10 +29,10 @@ import java.util.stream.Collectors;
  */
 @Service
 @Slf4j
-public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, DishFavorite> implements DishFavoriteService {
+public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, DishFavorite>
+        implements DishFavoriteService {
 
-    private static final String DEFAULT_DISH_IMAGE =
-            "https://dummyimage.com/800x600/0f172a/ffffff&text=family+dish";
+    private static final String DEFAULT_DISH_IMAGE = "https://dummyimage.com/800x600/0f172a/ffffff&text=family+dish";
 
     @Autowired
     private DishService dishService;
@@ -49,6 +49,9 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
     @Autowired
     private com.yao.food_menu.common.config.LocalStorageProperties localStorageProperties;
 
+    @Autowired
+    private com.yao.food_menu.service.DishCategoryService dishCategoryService;
+
     @Override
     @Transactional
     public boolean addFavorite(Long userId, Long dishId) {
@@ -57,7 +60,7 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
             LambdaQueryWrapper<DishFavorite> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(DishFavorite::getUserId, userId)
                     .eq(DishFavorite::getDishId, dishId);
-            
+
             DishFavorite existing = this.getOne(queryWrapper);
             if (existing != null) {
                 log.info("Dish already favorited: userId={}, dishId={}", userId, dishId);
@@ -76,7 +79,7 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
             favorite.setUserId(userId);
             favorite.setDishId(dishId);
             boolean result = this.save(favorite);
-            
+
             log.info("Add favorite: userId={}, dishId={}, result={}", userId, dishId, result);
             return result;
         } catch (Exception e) {
@@ -92,7 +95,7 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
             LambdaQueryWrapper<DishFavorite> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(DishFavorite::getUserId, userId)
                     .eq(DishFavorite::getDishId, dishId);
-            
+
             boolean result = this.remove(queryWrapper);
             log.info("Remove favorite: userId={}, dishId={}, result={}", userId, dishId, result);
             return result;
@@ -107,7 +110,7 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
         LambdaQueryWrapper<DishFavorite> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(DishFavorite::getUserId, userId)
                 .eq(DishFavorite::getDishId, dishId);
-        
+
         return this.count(queryWrapper) > 0;
     }
 
@@ -120,7 +123,7 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
         LambdaQueryWrapper<DishFavorite> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(DishFavorite::getUserId, userId)
                 .in(DishFavorite::getDishId, dishIds);
-        
+
         List<DishFavorite> favorites = this.list(queryWrapper);
         return favorites.stream()
                 .map(DishFavorite::getDishId)
@@ -133,9 +136,9 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
         LambdaQueryWrapper<DishFavorite> favoriteQuery = new LambdaQueryWrapper<>();
         favoriteQuery.eq(DishFavorite::getUserId, userId)
                 .orderByDesc(DishFavorite::getCreateTime);
-        
+
         List<DishFavorite> favorites = this.list(favoriteQuery);
-        
+
         if (favorites.isEmpty()) {
             return List.of();
         }
@@ -150,7 +153,7 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
         dishQuery.in(Dish::getId, dishIds)
                 .eq(Dish::getDeleted, 0)
                 .eq(Dish::getStatus, 1); // 只显示在售的菜品
-        
+
         List<Dish> dishes = dishService.list(dishQuery);
 
         // Convert to DTO and maintain order
@@ -160,15 +163,24 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
             }
             DishDto dishDto = new DishDto();
             BeanUtils.copyProperties(dish, dishDto);
-            
-            // Set category name
-            Category category = categoryService.getById(dish.getCategoryId());
-            if (category != null) {
-                dishDto.setCategoryName(category.getName());
+
+            // 设置分类名称(获取所有分类)
+            List<Long> categoryIds = dishCategoryService.getCategoryIdsByDishId(dish.getId());
+            if (categoryIds != null && !categoryIds.isEmpty()) {
+                List<String> categoryNames = categoryIds.stream()
+                        .map(categoryService::getById)
+                        .filter(java.util.Objects::nonNull)
+                        .map(Category::getName)
+                        .collect(Collectors.toList());
+                dishDto.setCategoryNames(categoryNames);
+                // 兼容旧字段,设置第一个分类名称
+                if (!categoryNames.isEmpty()) {
+                    dishDto.setCategoryName(categoryNames.get(0));
+                }
             }
 
             enrichDishImage(dishDto);
-            
+
             return dishDto;
         }).filter(dto -> dto != null).collect(Collectors.toList());
     }
@@ -180,9 +192,9 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
         LambdaQueryWrapper<DishFavorite> favoriteQuery = new LambdaQueryWrapper<>();
         favoriteQuery.eq(DishFavorite::getUserId, userId)
                 .orderByDesc(DishFavorite::getCreateTime);
-        
+
         Page<DishFavorite> favoritePageResult = this.page(favoritePage, favoriteQuery);
-        
+
         if (favoritePageResult.getRecords().isEmpty()) {
             return new Page<>(page, pageSize);
         }
@@ -197,7 +209,7 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
         dishQuery.in(Dish::getId, dishIds)
                 .eq(Dish::getDeleted, 0)
                 .eq(Dish::getStatus, 1); // 只显示在售的菜品
-        
+
         List<Dish> dishes = dishService.list(dishQuery);
 
         // Convert to DTO
@@ -207,15 +219,24 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
             }
             DishDto dishDto = new DishDto();
             BeanUtils.copyProperties(dish, dishDto);
-            
-            // Set category name
-            Category category = categoryService.getById(dish.getCategoryId());
-            if (category != null) {
-                dishDto.setCategoryName(category.getName());
+
+            // 设置分类名称(获取所有分类)
+            List<Long> categoryIds = dishCategoryService.getCategoryIdsByDishId(dish.getId());
+            if (categoryIds != null && !categoryIds.isEmpty()) {
+                List<String> categoryNames = categoryIds.stream()
+                        .map(categoryService::getById)
+                        .filter(java.util.Objects::nonNull)
+                        .map(Category::getName)
+                        .collect(Collectors.toList());
+                dishDto.setCategoryNames(categoryNames);
+                // 兼容旧字段,设置第一个分类名称
+                if (!categoryNames.isEmpty()) {
+                    dishDto.setCategoryName(categoryNames.get(0));
+                }
             }
 
             enrichDishImage(dishDto);
-            
+
             return dishDto;
         }).filter(dto -> dto != null).collect(Collectors.toList());
 
@@ -223,7 +244,7 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
         Page<DishDto> resultPage = new Page<>(page, pageSize);
         BeanUtils.copyProperties(favoritePageResult, resultPage, "records");
         resultPage.setRecords(dishDtos);
-        
+
         return resultPage;
     }
 
@@ -254,9 +275,9 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
                         urlPrefix += "/";
                     }
                     // 移除localImage开头的斜杠
-                    String localPath = localImage.startsWith("/") 
-                        ? localImage.substring(1) 
-                        : localImage;
+                    String localPath = localImage.startsWith("/")
+                            ? localImage.substring(1)
+                            : localImage;
                     String fullUrl = urlPrefix + localPath;
                     // 将完整URL设置到image字段，供前端使用
                     dishDto.setImage(fullUrl);
@@ -286,4 +307,3 @@ public class DishFavoriteServiceImpl extends ServiceImpl<DishFavoriteMapper, Dis
         }
     }
 }
-

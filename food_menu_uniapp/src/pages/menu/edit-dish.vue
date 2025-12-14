@@ -65,13 +65,13 @@
           
           <view class="divider-inset" :style="{ background: themeConfig.borderColor }"></view>
 
-          <!-- 所属分类 -->
+          <!-- 所属分类 (多选) -->
           <picker 
-            mode="selector" 
-            :range="categories" 
+            mode="multiSelector" 
+            :range="[categories]" 
             range-key="name"
             @change="onCategoryChange"
-            :value="categoryIndex"
+            @columnchange="onCategoryColumnChange"
           >
             <view class="cell-item" hover-class="cell-hover">
               <view class="cell-left">
@@ -79,13 +79,26 @@
                 <text class="cell-label" :style="{ color: themeConfig.textPrimary }">所属分类 <text class="required">*</text></text>
               </view>
               <view class="cell-right">
-                <text class="cell-value" :class="{ empty: !selectedCategory }" :style="{ color: selectedCategory ? themeConfig.textSecondary : themeConfig.textTertiary }">
-                  {{ selectedCategory ? selectedCategory.name : '请选择' }}
+                <text class="cell-value" :class="{ empty: selectedCategories.length === 0 }" :style="{ color: selectedCategories.length > 0 ? themeConfig.textSecondary : themeConfig.textTertiary }">
+                  {{ selectedCategories.length > 0 ? selectedCategories.map(c => c.name).join('、') : '请选择分类' }}
                 </text>
                 <text class="cell-arrow" :style="{ color: themeConfig.textTertiary }">></text>
               </view>
             </view>
           </picker>
+
+          <!-- 已选分类列表 -->
+          <view class="selected-tags" v-if="selectedCategories.length > 0">
+            <view 
+              class="selected-tag-chip" 
+              v-for="(category, index) in selectedCategories" 
+              :key="category.id"
+              :style="{ background: themeConfig.bgTertiary, color: themeConfig.textSecondary }"
+            >
+              <text>{{ category.name }}</text>
+              <text class="tag-remove" @tap.stop="removeCategory(index)">×</text>
+            </view>
+          </view>
 
           <view class="divider-inset" :style="{ background: themeConfig.borderColor }"></view>
           
@@ -295,7 +308,7 @@ const onScroll = (e) => { scrollTop.value = e.detail.scrollTop }
 const formData = ref({
   id: null,
   name: '',
-  categoryId: null,
+  categoryIds: [], // 改为数组以支持多分类
   price: '',
   description: '', // 映射为"家庭备注"
   tags: '', // 映射为"菜品标签"(菜系)
@@ -309,10 +322,10 @@ const formData = ref({
 // 图片
 const imageList = ref([])
 
-// 分类
+// 分类 (多选)
 const categories = ref([])
-const categoryIndex = ref(-1)
-const selectedCategory = computed(() => categoryIndex.value >= 0 ? categories.value[categoryIndex.value] : null)
+const selectedCategories = ref([]) // 已选分类对象数组
+const categoryPickerValue = ref([0]) // picker的当前选中值
 
 // 菜系选项 (从后台获取)
 const cuisineOptions = ref([])
@@ -390,11 +403,17 @@ const loadDishDetail = async () => {
       formData.value.status = dish.status
       formData.value.calories = dish.calories || ''
       
-      // 回填分类选择器
-      if (dish.categoryId && categories.value.length > 0) {
-        const index = categories.value.findIndex(c => c.id === dish.categoryId)
-        if (index >= 0) {
-          categoryIndex.value = index
+      // 回填分类选择器 - 支持多分类
+      if (dish.categoryIds && dish.categoryIds.length > 0 && categories.value.length > 0) {
+        // 使用新的categoryIds字段
+        selectedCategories.value = categories.value.filter(c => dish.categoryIds.includes(c.id))
+        formData.value.categoryIds = dish.categoryIds
+      } else if (dish.categoryId && categories.value.length > 0) {
+        // 兼容旧版本:如果没有categoryIds但有categoryId
+        const category = categories.value.find(c => c.id === dish.categoryId)
+        if (category) {
+          selectedCategories.value = [category]
+          formData.value.categoryIds = [dish.categoryId]
         }
       }
       
@@ -465,9 +484,34 @@ const extractPathFromUrl = (url) => {
   return url
 }
 
+// 分类多选逻辑
 const onCategoryChange = (e) => {
-  categoryIndex.value = e.detail.value
-  formData.value.categoryId = categories.value[e.detail.value].id
+  const selectedIndex = e.detail.value[0]
+  if (selectedIndex >= 0 && selectedIndex < categories.value.length) {
+    const selectedCategory = categories.value[selectedIndex]
+    
+    // 检查是否已经选择
+    if (!selectedCategories.value.find(c => c.id === selectedCategory.id)) {
+      selectedCategories.value.push(selectedCategory)
+      updateCategoryIds()
+    }
+  }
+}
+
+const onCategoryColumnChange = (e) => {
+  // 列变化时更新picker的选中值
+  categoryPickerValue.value = [e.detail.value]
+}
+
+// 移除分类
+const removeCategory = (index) => {
+  selectedCategories.value.splice(index, 1)
+  updateCategoryIds()
+}
+
+// 更新categoryIds字段
+const updateCategoryIds = () => {
+  formData.value.categoryIds = selectedCategories.value.map(c => c.id)
 }
 
 const onCuisineChange = (e) => {
@@ -559,7 +603,7 @@ const confirmFlavor = () => {
 
 const submitForm = async () => {
   if (!formData.value.name.trim()) return uni.showToast({ title: '请输入菜品名称', icon: 'none' })
-  if (!formData.value.categoryId) return uni.showToast({ title: '请选择所属分类', icon: 'none' })
+  if (formData.value.categoryIds.length === 0) return uni.showToast({ title: '请至少选择一个分类', icon: 'none' })
   if (!formData.value.price) return uni.showToast({ title: '请输入价格', icon: 'none' })
   if (imageList.value.length === 0) return uni.showToast({ title: '请至少上传一张图片', icon: 'none' })
   

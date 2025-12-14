@@ -23,7 +23,7 @@
         >
           <view class="card-cover">
             <image class="dish-image" :src="getDishImage(dish)" mode="aspectFill" />
-            <view class="cover-tag">{{ dish.categoryName || '精选菜品' }}</view>
+            <view class="cover-tag">{{ dish.categoryNames ? dish.categoryNames.join(', ') : (dish.categoryName || '精选菜品') }}</view>
           </view>
           <view class="card-body">
             <text class="dish-name">{{ dish.name }}</text>
@@ -91,6 +91,7 @@ const mapFavorite = (item) => ({
   name: item.name || item.dishName,
   description: item.description || item.dishDescription || '',
   categoryName: item.categoryName,
+  categoryNames: item.categoryNames || (item.categoryName ? [item.categoryName] : []),
   price: item.price || item.dishPrice || 0,
   localImage: item.localImage || item.dishLocalImage,
   image: item.image || item.dishImage

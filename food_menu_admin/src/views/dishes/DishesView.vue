@@ -103,11 +103,14 @@
           <NFormItem label="菜品名称" path="name" required>
             <NInput v-model:value="dishModal.form.name" placeholder="番茄炒蛋" />
           </NFormItem>
-          <NFormItem label="所属分类" path="categoryId" required>
+          <NFormItem label="所属分类" path="categoryIds" required>
             <NSelect
-              v-model:value="dishModal.form.categoryId"
+              v-model:value="dishModal.form.categoryIds"
               :options="categoryOptions"
               placeholder="请选择分类"
+              multiple
+              filterable
+              max-tag-count="responsive"
             />
           </NFormItem>
           <NFormItem label="所属家庭" v-if="isSuperAdmin" path="familyId" required>
@@ -270,7 +273,13 @@
 
           <div class="detail-stats">
             <div class="stat-box">
-              <div class="stat-value">{{ detailModal.data.categoryName || lookupCategoryName(detailModal.data.categoryId) }}</div>
+              <div class="stat-value">
+                {{ 
+                  detailModal.data.categoryNames && detailModal.data.categoryNames.length > 0
+                    ? detailModal.data.categoryNames.join(', ')
+                    : (detailModal.data.categoryName || lookupCategoryName(detailModal.data.categoryId))
+                }}
+              </div>
               <div class="stat-label">所属分类</div>
             </div>
             <div class="stat-box">
@@ -358,7 +367,7 @@ type DishRecord = {
 type DishForm = {
   id?: number;
   name: string;
-  categoryId: number | null;
+  categoryIds: number[]; // 改为数组支持多分类
   price: number | null;
   status: 'on' | 'off';
   description: string;
@@ -380,10 +389,10 @@ const dishFormRules = computed(() => ({
     message: '请输入菜品名称',
     trigger: ['blur', 'input']
   },
-  categoryId: {
+  categoryIds: {
     required: true,
-    type: 'number',
-    message: '请选择所属分类',
+    type: 'array',
+    message: '请至少选择一个分类',
     trigger: ['blur', 'change']
   },
   ...(isSuperAdmin.value ? {
@@ -493,7 +502,7 @@ const dishModal = reactive({
   form: {
     id: undefined as number | undefined,
     name: '',
-    categoryId: null as number | null,
+    categoryIds: [] as number[], // 改为数组支持多分类
     price: null as number | null,
     status: 'on' as 'on' | 'off',
     description: '',
@@ -564,8 +573,15 @@ const columns: DataTableColumns<DishRecord> = [
   { title: '菜品', key: 'name', ellipsis: { tooltip: true } },
   {
     title: '分类',
-    key: 'categoryName',
-    render: (row) => row.categoryName || lookupCategoryName(row.categoryId)
+    key: 'categoryNames',
+    ellipsis: { tooltip: true },
+    render: (row) => {
+      // 优先使用 categoryNames 数组,如果没有则使用单个 categoryName
+      if (row.categoryNames && Array.isArray(row.categoryNames) && row.categoryNames.length > 0) {
+        return row.categoryNames.join(', ');
+      }
+      return row.categoryName || lookupCategoryName(row.categoryId) || '—';
+    }
   },
   {
     title: '价格',
@@ -758,7 +774,7 @@ const handleFamilyFilterChange = () => {
 const resetDishForm = () => {
   dishModal.form.id = undefined;
   dishModal.form.name = '';
-  dishModal.form.categoryId = selectedCategoryId.value;
+  dishModal.form.categoryIds = selectedCategoryId.value ? [selectedCategoryId.value] : []; // 改为数组
   dishModal.form.price = null;
   dishModal.form.status = 'on';
   dishModal.form.description = '';
@@ -847,7 +863,10 @@ const getDetailImages = () => {
 const fillDishForm = (dish: any) => {
   dishModal.form.id = dish.id;
   dishModal.form.name = dish.name;
-  dishModal.form.categoryId = dish.categoryId;
+  // 支持多分类:优先使用categoryIds,如果没有则使用categoryId兼容旧数据
+  dishModal.form.categoryIds = dish.categoryIds && dish.categoryIds.length > 0 
+    ? dish.categoryIds 
+    : (dish.categoryId ? [dish.categoryId] : []);
   dishModal.form.price = Number(dish.price || 0);
   dishModal.form.status = dish.status === 1 ? 'on' : 'off';
   dishModal.form.description = dish.description || '';
@@ -1090,7 +1109,7 @@ const saveDish = async () => {
     const payload: any = {
       id: dishModal.form.id,
       name: dishModal.form.name.trim(),
-      categoryId: dishModal.form.categoryId,
+      categoryIds: dishModal.form.categoryIds, // 改为多分类
       price: Number(dishModal.form.price),
       status: dishModal.form.status === 'on' ? 1 : 0,
       description: dishModal.form.description,

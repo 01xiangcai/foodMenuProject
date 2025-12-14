@@ -174,23 +174,33 @@ public class DishUniappController {
             return Result.error("菜品名称长度不能超过50个字符");
         }
 
-        // 校验分类ID
-        if (dishDto.getCategoryId() == null) {
+        // 校验分类ID - 支持多分类
+        List<Long> categoryIdsToValidate = new ArrayList<>();
+        if (dishDto.getCategoryIds() != null && !dishDto.getCategoryIds().isEmpty()) {
+            categoryIdsToValidate = dishDto.getCategoryIds();
+        } else if (dishDto.getCategoryId() != null) {
+            // 兼容旧版本单分类
+            categoryIdsToValidate = List.of(dishDto.getCategoryId());
+        }
+
+        if (categoryIdsToValidate.isEmpty()) {
             return Result.error("所属分类不能为空");
         }
 
-        // 验证分类是否存在且属于当前家庭
-        Category category = categoryService.getById(dishDto.getCategoryId());
-        if (category == null) {
-            return Result.error("所选分类不存在");
-        }
-
-        // 数据隔离：验证分类属于当前家庭
+        // 验证所有分类是否存在且属于当前家庭
         Long currentFamilyId = FamilyContext.getFamilyId();
-        if (category.getFamilyId() != null && !category.getFamilyId().equals(currentFamilyId)) {
-            log.warn("尝试使用其他家庭的分类: categoryId={}, categoryFamilyId={}, currentFamilyId={}",
-                    category.getId(), category.getFamilyId(), currentFamilyId);
-            return Result.error("所选分类不存在");
+        for (Long categoryId : categoryIdsToValidate) {
+            Category category = categoryService.getById(categoryId);
+            if (category == null) {
+                return Result.error("所选分类不存在");
+            }
+
+            // 数据隔离:验证分类属于当前家庭
+            if (category.getFamilyId() != null && !category.getFamilyId().equals(currentFamilyId)) {
+                log.warn("尝试使用其他家庭的分类: categoryId={}, categoryFamilyId={}, currentFamilyId={}",
+                        category.getId(), category.getFamilyId(), currentFamilyId);
+                return Result.error("所选分类不存在");
+            }
         }
 
         // 校验价格
