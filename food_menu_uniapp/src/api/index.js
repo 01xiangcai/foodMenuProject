@@ -93,6 +93,26 @@ export const payOrder = (data) => {
 }
 
 /**
+ * 获取菜品标签列表 (菜系/口味等)
+ * @param {Number} type 标签类型 (可选)
+ */
+/**
+ * 获取菜品标签列表 (菜系/口味等)
+ * @param {Number} type 标签类型 (可选)
+ */
+export const getDishTagList = (type) => {
+    const data = {}
+    if (type !== undefined && type !== null) {
+        data.type = type
+    }
+    return request({
+        url: '/dish-tag/list',
+        method: 'GET',
+        data
+    })
+}
+
+/**
  * 管理员获取全部订单列表
  * @param {Object} params 查询参数
  */
@@ -541,3 +561,59 @@ export const getSystemConfig = (key) => {
     })
 }
 
+// ================== 小程序端菜品管理 API ==================
+
+/**
+ * 添加菜品(小程序管理员)
+ * @param {Object} data 菜品数据
+ */
+export const addDishUniapp = (data) => {
+    return request({
+        url: '/uniapp/dish',
+        method: 'POST',
+        data
+    })
+}
+
+/**
+ * 上传菜品图片
+ * @param {String} filePath 文件路径
+ */
+export const uploadDishImage = (filePath) => {
+    const token = uni.getStorageSync('fm_token')
+    const ENV_API_URL = import.meta.env.VITE_API_URL
+
+    let BASE_URL = ''
+    // #ifdef H5
+    BASE_URL = '/api'
+    // #endif
+    // #ifdef MP-WEIXIN
+    BASE_URL = ENV_API_URL
+    // #endif
+
+    return new Promise((resolve, reject) => {
+        uni.uploadFile({
+            url: `${BASE_URL}/common/upload`,
+            filePath: filePath,
+            name: 'file',
+            header: {
+                'Authorization': token ? `Bearer ${token}` : ''
+            },
+            success: (res) => {
+                if (res.statusCode === 200) {
+                    const data = JSON.parse(res.data)
+                    if (data.code === 1) {
+                        resolve(data)
+                    } else {
+                        reject(new Error(data.msg || '上传失败'))
+                    }
+                } else {
+                    reject(new Error(`上传失败(${res.statusCode})`))
+                }
+            },
+            fail: (err) => {
+                reject(err)
+            }
+        })
+    })
+}

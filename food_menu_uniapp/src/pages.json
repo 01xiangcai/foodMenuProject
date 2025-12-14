@@ -19,6 +19,13 @@
             }
         },
         {
+            "path": "pages/menu/add-dish",
+            "style": {
+                "navigationBarTitleText": "添加菜品",
+                "navigationStyle": "custom"
+            }
+        },
+        {
             "path": "pages/detail/detail",
             "style": {
                 "navigationBarTitleText": "菜品详情"

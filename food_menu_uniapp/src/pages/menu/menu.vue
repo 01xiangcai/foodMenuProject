@@ -26,10 +26,17 @@
         <text class="random-icon">🎲</text>
       </view>
 
+      <!-- 添加菜品按钮（仅管理员可见） -->
+      <view v-if="isAdmin" class="add-dish-btn" @tap="goToAddDish">
+        <text class="add-icon">➕</text>
+      </view>
+
       <!-- 视图切换按钮 -->
       <view class="view-toggle-btn" @tap="toggleViewMode">
         <text class="view-icon">{{ isCompactMode ? '🔲' : '☰' }}</text>
       </view>
+      
+      
     </view>
     
     <!-- 内容区域 -->
@@ -181,8 +188,8 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { getCategoryList, getDishList, addFavorite, removeFavorite, checkFavoriteBatch, getTagIconMap, createOrder } from '@/api/index'
+import { ref, computed } from 'vue'
+import { getCategoryList, getDishList, addFavorite, removeFavorite, checkFavoriteBatch, getTagIconMap, createOrder, getWxUserInfo } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 import { useCartStore } from '@/stores/cart'
 import CartPopup from '@/components/CartPopup.vue'
@@ -193,10 +200,31 @@ const { themeConfig, loadTheme } = useTheme()
 const cartStore = useCartStore()
 
 const isLoggedIn = ref(false)
+const userInfo = ref(null)
+
+// 判断是否为管理员
+const isAdmin = computed(() => {
+  return userInfo.value && userInfo.value.role === 1
+})
 
 const checkLoginStatus = () => {
   const token = uni.getStorageSync('fm_token')
   isLoggedIn.value = !!token
+  if (token) {
+    loadUserInfo()
+  }
+}
+
+// 加载用户信息
+const loadUserInfo = async () => {
+  try {
+    const res = await getWxUserInfo()
+    if (res.data) {
+      userInfo.value = res.data
+    }
+  } catch (error) {
+    console.error('加载用户信息失败:', error)
+  }
 }
 
 const goToLogin = () => {
@@ -515,6 +543,13 @@ const goToRandom = () => {
   })
 }
 
+// 跳转到添加菜品页面
+const goToAddDish = () => {
+  uni.navigateTo({
+    url: '/pages/menu/add-dish'
+  })
+}
+
 
 import { onShow } from '@dcloudio/uni-app'
 
@@ -663,6 +698,30 @@ onShareAppMessage((res) => {
   font-size: 36rpx;
   color: v-bind('themeConfig.textPrimary');
 }
+
+/* 添加菜品按钮 */
+.add-dish-btn {
+  width: 80rpx;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-radius: 50%;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+  margin-left: 10rpx;
+  transition: all 0.3s ease;
+  
+  &:active {
+    transform: scale(0.9);
+  }
+}
+
+.add-icon {
+  font-size: 40rpx;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
 
 
 .page-content {
@@ -974,6 +1033,7 @@ onShareAppMessage((res) => {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 1;
   overflow: hidden;
+  word-break: break-all;
   transition: color 0.3s ease;
 }
 
@@ -1059,6 +1119,7 @@ onShareAppMessage((res) => {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
+  word-break: break-all;
   transition: color 0.3s ease;
 }
 

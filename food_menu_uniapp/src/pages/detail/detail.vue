@@ -651,6 +651,7 @@ onShareAppMessage((res) => {
   color: v-bind('themeConfig.textSecondary');
   line-height: 1.6;
   display: block;
+  word-break: break-all;
 }
 
 /* 3. 评论卡片 */

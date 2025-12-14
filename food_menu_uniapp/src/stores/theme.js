@@ -91,6 +91,8 @@ const themeConfig = computed(() => {
             primaryColor: '#FF7D58', // 活力橙
             secondaryColor: '#FF9F43',
 
+            inputBg: '#1E293B',
+            borderColor: 'rgba(255, 255, 255, 0.1)',
             shadowLight: '0 8px 20px rgba(0, 0, 0, 0.3)',
         }
     } else {
@@ -112,6 +114,8 @@ const themeConfig = computed(() => {
             primaryColor: '#FF7D58', // 活力橙
             secondaryColor: '#FF9F43',
 
+            inputBg: '#F3F4F6',
+            borderColor: '#E5E7EB',
             shadowLight: '0 8px 20px rgba(0, 0, 0, 0.06)',
         }
     }
