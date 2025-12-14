@@ -576,10 +576,23 @@ export const addDishUniapp = (data) => {
 }
 
 /**
+ * 更新菜品(小程序管理员)
+ * @param {Object} data 菜品数据
+ */
+export const updateDishUniapp = (data) => {
+    return request({
+        url: '/uniapp/dish',
+        method: 'PUT',
+        data
+    })
+}
+
+/**
  * 上传菜品图片
  * @param {String} filePath 文件路径
  */
 export const uploadDishImage = (filePath) => {
+
     const token = uni.getStorageSync('fm_token')
     const ENV_API_URL = import.meta.env.VITE_API_URL
 

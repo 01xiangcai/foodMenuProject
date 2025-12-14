@@ -26,6 +26,13 @@
             }
         },
         {
+            "path": "pages/menu/edit-dish",
+            "style": {
+                "navigationBarTitleText": "编辑菜品",
+                "navigationStyle": "custom"
+            }
+        },
+        {
             "path": "pages/detail/detail",
             "style": {
                 "navigationBarTitleText": "菜品详情"
@@ -126,15 +133,15 @@
         }
     ],
     "globalStyle": {
-        "navigationBarTextStyle": "white",
+        "navigationBarTextStyle": "black",
         "navigationBarTitleText": "家宴菜单",
-        "navigationBarBackgroundColor": "#050a1f",
-        "backgroundColor": "#050a1f"
+        "navigationBarBackgroundColor": "#fff9f0",
+        "backgroundColor": "#FDFBF7"
     },
     "tabBar": {
-        "color": "#9ca3af",
-        "selectedColor": "#14b8ff",
-        "backgroundColor": "#050a1f",
+        "color": "#999999",
+        "selectedColor": "#FF7D58",
+        "backgroundColor": "#FFFFFF",
         "borderStyle": "white",
         "list": [
             {

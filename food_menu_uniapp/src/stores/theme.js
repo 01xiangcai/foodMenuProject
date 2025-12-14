@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 
 // 主题类型：'dark' (科技) 或 'light' (家庭)
-const currentTheme = ref('dark')
+const currentTheme = ref('light')
 
 // 从本地存储加载主题
 const loadTheme = () => {
@@ -11,6 +11,11 @@ const loadTheme = () => {
         // 延迟一点执行以确保页面加载完成
         setTimeout(() => {
             applyTheme(savedTheme)
+        }, 100)
+    } else {
+        // 如果没有保存的主题,应用默认主题
+        setTimeout(() => {
+            applyTheme(currentTheme.value)
         }, 100)
     }
 }
@@ -87,9 +92,9 @@ const themeConfig = computed(() => {
             textSecondary: '#94A3B8',
             textTertiary: '#64748B',
 
-            primaryGradient: 'linear-gradient(135deg, #FF9F43 0%, #FF7D58 100%)',
-            primaryColor: '#FF7D58', // 活力橙
-            secondaryColor: '#FF9F43',
+            primaryGradient: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', // 青蓝色渐变
+            primaryColor: '#3B82F6', // 柔和蓝
+            secondaryColor: '#2563EB',
 
             inputBg: '#1E293B',
             borderColor: 'rgba(255, 255, 255, 0.1)',

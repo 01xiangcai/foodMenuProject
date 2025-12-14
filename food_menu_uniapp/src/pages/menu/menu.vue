@@ -27,12 +27,12 @@
       </view>
 
       <!-- 添加菜品按钮（仅管理员可见） -->
-      <view v-if="isAdmin" class="add-dish-btn" @tap="goToAddDish">
+      <view v-if="isAdmin" class="add-dish-btn" @tap="goToAddDish" :style="{ background: themeConfig.primaryGradient }">
         <text class="add-icon">➕</text>
       </view>
 
       <!-- 视图切换按钮 -->
-      <view class="view-toggle-btn" @tap="toggleViewMode">
+      <view class="view-toggle-btn" @tap="toggleViewMode" :style="{ background: themeConfig.primaryGradient }">
         <text class="view-icon">{{ isCompactMode ? '🔲' : '☰' }}</text>
       </view>
       
@@ -682,15 +682,14 @@ onShareAppMessage((res) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: v-bind('themeConfig.bgSecondary');
   border-radius: 50%;
-  border: 1px solid v-bind('themeConfig.borderColor');
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
   margin-left: 10rpx; /* 与随机按钮保持一点距离 */
   transition: all 0.3s ease;
 
   &:active {
     transform: scale(0.9);
-    background: v-bind('themeConfig.inputBg');
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
   }
 }
 
@@ -706,14 +705,14 @@ onShareAppMessage((res) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #10b981, #059669);
   border-radius: 50%;
-  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 16px rgba(255, 125, 88, 0.4);
   margin-left: 10rpx;
   transition: all 0.3s ease;
   
   &:active {
     transform: scale(0.9);
+    box-shadow: 0 2px 8px rgba(255, 125, 88, 0.3);
   }
 }
 

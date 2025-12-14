@@ -106,6 +106,11 @@
         </view>
       </view>
 
+      <!-- 编辑按钮(仅管理员可见) -->
+      <view v-if="isAdmin" class="btn-edit" @tap="goToEditDish">
+        <text>✒️ 编辑</text>
+      </view>
+
       <view class="btn-add-cart" @tap="addToCart">
         <text>加入购物车</text>
       </view>
@@ -116,7 +121,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { getDishDetail, getTagIconMap } from '@/api/index'
+import { getDishDetail, getTagIconMap, getWxUserInfo } from '@/api/index'
 import { getCommentList, addComment } from '@/api/comment'
 import { useTheme } from '@/stores/theme'
 import { useCartStore } from '@/stores/cart'
@@ -129,6 +134,12 @@ const { themeConfig, loadTheme } = useTheme()
 const cartStore = useCartStore()
 const cartPopupVisible = ref(false)
 const tagIconMap = ref({})
+const userInfo = ref(null)
+
+// 判断是否为管理员
+const isAdmin = computed(() => {
+  return userInfo.value && userInfo.value.role === 1
+})
 
 const dish = ref({
   id: 0,
@@ -362,13 +373,45 @@ const toggleCartPopup = () => {
   }
 }
 
+// 加载用户信息
+const loadUserInfo = async () => {
+  try {
+    const token = uni.getStorageSync('fm_token')
+    if (token) {
+      const res = await getWxUserInfo()
+      if (res.data) {
+        userInfo.value = res.data
+      }
+    }
+  } catch (error) {
+    console.error('加载用户信息失败:', error)
+  }
+}
+
+// 跳转到编辑页面
+const goToEditDish = () => {
+  uni.navigateTo({
+    url: `/pages/menu/edit-dish?id=${dish.value.id}`
+  })
+}
+
 onLoad((options) => {
   if (options.id) {
+    dish.value.id = options.id
     loadDishDetail(options.id)
     // 延迟加载评论，确保dish.value.id已设置
     setTimeout(() => {
       loadComments()
     }, 100)
+  }
+})
+
+// 页面显示时重新加载数据(从编辑页返回时)
+import { onShow } from '@dcloudio/uni-app'
+onShow(() => {
+  if (dish.value.id) {
+    loadDishDetail(dish.value.id)
+    loadComments()
   }
 })
 
@@ -396,6 +439,7 @@ const handleImageError = (e) => {
 onMounted(() => {
   loadTheme()
   loadTagIconMap()
+  loadUserInfo()
 })
 
 // 页面转发配置
@@ -748,6 +792,24 @@ onShareAppMessage((res) => {
     border: 2rpx solid v-bind('themeConfig.cardBg');
     min-width: 32rpx;
     text-align: center;
+  }
+}
+
+.btn-edit {
+  padding: 24rpx 32rpx;
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  color: #fff;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.3);
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  
+  &:active {
+    transform: scale(0.98);
+    opacity: 0.9;
   }
 }
 

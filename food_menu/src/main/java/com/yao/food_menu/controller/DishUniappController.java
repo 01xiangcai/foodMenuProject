@@ -93,6 +93,73 @@ public class DishUniappController {
     }
 
     /**
+     * 更新菜品（仅小程序管理员）
+     */
+    @Operation(summary = "更新菜品", description = "小程序管理员更新菜品及其口味信息")
+    @com.yao.food_menu.common.annotation.OperationLog(operationType = com.yao.food_menu.common.annotation.OperationLog.OperationType.UPDATE, operationModule = "菜品", operationDesc = "小程序端更新菜品")
+    @PutMapping
+    public Result<String> updateDish(@RequestBody DishDto dishDto) {
+        // 权限校验：仅小程序管理员可更新菜品
+        Integer currentUserRole = FamilyContext.getUserRole();
+        if (currentUserRole == null || currentUserRole != 1) {
+            log.warn("非管理员用户尝试更新菜品: userId={}, role={}",
+                    FamilyContext.getUserId(), currentUserRole);
+            return Result.error("无权限操作，仅管理员可更新菜品");
+        }
+
+        Long userId = FamilyContext.getUserId();
+        Long familyId = FamilyContext.getFamilyId();
+
+        // 校验菜品ID
+        if (dishDto.getId() == null) {
+            return Result.error("菜品ID不能为空");
+        }
+
+        log.info("小程序管理员更新菜品: userId={}, familyId={}, dishId={}, dishName={}",
+                userId, familyId, dishDto.getId(), dishDto.getName());
+
+        // 数据隔离：验证菜品属于当前家庭
+        com.yao.food_menu.entity.Dish existingDish = dishService.getById(dishDto.getId());
+        if (existingDish == null) {
+            log.warn("菜品不存在: dishId={}", dishDto.getId());
+            return Result.error("菜品不存在");
+        }
+
+        if (existingDish.getFamilyId() != null && !existingDish.getFamilyId().equals(familyId)) {
+            log.warn("尝试更新其他家庭的菜品: dishId={}, dishFamilyId={}, currentFamilyId={}",
+                    dishDto.getId(), existingDish.getFamilyId(), familyId);
+            return Result.error("无权限操作，只能更新本家庭的菜品");
+        }
+
+        // 确保家庭ID不被修改
+        dishDto.setFamilyId(existingDish.getFamilyId());
+
+        // 参数校验
+        Result<String> validateResult = validateDishDto(dishDto);
+        if (validateResult != null) {
+            return validateResult;
+        }
+
+        // 处理图片字段
+        ensureImage(dishDto);
+        handleImageFields(dishDto);
+        validateMainImageInList(dishDto);
+
+        // 更新菜品
+        try {
+            dishService.updateWithFlavor(dishDto);
+            log.info("小程序端更新菜品成功: dishId={}, dishName={}, familyId={}",
+                    dishDto.getId(), dishDto.getName(), familyId);
+            return Result.success("更新菜品成功");
+        } catch (Exception e) {
+            log.error("小程序端更新菜品失败: dishId={}, dishName={}, familyId={}",
+                    dishDto.getId(), dishDto.getName(), familyId, e);
+            return Result.error("更新菜品失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 
      * 校验菜品DTO参数
      * 
      * @param dishDto 菜品DTO

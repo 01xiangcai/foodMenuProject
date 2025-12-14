@@ -6,7 +6,7 @@
         <view class="back-btn" @tap="goBack" :style="{ background: scrollTop > 50 ? themeConfig.bgTertiary : 'rgba(255,255,255,0.9)', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }">
           <text class="icon" :style="{ color: scrollTop > 50 ? themeConfig.textPrimary : '#333' }">‹</text>
         </view>
-        <text class="navbar-title" :style="{ opacity: scrollTop > 50 ? 1 : 0, color: themeConfig.textPrimary }">发布菜品</text>
+        <text class="navbar-title" :style="{ opacity: scrollTop > 50 ? 1 : 0, color: themeConfig.textPrimary }">编辑菜品</text>
         <view class="placeholder"></view>
       </view>
     </view>
@@ -190,7 +190,7 @@
         <view class="rich-input-group">
           <view class="rich-header">
             <text class="cell-icon">📝</text>
-            <text class="cell-label" :style="{ color: themeConfig.textPrimary }">家庭备注(简介)</text>
+            <text class="cell-label" :style="{ color: themeConfig.textPrimary }">家庭备注 (简介)</text>
           </view>
           <view class="rich-textarea-wrapper" :style="{ background: themeConfig.bgTertiary }">
             <textarea 
@@ -250,7 +250,7 @@
         @tap="submitForm"
         :style="{ background: themeConfig.primaryGradient, boxShadow: themeConfig.shadowLight }"
       >
-        保存并发布
+        保存修改
       </view>
     </view>
     
@@ -279,9 +279,13 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useTheme } from '@/stores/theme'
-import { getCategoryList, uploadDishImage, addDishUniapp, getDishTagList } from '@/api/index'
+import { getCategoryList, uploadDishImage, updateDishUniapp, getDishDetail, getDishTagList } from '@/api/index'
 
 const { themeConfig, loadTheme } = useTheme()
+
+// 获取菜品ID
+const dishId = ref(null)
+const isLoading = ref(true)
 
 // 滚动
 const scrollTop = ref(0)
@@ -289,6 +293,7 @@ const onScroll = (e) => { scrollTop.value = e.detail.scrollTop }
 
 // 表单数据
 const formData = ref({
+  id: null,
   name: '',
   categoryId: null,
   price: '',
@@ -320,11 +325,24 @@ const isFlavorInputVisible = ref(false)
 const flavorInputValue = ref('')
 
 // 页面加载
-import { onShow } from '@dcloudio/uni-app'
-onShow(() => {
+import { onLoad, onShow } from '@dcloudio/uni-app'
+
+onLoad((options) => {
+  if (options.id) {
+    dishId.value = options.id
+  } else {
+    uni.showToast({ title: '菜品ID缺失', icon: 'none' })
+    setTimeout(() => uni.navigateBack(), 1500)
+  }
+})
+
+onShow(async () => {
   loadTheme()
-  loadCategories()
-  loadTags()
+  await loadCategories()
+  await loadTags()
+  if (dishId.value) {
+    await loadDishDetail()
+  }
 })
 
 const loadTags = async () => {
@@ -352,6 +370,99 @@ const loadCategories = async () => {
     const res = await getCategoryList()
     if (res.data) categories.value = res.data
   } catch(e) { console.error(e) }
+}
+
+// 加载菜品详情
+const loadDishDetail = async () => {
+  try {
+    uni.showLoading({ title: '加载中' })
+    const res = await getDishDetail(dishId.value)
+    if (res.data) {
+      const dish = res.data
+      
+      // 回填基本信息
+      formData.value.id = dish.id
+      formData.value.name = dish.name
+      formData.value.categoryId = dish.categoryId
+      formData.value.price = dish.price.toString()
+      formData.value.description = dish.description || ''
+      formData.value.tags = dish.tags || ''
+      formData.value.status = dish.status
+      formData.value.calories = dish.calories || ''
+      
+      // 回填分类选择器
+      if (dish.categoryId && categories.value.length > 0) {
+        const index = categories.value.findIndex(c => c.id === dish.categoryId)
+        if (index >= 0) {
+          categoryIndex.value = index
+        }
+      }
+      
+      // 回填菜系选择器 - 支持多个标签
+      if (dish.tags && cuisineOptions.value.length > 0) {
+        // 将tags字符串按逗号分割为数组
+        const tags = dish.tags.split(',').map(t => t.trim()).filter(Boolean)
+        selectedTags.value = tags
+      }
+      
+      // 回填图片列表
+      if (dish.localImagesArray && dish.localImagesArray.length > 0) {
+        imageList.value = dish.localImagesArray.map(url => ({
+          url: url,
+          path: extractPathFromUrl(url)
+        }))
+        formData.value.localImage = imageList.value[0].path
+        formData.value.localImages = JSON.stringify(imageList.value.map(i => i.path))
+      } else if (dish.localImage) {
+        // 如果没有图片数组,使用主图
+        const url = dish.image || dish.localImage
+        imageList.value = [{
+          url: url,
+          path: dish.localImage
+        }]
+        formData.value.localImage = dish.localImage
+        formData.value.localImages = JSON.stringify([dish.localImage])
+      }
+      
+      // 回填口味标签
+      if (dish.flavors && dish.flavors.length > 0) {
+        const flavorItem = dish.flavors.find(f => f.name === '口味')
+        if (flavorItem && flavorItem.value) {
+          try {
+            const flavors = JSON.parse(flavorItem.value)
+            if (Array.isArray(flavors)) {
+              flavorList.value = flavors
+            }
+          } catch (e) {
+            console.error('解析口味失败', e)
+          }
+        }
+      }
+      
+      isLoading.value = false
+    }
+    uni.hideLoading()
+  } catch (e) {
+    uni.hideLoading()
+    console.error('加载菜品详情失败', e)
+    uni.showToast({ title: '加载失败', icon: 'none' })
+    setTimeout(() => uni.navigateBack(), 1500)
+  }
+}
+
+// 从完整URL提取相对路径
+const extractPathFromUrl = (url) => {
+  if (!url) return ''
+  // 如果是完整URL,提取路径部分
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    try {
+      const urlObj = new URL(url)
+      return urlObj.pathname.substring(1) // 移除开头的 /
+    } catch (e) {
+      return url
+    }
+  }
+  return url
 }
 
 const onCategoryChange = (e) => {
@@ -452,7 +563,7 @@ const submitForm = async () => {
   if (!formData.value.price) return uni.showToast({ title: '请输入价格', icon: 'none' })
   if (imageList.value.length === 0) return uni.showToast({ title: '请至少上传一张图片', icon: 'none' })
   
-  uni.showLoading({ title: '发布中' })
+  uni.showLoading({ title: '保存中' })
   
   try {
     // 构造口味数据结构 [{name: '口味', value: '["微辣"]'}]
@@ -460,13 +571,13 @@ const submitForm = async () => {
       ? [{ name: '口味', value: JSON.stringify(flavorList.value) }]
       : []
 
-    await addDishUniapp({
+    await updateDishUniapp({
       ...formData.value,
       price: parseFloat(formData.value.price),
       flavors: flavors
     })
     
-    uni.showToast({ title: '发布成功' })
+    uni.showToast({ title: '更新成功' })
     setTimeout(() => goBack(), 1500)
     
   } catch(e) {
