@@ -1,5 +1,24 @@
 <template>
   <view class="page" :style="{ background: themeConfig.bgPrimary }">
+    <popup-selector 
+      v-model:show="showCategoryPopup" 
+      title="选择分类" 
+      :list="categories" 
+      :selected="selectedCategories"
+      :themeConfig="themeConfig"
+      @confirm="onCategoryConfirm"
+    />
+    <popup-selector 
+      v-model:show="showTagPopup" 
+      title="选择标签" 
+      :list="cuisineOptions" 
+      :selected="selectedTags"
+      :multiple="true"
+      labelKey="label"
+      valueKey="value"
+      :themeConfig="themeConfig"
+      @confirm="onTagConfirm"
+    />
     <!-- 顶部导航栏 (透明/滚动变色) -->
     <view class="navbar" :style="{ background: scrollTop > 50 ? themeConfig.bgSecondary : 'transparent' }">
       <view class="navbar-content">
@@ -66,26 +85,19 @@
           <view class="divider-inset" :style="{ background: themeConfig.borderColor }"></view>
 
           <!-- 所属分类 (多选) -->
-          <picker 
-            mode="multiSelector" 
-            :range="[categories]" 
-            range-key="name"
-            @change="onCategoryChange"
-            @columnchange="onCategoryColumnChange"
-          >
-            <view class="cell-item" hover-class="cell-hover">
-              <view class="cell-left">
-                <text class="cell-icon">📂</text>
-                <text class="cell-label" :style="{ color: themeConfig.textPrimary }">所属分类 <text class="required">*</text></text>
-              </view>
-              <view class="cell-right">
-                <text class="cell-value" :class="{ empty: selectedCategories.length === 0 }" :style="{ color: selectedCategories.length > 0 ? themeConfig.textSecondary : themeConfig.textTertiary }">
-                  {{ selectedCategories.length > 0 ? selectedCategories.map(c => c.name).join('、') : '请选择分类' }}
-                </text>
-                <text class="cell-arrow" :style="{ color: themeConfig.textTertiary }">></text>
-              </view>
+          <!-- 所属分类 (多选) -->
+          <view class="cell-item" hover-class="cell-hover" @tap="showCategoryPopup = true">
+            <view class="cell-left">
+              <text class="cell-icon">📂</text>
+              <text class="cell-label" :style="{ color: themeConfig.textPrimary }">所属分类 <text class="required">*</text></text>
             </view>
-          </picker>
+            <view class="cell-right">
+              <text class="cell-value" :class="{ empty: selectedCategories.length === 0 }" :style="{ color: selectedCategories.length > 0 ? themeConfig.textSecondary : themeConfig.textTertiary }">
+                {{ selectedCategories.length > 0 ? selectedCategories.map(c => c.name).join('、') : '请选择分类' }}
+              </text>
+              <text class="cell-arrow" :style="{ color: themeConfig.textTertiary }">></text>
+            </view>
+          </view>
 
           <!-- 已选分类列表 -->
           <view class="selected-tags" v-if="selectedCategories.length > 0">
@@ -103,25 +115,19 @@
           <view class="divider-inset" :style="{ background: themeConfig.borderColor }"></view>
           
           <!-- 菜品标签 (多选) -->
-          <picker 
-            mode="multiSelector" 
-            :range="[cuisineOptions]" 
-            @change="onCuisineChange"
-            @columnchange="onCuisineColumnChange"
-          >
-            <view class="cell-item" hover-class="cell-hover">
-              <view class="cell-left">
-                <text class="cell-icon">🏷️</text>
-                <text class="cell-label" :style="{ color: themeConfig.textPrimary }">菜品标签</text>
-              </view>
-              <view class="cell-right">
-                <text class="cell-value" :class="{ empty: selectedTags.length === 0 }" :style="{ color: selectedTags.length > 0 ? themeConfig.textSecondary : themeConfig.textTertiary }">
-                  {{ selectedTags.length > 0 ? selectedTags.join('、') : '请选择标签' }}
-                </text>
-                <text class="cell-arrow" :style="{ color: themeConfig.textTertiary }">></text>
-              </view>
+          <!-- 菜品标签 (多选) -->
+          <view class="cell-item" hover-class="cell-hover" @tap="showTagPopup = true">
+            <view class="cell-left">
+              <text class="cell-icon">🏷️</text>
+              <text class="cell-label" :style="{ color: themeConfig.textPrimary }">菜品标签</text>
             </view>
-          </picker>
+            <view class="cell-right">
+              <text class="cell-value" :class="{ empty: selectedTags.length === 0 }" :style="{ color: selectedTags.length > 0 ? themeConfig.textSecondary : themeConfig.textTertiary }">
+                {{ selectedTags.length > 0 ? selectedTags.join('、') : '请选择标签' }}
+              </text>
+              <text class="cell-arrow" :style="{ color: themeConfig.textTertiary }">></text>
+            </view>
+          </view>
           
           <!-- 已选标签列表 -->
           <view class="selected-tags" v-if="selectedTags.length > 0">
@@ -293,6 +299,7 @@
 import { ref, computed } from 'vue'
 import { useTheme } from '@/stores/theme'
 import { getCategoryList, uploadDishImage, updateDishUniapp, getDishDetail, getDishTagList } from '@/api/index'
+import PopupSelector from '@/components/common/popup-selector.vue'
 
 const { themeConfig, loadTheme } = useTheme()
 
@@ -325,12 +332,12 @@ const imageList = ref([])
 // 分类 (多选)
 const categories = ref([])
 const selectedCategories = ref([]) // 已选分类对象数组
-const categoryPickerValue = ref([0]) // picker的当前选中值
+const showCategoryPopup = ref(false)
 
 // 菜系选项 (从后台获取)
 const cuisineOptions = ref([])
 const selectedTags = ref([]) // 已选标签数组
-const cuisinePickerValue = ref([0]) // picker的当前选中值
+const showTagPopup = ref(false)
 
 // 口味列表 (临时存储字符串列表，提交时转换结构)
 const flavorList = ref([])
@@ -371,7 +378,10 @@ const loadTags = async () => {
       
       cuisineOptions.value = res.data.map(tag => {
         const emoji = emojiMap[tag.name] || '🏷️'
-        return `${emoji} ${tag.name}`
+        return {
+          label: `${emoji} ${tag.name}`,
+          value: tag.name 
+        }
       })
     }
   } catch(e) { console.error('获取标签失败', e) }
@@ -484,23 +494,10 @@ const extractPathFromUrl = (url) => {
   return url
 }
 
-// 分类多选逻辑
-const onCategoryChange = (e) => {
-  const selectedIndex = e.detail.value[0]
-  if (selectedIndex >= 0 && selectedIndex < categories.value.length) {
-    const selectedCategory = categories.value[selectedIndex]
-    
-    // 检查是否已经选择
-    if (!selectedCategories.value.find(c => c.id === selectedCategory.id)) {
-      selectedCategories.value.push(selectedCategory)
-      updateCategoryIds()
-    }
-  }
-}
-
-const onCategoryColumnChange = (e) => {
-  // 列变化时更新picker的选中值
-  categoryPickerValue.value = [e.detail.value]
+// 分类弹窗确认
+const onCategoryConfirm = (val) => {
+  selectedCategories.value = val
+  updateCategoryIds()
 }
 
 // 移除分类
@@ -514,24 +511,11 @@ const updateCategoryIds = () => {
   formData.value.categoryIds = selectedCategories.value.map(c => c.id)
 }
 
-const onCuisineChange = (e) => {
-  const selectedIndex = e.detail.value[0]
-  if (selectedIndex >= 0 && selectedIndex < cuisineOptions.value.length) {
-    const selectedOption = cuisineOptions.value[selectedIndex]
-    // 移除emoji和空格,只保留中文菜系名称
-    const tagName = selectedOption.replace(/[\u{1F000}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\uFE0F\s]/gu, '').trim()
-    
-    // 检查是否已经选择
-    if (!selectedTags.value.includes(tagName)) {
-      selectedTags.value.push(tagName)
-      updateTagsField()
-    }
-  }
-}
-
-const onCuisineColumnChange = (e) => {
-  // 列变化时更新picker的选中值
-  cuisinePickerValue.value = [e.detail.value]
+// 标签弹窗确认
+const onTagConfirm = (val) => {
+  // val 是对象数组 [{label, value}]
+  selectedTags.value = val.map(v => v.value)
+  updateTagsField()
 }
 
 // 移除标签
