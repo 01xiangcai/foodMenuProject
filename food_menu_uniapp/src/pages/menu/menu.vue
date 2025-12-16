@@ -39,6 +39,11 @@
       
     </view>
     
+    <!-- 餐次选择 -->
+    <view class="meal-period-section">
+      <MealPeriodSelector v-model="selectedMealPeriod" @change="onMealPeriodChange" />
+    </view>
+    
     <!-- 内容区域 -->
     <view class="page-content">
       <!-- 侧边栏分类 -->
@@ -193,6 +198,7 @@ import { getCategoryList, getDishList, addFavorite, removeFavorite, checkFavorit
 import { useTheme } from '@/stores/theme'
 import { useCartStore } from '@/stores/cart'
 import CartPopup from '@/components/CartPopup.vue'
+import MealPeriodSelector from '@/components/MealPeriodSelector.vue'
 import { getDishImage } from '@/utils/image'
 
 // 使用主题
@@ -247,7 +253,14 @@ const cartPopupVisible = ref(false)
 const tagIconMap = ref({})
 const searchKeyword = ref('')
 const isCompactMode = ref(true)
+const selectedMealPeriod = ref('') // 选中的餐次
 let searchTimer = null
+
+// 餐次变化处理
+const onMealPeriodChange = (period) => {
+  console.log('选择餐次:', period)
+  selectedMealPeriod.value = period
+}
 
 // 切换视图模式
 const toggleViewMode = () => {
@@ -411,7 +424,8 @@ const goToCheckout = async () => {
     const orderData = {
       remark: '',
       payMethod: null,
-      payPassword: null, 
+      payPassword: null,
+      mealPeriod: selectedMealPeriod.value || null, // 添加餐次参数
       orderItems: selectedItems.map(item => ({
         dishId: item.id,
         quantity: item.quantity
@@ -428,9 +442,9 @@ const goToCheckout = async () => {
       // 创建成功，清空购物车
       cartStore.clearCart()
       
-      // 跳转到确认页（实际是支付页），携带 orderId
+      // 跳转到确认页(实际是支付页),携带 orderId 和餐次
       uni.navigateTo({
-        url: `/pages/order/confirm?orderId=${orderId}`
+        url: `/pages/order/confirm?orderId=${orderId}&mealPeriod=${selectedMealPeriod.value}`
       })
     }
   } catch (error) {

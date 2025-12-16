@@ -40,14 +40,14 @@ export const request = (options = {}) => {
             header: finalHeader,
             success: (res) => {
                 if (res.statusCode >= 200 && res.statusCode < 300) {
-                    // 判断业务状态码
-                    if (res.data && res.data.code === 1) {
+                    // 判断业务状态码 - 支持code=1和code=200两种成功响应
+                    if (res.data && (res.data.code === 1 || res.data.code === 200)) {
                         resolve(res.data)
                     } else if (res.data && res.data.code === 0) {
-                        // 业务错误 - 不在这里显示toast，让调用方自己处理
-                        // 这样调用方可以根据需要自定义错误提示
+                        // 业务错误 - 不在这里显示toast,让调用方自己处理
                         reject(new Error(res.data.msg || '请求失败'))
                     } else {
+                        // 其他情况也resolve,让调用方处理
                         resolve(res.data)
                     }
                 } else {

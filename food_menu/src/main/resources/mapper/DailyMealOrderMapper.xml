@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yao.food_menu.mapper.DailyMealOrderMapper">
+    
+    <!-- 查询家庭某天的所有大订单 -->
+    <select id="selectByFamilyAndDate" resultType="com.yao.food_menu.entity.DailyMealOrder">
+        SELECT *
+        FROM daily_meal_order
+        WHERE family_id = #{familyId}
+          AND order_date = #{orderDate}
+          AND deleted = 0
+        ORDER BY meal_period
+    </select>
+    
+</mapper>

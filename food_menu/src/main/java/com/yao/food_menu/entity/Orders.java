@@ -59,6 +59,12 @@ public class Orders implements Serializable {
     // 支付时间
     private LocalDateTime payTime;
 
+    // 餐次类型: BREAKFAST/LUNCH/DINNER
+    private String mealPeriod;
+
+    // 大订单ID
+    private Long dailyMealOrderId;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 

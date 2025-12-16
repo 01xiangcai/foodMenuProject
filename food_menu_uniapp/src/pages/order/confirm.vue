@@ -4,6 +4,10 @@
     <view class="card">
       <view class="card-header">
         <text class="card-title">订单详情</text>
+        <view class="meal-period-badge" v-if="mealPeriod">
+          <text class="period-icon">{{ getMealPeriodIcon(mealPeriod) }}</text>
+          <text class="period-name">{{ getMealPeriodName(mealPeriod) }}</text>
+        </view>
       </view>
       
       <view class="order-items">
@@ -56,7 +60,7 @@
         </view>
 
         <!-- 模拟支付 -->
-        <view 
+        <!-- <view 
           class="pay-method" 
           :class="{ active: payMethod === 2 }"
           @tap="selectPayMethod(2)"
@@ -69,7 +73,7 @@
             </view>
           </view>
           <view class="pay-check" v-if="payMethod === 2">✓</view>
-        </view>
+        </view> -->
       </view>
 
       <!-- 余额不足提示 -->
@@ -141,6 +145,27 @@ const showPayPassword = ref(false)
 const isSubmitting = ref(false)
 const orderId = ref(null)
 const orderNumber = ref('')
+const mealPeriod = ref('') // 餐次
+
+// 获取餐次图标
+const getMealPeriodIcon = (period) => {
+  const map = {
+    'BREAKFAST': '🍳',
+    'LUNCH': '🍱',
+    'DINNER': '🍷'
+  }
+  return map[period] || '🍽️'
+}
+
+// 获取餐次名称
+const getMealPeriodName = (period) => {
+  const map = {
+    'BREAKFAST': '早餐',
+    'LUNCH': '中餐',
+    'DINNER': '晚餐'
+  }
+  return map[period] || ''
+}
 
 // 商品金额
 const goodsAmount = computed(() => {
@@ -193,6 +218,7 @@ const loadOrder = async (id) => {
       orderId.value = order.id
       orderNumber.value = order.orderNumber
       remark.value = order.remark || ''
+      mealPeriod.value = order.mealPeriod || '' // 获取餐次
       
       // 转换订单项格式以匹配显示
       items.value = order.orderItems.map(item => ({
@@ -337,6 +363,11 @@ const submitOrder = async (payPassword) => {
 }
 
 onLoad((options) => {
+  // 获取餐次参数
+  if (options.mealPeriod) {
+    mealPeriod.value = options.mealPeriod
+  }
+  
   if (options.orderId) {
     // 模式1: 传入了订单ID，加载现有订单
     loadOrder(options.orderId)
@@ -383,12 +414,35 @@ onShow(() => {
 
 .card-header {
   margin-bottom: 30rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .card-title {
   font-size: 32rpx;
   font-weight: 600;
   color: v-bind('themeConfig.textPrimary');
+}
+
+.meal-period-badge {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 8rpx 16rpx;
+  background: linear-gradient(135deg, var(--accent-orange), #ff9f43);
+  border-radius: 20rpx;
+  box-shadow: 0 4rpx 12rpx rgba(255, 159, 67, 0.3);
+}
+
+.period-icon {
+  font-size: 28rpx;
+}
+
+.period-name {
+  font-size: 24rpx;
+  color: #fff;
+  font-weight: 600;
 }
 
 .order-item {

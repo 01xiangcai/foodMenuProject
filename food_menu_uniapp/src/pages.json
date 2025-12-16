@@ -63,6 +63,12 @@
             }
         },
         {
+            "path": "pages/order/daily-meal-order-detail",
+            "style": {
+                "navigationBarTitleText": "今日菜单详情"
+            }
+        },
+        {
             "path": "pages/profile/profile",
             "style": {
                 "navigationBarTitleText": "我的"

@@ -26,4 +26,8 @@ public class OrdersDto extends Orders {
     // 支付密码（余额支付时使用，不持久化）
     @com.baomidou.mybatisplus.annotation.TableField(exist = false)
     private String payPassword;
+
+    // 餐次名称(用于前端显示)
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private String mealPeriodName;
 }

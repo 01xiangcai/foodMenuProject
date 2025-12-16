@@ -58,6 +58,49 @@
       </swiper>
     </view>
 
+    <!-- 今日菜单 -->
+    <view class="section today-menu-section">
+      <view class="section-header">
+        <text class="section-title">今日菜单</text>
+        <text class="link-text" @tap="navigateTo('/pages/order/daily-meal-order-detail')">查看全部</text>
+      </view>
+      
+      <view class="meal-cards">
+        <view 
+          class="meal-card" 
+          v-for="meal in todayMeals" 
+          :key="meal.period"
+          :class="'meal-' + meal.period.toLowerCase()"
+          @tap="goToMealDetail(meal.id)"
+        >
+          <view class="meal-header">
+            <view class="meal-info">
+              <text class="meal-icon">{{ meal.icon }}</text>
+              <text class="meal-name">{{ meal.name }}</text>
+            </view>
+            <view class="meal-status" :class="'status-' + meal.status">
+              <text>{{ meal.statusText }}</text>
+            </view>
+          </view>
+          
+          <view class="meal-stats">
+            <view class="stat-item">
+              <text class="stat-label">参与</text>
+              <text class="stat-value">{{ meal.memberCount || 0 }}人</text>
+            </view>
+            <view class="stat-item">
+              <text class="stat-label">菜品</text>
+              <text class="stat-value">{{ meal.dishCount || 0 }}道</text>
+            </view>
+            <view class="stat-item">
+              <text class="stat-label">金额</text>
+              <text class="stat-value">¥{{ meal.totalAmount || 0 }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
     <!-- 快捷操作 -->
     <view class="section actions-section">
       <!-- 隐藏标题，直接展示卡片，或者保留标题视设计而定，这里保留标题但样式微调 -->
@@ -126,6 +169,7 @@ import { getBannerList, getTopDishes } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 import { getDishImage } from '@/utils/image'
 import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
+import { request } from '@/utils/request'
 
 // 使用主题
 const { currentTheme, loadTheme, applyCurrentTheme } = useTheme()
@@ -139,6 +183,7 @@ const quickActions = ref([
   { label: '营销活动', desc: '参与抽奖赢好礼', link: '/pages/marketing/activity-list' }
 ])
 const featuredDishes = ref([])
+const todayMeals = ref([])
 const timeState = ref({
   greeting: '你好',
   emoji: '👋'
@@ -247,6 +292,85 @@ const onBannerImageError = (index) => {
   }
 }
 
+// 加载今日菜单
+const loadTodayMeals = async () => {
+  try {
+    const token = uni.getStorageSync('fm_token')
+    
+    // 默认数据
+    const defaultMeals = [
+      { period: 'BREAKFAST', name: '早餐', icon: '🍳', status: 0, statusText: '收集中', memberCount: 0, dishCount: 0, totalAmount: 0 },
+      { period: 'LUNCH', name: '中餐', icon: '🍱', status: 0, statusText: '收集中', memberCount: 0, dishCount: 0, totalAmount: 0 },
+      { period: 'DINNER', name: '晚餐', icon: '🍷', status: 0, statusText: '收集中', memberCount: 0, dishCount: 0, totalAmount: 0 }
+    ]
+    
+    // 先设置默认数据,确保界面有内容
+    todayMeals.value = defaultMeals
+    
+    // 如果未登录,直接返回
+    if (!token) {
+      return
+    }
+    
+    // 尝试加载真实数据
+    try {
+      const res = await request({
+        url: '/uniapp/daily-meal-order/today',
+        method: 'GET'
+      })
+      
+      // 后端返回code=1表示成功
+      if (res.code === 1 && res.data) {
+        const data = res.data
+        const mealMap = {
+          'BREAKFAST': { name: '早餐', icon: '🍳' },
+          'LUNCH': { name: '中餐', icon: '🍱' },
+          'DINNER': { name: '晚餐', icon: '🍷' }
+        }
+        
+        todayMeals.value = ['BREAKFAST', 'LUNCH', 'DINNER'].map(period => {
+          const meal = data.find(m => m.mealPeriod === period)
+          const statusMap = { 0: '收集中', 1: '已确认', 2: '已截止' }
+          
+          return {
+            id: meal?.id,
+            period,
+            name: mealMap[period].name,
+            icon: mealMap[period].icon,
+            status: meal?.status || 0,
+            statusText: statusMap[meal?.status || 0],
+            memberCount: meal?.memberCount || 0,
+            dishCount: meal?.dishCount || 0,
+            totalAmount: meal?.totalAmount || 0
+          }
+        })
+      }
+    } catch (apiError) {
+      console.error('加载今日菜单API失败:', apiError)
+      // API失败时保持默认数据
+    }
+  } catch (error) {
+    console.error('加载今日菜单失败:', error)
+    // 确保即使出错也有默认数据
+    todayMeals.value = [
+      { period: 'BREAKFAST', name: '早餐', icon: '🍳', status: 0, statusText: '收集中', memberCount: 0, dishCount: 0, totalAmount: 0 },
+      { period: 'LUNCH', name: '中餐', icon: '🍱', status: 0, statusText: '收集中', memberCount: 0, dishCount: 0, totalAmount: 0 },
+      { period: 'DINNER', name: '晚餐', icon: '🍷', status: 0, statusText: '收集中', memberCount: 0, dishCount: 0, totalAmount: 0 }
+    ]
+  }
+}
+
+// 跳转到大订单详情
+const goToMealDetail = (id) => {
+  if (!id) {
+    uni.showToast({ title: '暂无订单数据', icon: 'none' })
+    return
+  }
+  uni.navigateTo({
+    url: `/pages/order/daily-meal-order-detail?id=${id}`
+  })
+}
+
 const navigateTo = (url) => {
   uni.navigateTo({ url })
 }
@@ -270,6 +394,7 @@ onMounted(() => {
   }, 1000)
   loadBanners()
   loadFeaturedDishes()
+  loadTodayMeals()
 })
 
 onUnmounted(() => {
@@ -726,5 +851,120 @@ onShow(() => {
             }
         }
     }
+}
+
+/* 今日菜单样式 */
+.today-menu-section {
+  .meal-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 16rpx;
+  }
+  
+  .meal-card {
+    background: var(--bg-card);
+    border-radius: 24rpx;
+    padding: 24rpx;
+    box-shadow: var(--shadow-soft);
+    transition: all 0.3s ease;
+    animation: slideUp 0.4s ease-out;
+    
+    &:active {
+      transform: scale(0.98);
+    }
+    
+    &.meal-breakfast {
+      border-left: 6rpx solid #f59e0b;
+    }
+    
+    &.meal-lunch {
+      border-left: 6rpx solid #10b981;
+    }
+    
+    &.meal-dinner {
+      border-left: 6rpx solid #8b5cf6;
+    }
+  }
+  
+  .meal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20rpx;
+  }
+  
+  .meal-info {
+    display: flex;
+    align-items: center;
+    gap: 12rpx;
+  }
+  
+  .meal-icon {
+    font-size: 36rpx;
+  }
+  
+  .meal-name {
+    font-size: 32rpx;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  
+  .meal-status {
+    padding: 8rpx 20rpx;
+    border-radius: 20rpx;
+    font-size: 22rpx;
+    font-weight: 600;
+    
+    &.status-0 {
+      background: rgba(59, 130, 246, 0.1);
+      color: #3b82f6;
+    }
+    
+    &.status-1 {
+      background: rgba(16, 185, 129, 0.1);
+      color: #10b981;
+    }
+    
+    &.status-2 {
+      background: rgba(107, 114, 128, 0.1);
+      color: #6b7280;
+    }
+  }
+  
+  .meal-stats {
+    display: flex;
+    justify-content: space-around;
+    padding-top: 16rpx;
+    border-top: 2rpx solid var(--border-color);
+  }
+  
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6rpx;
+  }
+  
+  .stat-label {
+    font-size: 22rpx;
+    color: var(--text-secondary);
+  }
+  
+  .stat-value {
+    font-size: 26rpx;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

@@ -14,6 +14,8 @@ import OperationLogsView from '@/views/operationLogs/OperationLogsView.vue';
 import WalletListView from '@/views/finance/WalletListView.vue';
 import MarketingView from '@/views/marketing/MarketingView.vue';
 import ProfileView from '@/views/profile/ProfileView.vue';
+import MealConfigView from '@/views/meal/MealConfigView.vue';
+import DailyMealOrderStatistics from '@/views/meal/DailyMealOrderStatistics.vue';
 
 
 const routes: RouteRecordRaw[] = [
@@ -107,6 +109,18 @@ const routes: RouteRecordRaw[] = [
         name: 'profile',
         component: ProfileView,
         meta: { title: '个人信息' }
+      },
+      {
+        path: 'meal-config',
+        name: 'meal-config',
+        component: MealConfigView,
+        meta: { title: '餐次配置' }
+      },
+      {
+        path: 'daily-meal-orders',
+        name: 'daily-meal-orders',
+        component: DailyMealOrderStatistics,
+        meta: { title: '今日菜单统计' }
       }
     ]
   }

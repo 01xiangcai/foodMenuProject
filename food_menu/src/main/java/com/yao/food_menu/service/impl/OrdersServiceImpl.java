@@ -45,6 +45,15 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
     @Autowired
     private WalletService walletService;
 
+    @Autowired
+    private com.yao.food_menu.service.DailyMealOrderService dailyMealOrderService;
+
+    @Autowired
+    private com.yao.food_menu.service.MealPeriodConfigService mealPeriodConfigService;
+
+    @Autowired
+    private com.yao.food_menu.service.WxUserService wxUserService;
+
     private static final AtomicLong orderCounter = new AtomicLong(1);
 
     @Override
@@ -63,6 +72,31 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
             Long familyId = FamilyContext.getFamilyId();
             if (familyId != null) {
                 ordersDto.setFamilyId(familyId);
+            }
+        }
+
+        // 处理餐次:如果没有指定餐次,根据当前时间自动判断
+        if (ordersDto.getMealPeriod() == null || ordersDto.getMealPeriod().trim().isEmpty()) {
+            if (ordersDto.getFamilyId() != null) {
+                com.yao.food_menu.enums.MealPeriod period = mealPeriodConfigService
+                        .getCurrentPeriod(ordersDto.getFamilyId());
+                ordersDto.setMealPeriod(period.getCode());
+                log.info("Auto set meal period: {}", period.getCode());
+            }
+        }
+
+        // 创建或获取大订单
+        if (ordersDto.getMealPeriod() != null && ordersDto.getFamilyId() != null) {
+            try {
+                com.yao.food_menu.entity.DailyMealOrder dailyMealOrder = dailyMealOrderService.createOrGet(
+                        ordersDto.getFamilyId(),
+                        java.time.LocalDate.now(),
+                        ordersDto.getMealPeriod());
+                ordersDto.setDailyMealOrderId(dailyMealOrder.getId());
+                log.info("Associated with daily meal order: {}", dailyMealOrder.getId());
+            } catch (Exception e) {
+                log.error("Failed to create or get daily meal order", e);
+                // 不影响订单提交,继续执行
             }
         }
 
@@ -107,6 +141,15 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
             item.setFamilyId(familyId);
         }
         orderItemService.saveBatch(orderItems);
+
+        // 更新大订单统计
+        if (ordersDto.getDailyMealOrderId() != null) {
+            try {
+                dailyMealOrderService.updateStatistics(ordersDto.getDailyMealOrderId());
+            } catch (Exception e) {
+                log.error("Failed to update daily meal order statistics", e);
+            }
+        }
 
         log.info("Order created (pending payment): {}", orderNumber);
     }

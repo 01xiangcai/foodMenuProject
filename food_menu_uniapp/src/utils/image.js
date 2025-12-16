@@ -25,17 +25,17 @@ export function getDishImage(dish) {
 
   // 支持驼峰和下划线两种命名方式
   const localImage = dish.localImage || dish.local_image;
-  
+
   // 优先使用 localImage
   if (localImage && localImage.trim() !== '') {
     return localImage;
   }
-  
+
   // 其次使用 image
   if (dish.image && dish.image.trim() !== '') {
     return dish.image;
   }
-  
+
   // 都没有则返回默认图片
   return DEFAULT_DISH_IMAGE;
 }
@@ -62,3 +62,41 @@ export function isValidImageUrl(url) {
   return trimmedUrl !== '' && trimmedUrl !== 'null' && trimmedUrl !== 'undefined';
 }
 
+/**
+ * 获取完整图片URL
+ * 如果是相对路径,则拼接baseURL
+ * @param {string} path - 图片路径
+ * @returns {string} 完整URL
+ */
+export function getImageUrl(path) {
+  if (!path || path.trim() === '') {
+    return '';
+  }
+
+  // 如果已经是完整URL,直接返回
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
+    return path;
+  }
+
+  // 使用与request.js相同的BASE_URL配置
+  const ENV_API_URL = import.meta.env.VITE_API_URL;
+
+  let BASE_URL = '';
+  // #ifdef H5
+  BASE_URL = '/api';
+  // #endif
+
+  // #ifdef MP-WEIXIN
+  BASE_URL = ENV_API_URL || '';
+  // #endif
+
+  // 如果BASE_URL为空,返回空字符串
+  if (!BASE_URL) {
+    console.warn('BASE_URL is not configured, image may not display correctly');
+    return path;
+  }
+
+  // 拼接完整URL
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${BASE_URL}${cleanPath}`;
+}

@@ -45,8 +45,14 @@
               <text class="order-label">订单号：</text>
               <text class="order-no">{{ order.orderNumber }}</text>
             </view>
-            <view class="status-badge" :class="getStatusClass(order.status, order.payStatus)">
-              <text>{{ getStatusText(order.status, order.payStatus) }}</text>
+            <view class="header-right">
+              <view class="meal-period-badge" v-if="order.mealPeriod">
+                <text class="period-icon">{{ getMealPeriodIcon(order.mealPeriod) }}</text>
+                <text class="period-name">{{ getMealPeriodName(order.mealPeriod) }}</text>
+              </view>
+              <view class="status-badge" :class="getStatusClass(order.status, order.payStatus)">
+                <text>{{ getStatusText(order.status, order.payStatus) }}</text>
+              </view>
             </view>
           </view>
           
@@ -204,6 +210,26 @@ const getStatusClass = (status, payStatus) => {
     5: 'status-unpaid'
   }
   return classMap[status] || ''
+}
+
+// 获取餐次图标
+const getMealPeriodIcon = (period) => {
+  const map = {
+    'BREAKFAST': '🍳',
+    'LUNCH': '🍱',
+    'DINNER': '🍷'
+  }
+  return map[period] || '🍽️'
+}
+
+// 获取餐次名称
+const getMealPeriodName = (period) => {
+  const map = {
+    'BREAKFAST': '早餐',
+    'LUNCH': '中餐',
+    'DINNER': '晚餐'
+  }
+  return map[period] || ''
 }
 
 // 获取显示的菜品列表
@@ -501,6 +527,32 @@ const getBadgeStyle = (status) => {
   display: flex;
   align-items: center;
   gap: 8rpx;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.meal-period-badge {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 6rpx 12rpx;
+  background: linear-gradient(135deg, var(--accent-orange), #ff9f43);
+  border-radius: 16rpx;
+  box-shadow: 0 2rpx 8rpx rgba(255, 159, 67, 0.25);
+}
+
+.period-icon {
+  font-size: 22rpx;
+}
+
+.period-name {
+  font-size: 20rpx;
+  color: #fff;
+  font-weight: 600;
 }
 
 .order-label {

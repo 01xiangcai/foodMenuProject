@@ -49,6 +49,13 @@
         <text class="card-title">订单信息</text>
       </view>
       <view class="info-list">
+        <view class="info-row" v-if="order.mealPeriod">
+          <text class="label">餐次</text>
+          <view class="meal-period-value">
+            <text class="period-icon">{{ getMealPeriodIcon(order.mealPeriod) }}</text>
+            <text class="period-text">{{ getMealPeriodName(order.mealPeriod) }}</text>
+          </view>
+        </view>
         <view class="info-row">
           <text class="label">订单号</text>
           <text class="value">{{ order.orderNumber }}</text>
@@ -148,7 +155,7 @@
           </view>
           
           <!-- 模拟支付 -->
-          <view 
+          <!-- <view 
             class="method-item" 
             :class="{ active: selectedPayMethod === 2 }"
             @tap="selectPayMethod(2)"
@@ -161,7 +168,7 @@
               </view>
             </view>
             <view class="radio-circle"></view>
-          </view>
+          </view> -->
         </view>
         
         <view class="popup-footer">
@@ -271,6 +278,26 @@ const getPayMethodText = (method) => {
   return map[method] || (method ? '未知支付' : '微信支付')
 }
 
+// 获取餐次图标
+const getMealPeriodIcon = (period) => {
+  const map = {
+    'BREAKFAST': '🍳',
+    'LUNCH': '🍱',
+    'DINNER': '🍷'
+  }
+  return map[period] || '🍽️'
+}
+
+// 获取餐次名称
+const getMealPeriodName = (period) => {
+  const map = {
+    'BREAKFAST': '早餐',
+    'LUNCH': '中餐',
+    'DINNER': '晚餐'
+  }
+  return map[period] || ''
+}
+
 const { themeConfig, loadTheme } = useTheme()
 
 const loadOrderDetail = async (id) => {
@@ -290,6 +317,7 @@ const loadOrderDetail = async (id) => {
         payMethod: data.payMethod,
         payStatus: data.payStatus,
         remark: data.remark || '',
+        mealPeriod: data.mealPeriod || '', // 餐次
         items: (data.orderItems || []).map(item => ({
           id: item.id,
           dishId: item.dishId,
