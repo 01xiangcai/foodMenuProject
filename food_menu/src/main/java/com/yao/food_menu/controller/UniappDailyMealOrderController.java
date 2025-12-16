@@ -189,6 +189,7 @@ public class UniappDailyMealOrderController {
                         itemMap.put("dishName", item.getDishName());
                         itemMap.put("quantity", item.getQuantity());
                         itemMap.put("price", item.getPrice());
+                        itemMap.put("isPublished", item.getIsPublished() != null ? item.getIsPublished() : 0);
 
                         // 计算小计
                         java.math.BigDecimal subtotal = item.getPrice()

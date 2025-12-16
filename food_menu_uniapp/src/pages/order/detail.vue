@@ -16,10 +16,24 @@
         <text class="card-title">订单商品</text>
       </view>
       <view class="order-items">
-        <view class="order-item" v-for="item in order.items" :key="item.id" @tap="navigateToDishDetail(item.dishId, item.dishStatus)">
+        <view 
+          class="order-item" 
+          :class="{ 'not-published': item.isPublished === 0 }"
+          v-for="item in order.items" 
+          :key="item.id" 
+          @tap="navigateToDishDetail(item.dishId, item.dishStatus)"
+        >
           <image class="item-image" :src="getDishImage(item)" mode="aspectFill" />
           <view class="item-info">
-            <text class="item-name">{{ item.name }}</text>
+            <view class="item-name-row">
+              <text class="item-name">{{ item.name }}</text>
+              <view class="publish-badge" v-if="item.isPublished === 0">
+                <text>未采纳</text>
+              </view>
+              <view class="publish-badge published" v-else-if="item.isPublished === 1">
+                <text>✓ 已采纳</text>
+              </view>
+            </view>
             <text class="item-spec">x{{ item.quantity }}</text>
           </view>
           <text class="item-price">¥{{ item.price }}</text>
@@ -705,9 +719,18 @@ onShow(() => {
   align-items: center;
   padding: 30rpx 0;
   border-bottom: 1px solid v-bind('themeConfig.borderColor');
+  transition: opacity 0.3s;
   
   &:last-child {
     border-bottom: none;
+  }
+  
+  &.not-published {
+    opacity: 0.5;
+    
+    .item-image {
+      filter: grayscale(100%);
+    }
   }
 }
 
@@ -728,11 +751,31 @@ onShow(() => {
   padding: 4rpx 0;
 }
 
+.item-name-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
 .item-name {
   font-size: 30rpx;
   color: v-bind('themeConfig.textPrimary');
   font-weight: 500;
   line-height: 1.4;
+}
+
+.publish-badge {
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  font-size: 20rpx;
+  font-weight: 600;
+  background: #f5f5f5;
+  color: #999;
+  
+  &.published {
+    background: linear-gradient(135deg, var(--accent-orange), #ff9f43);
+    color: #fff;
+  }
 }
 
 .item-spec {

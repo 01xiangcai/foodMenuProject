@@ -63,6 +63,7 @@
             <!-- 只显示前3个或者全部(如果已展开) -->
             <view 
               class="order-item" 
+              :class="{ 'not-published': item.isPublished === 0 }"
               v-for="item in getDisplayItems(order)" 
               :key="item.id"
               @tap.stop="navigateToDishDetail(item.dishId, item.dishStatus)"
@@ -73,7 +74,15 @@
                 <text class="placeholder-text">family dish</text>
               </view>
               <view class="item-info">
-                <text class="item-name">{{ item.name }}</text>
+                <view class="item-name-row">
+                  <text class="item-name">{{ item.name }}</text>
+                  <view class="publish-badge" v-if="item.isPublished === 0">
+                    <text>未采纳</text>
+                  </view>
+                  <view class="publish-badge published" v-else-if="item.isPublished === 1">
+                    <text>✓ 已采纳</text>
+                  </view>
+                </view>
                 <text class="item-quantity">x{{ item.quantity }}</text>
               </view>
               <text class="item-price">¥{{ item.price }}</text>
@@ -292,6 +301,7 @@ const loadOrders = async (reset = false) => {
         image: item.dishImage,
         price: item.price,
         quantity: item.quantity,
+        isPublished: item.isPublished !== undefined && item.isPublished !== null ? item.isPublished : 0, // 添加发布状态
         dishStatus: item.dishStatus !== undefined && item.dishStatus !== null ? item.dishStatus : 0 // 如果后端没有返回状态，默认认为已下架（更安全）
       }))
     }))
@@ -625,14 +635,37 @@ const getBadgeStyle = (status) => {
 .order-item {
   display: flex;
   align-items: center;
-  margin-bottom: 24rpx;
+  padding: 24rpx 0;
+  border-bottom: 1px solid v-bind('themeConfig.borderColor');
+  transition: all 0.3s ease;
   
   &:last-child {
-    margin-bottom: 0;
+    border-bottom: none;
+  }
+  
+  &:active {
+    opacity: 0.7;
+  }
+  
+  &.not-published {
+    opacity: 0.5;
+    
+    .item-image,
+    .item-placeholder {
+      filter: grayscale(100%);
+    }
   }
 }
 
-.item-image,
+.item-image {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 16rpx;
+  background: v-bind('themeConfig.inputBg');
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+
 .item-placeholder {
   width: 100rpx;
   height: 100rpx;
@@ -662,11 +695,32 @@ const getBadgeStyle = (status) => {
   gap: 8rpx;
 }
 
+.item-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
 .item-name {
   font-size: 28rpx;
   color: v-bind('themeConfig.textPrimary');
   font-weight: 500;
   transition: color 0.3s ease;
+}
+
+.publish-badge {
+  padding: 2rpx 10rpx;
+  border-radius: 6rpx;
+  font-size: 18rpx;
+  font-weight: 600;
+  background: #f5f5f5;
+  color: #999;
+  flex-shrink: 0;
+  
+  &.published {
+    background: linear-gradient(135deg, var(--accent-orange), #ff9f43);
+    color: #fff;
+  }
 }
 
 .item-quantity {

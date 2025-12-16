@@ -144,9 +144,16 @@ public class DailyMealOrderServiceImpl extends ServiceImpl<DailyMealOrderMapper,
                 itemWrapper.eq(OrderItem::getOrderId, order.getId());
                 List<OrderItem> allItems = orderItemService.list(itemWrapper);
 
+                boolean hasPublishedItem = false; // 标记该订单是否有被发布的菜品
+
                 // 筛选出被选中的菜品项
                 for (OrderItem item : allItems) {
                     if (dishIds.contains(item.getId())) {
+                        // 更新菜品的发布状态
+                        item.setIsPublished(1);
+                        orderItemService.updateById(item);
+                        hasPublishedItem = true;
+
                         // 创建发布记录
                         com.yao.food_menu.entity.DailyMealPublishItem publishItem = new com.yao.food_menu.entity.DailyMealPublishItem();
                         publishItem.setDailyMealOrderId(dailyMealOrderId);
@@ -177,6 +184,12 @@ public class DailyMealOrderServiceImpl extends ServiceImpl<DailyMealOrderMapper,
                         totalDishCount += item.getQuantity();
                         userIds.add(order.getUserId());
                     }
+                }
+
+                // 如果该订单有被发布的菜品,更新订单状态为准备中
+                if (hasPublishedItem) {
+                    order.setStatus(Orders.STATUS_PREPARING);
+                    ordersService.updateById(order);
                 }
             }
 

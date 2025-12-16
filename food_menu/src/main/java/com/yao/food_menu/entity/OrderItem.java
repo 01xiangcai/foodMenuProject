@@ -48,6 +48,9 @@ public class OrderItem implements Serializable {
     // Subtotal
     private BigDecimal subtotal;
 
+    // 是否被发布: 0-未发布, 1-已发布
+    private Integer isPublished;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 
