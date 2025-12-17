@@ -84,6 +84,7 @@ public class DailyMealOrderServiceImpl extends ServiceImpl<DailyMealOrderMapper,
         LambdaQueryWrapper<Orders> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Orders::getDailyMealOrderId, dailyMealOrderId);
         wrapper.ne(Orders::getStatus, Orders.STATUS_CANCELLED); // 排除已取消的订单
+        wrapper.eq(Orders::getPayStatus, Orders.PAY_STATUS_PAID); // 只统计已支付的订单
         List<Orders> ordersList = ordersMapper.selectList(wrapper);
 
         // 统计总金额、参与人数、菜品数量
@@ -95,11 +96,13 @@ public class DailyMealOrderServiceImpl extends ServiceImpl<DailyMealOrderMapper,
             totalAmount = totalAmount.add(order.getTotalAmount());
             userIds.add(order.getUserId());
 
-            // 统计菜品数量
+            // 统计菜品数量(累加每个菜品的数量)
             LambdaQueryWrapper<OrderItem> itemWrapper = new LambdaQueryWrapper<>();
             itemWrapper.eq(OrderItem::getOrderId, order.getId());
             List<OrderItem> items = orderItemService.list(itemWrapper);
-            dishCount += items.size();
+            for (OrderItem item : items) {
+                dishCount += item.getQuantity(); // 累加数量
+            }
         }
 
         // 更新大订单统计信息

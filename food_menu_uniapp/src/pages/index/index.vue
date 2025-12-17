@@ -418,6 +418,8 @@ onShow(() => {
   if (!timer) {
     timer = setInterval(updateClock, 1000)
   }
+  // 刷新今日菜单数据,确保下单后数据及时更新
+  loadTodayMeals()
 })
 </script>
 

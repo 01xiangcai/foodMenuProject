@@ -227,6 +227,16 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
 
         this.update(updateWrapper);
 
+        // 更新大订单统计(支付成功后需要重新统计)
+        if (order.getDailyMealOrderId() != null) {
+            try {
+                dailyMealOrderService.updateStatistics(order.getDailyMealOrderId());
+                log.info("Updated daily meal order statistics after payment: {}", order.getDailyMealOrderId());
+            } catch (Exception e) {
+                log.error("Failed to update daily meal order statistics", e);
+            }
+        }
+
         log.info("Order paid successfully: {}", orderNumber);
     }
 
@@ -270,6 +280,16 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
         this.updateById(orders);
 
         log.info("Order status updated: {} -> {}", id, status);
+
+        // 更新大订单统计(订单状态变更时需要重新统计)
+        if (orders.getDailyMealOrderId() != null) {
+            try {
+                dailyMealOrderService.updateStatistics(orders.getDailyMealOrderId());
+                log.info("Updated daily meal order statistics after status change: {}", orders.getDailyMealOrderId());
+            } catch (Exception e) {
+                log.error("Failed to update daily meal order statistics", e);
+            }
+        }
 
         // 如果订单状态变更为已完成(2或3),更新菜品统计
         if ((status == Orders.STATUS_DELIVERING || status == Orders.STATUS_COMPLETED) && !status.equals(oldStatus)) {

@@ -15,6 +15,7 @@ import java.util.List;
 /**
  * 餐次配置服务实现
  */
+@lombok.extern.slf4j.Slf4j
 @Service
 public class MealPeriodConfigServiceImpl extends ServiceImpl<MealPeriodConfigMapper, MealPeriodConfig>
         implements MealPeriodConfigService {
@@ -38,11 +39,19 @@ public class MealPeriodConfigServiceImpl extends ServiceImpl<MealPeriodConfigMap
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void saveOrUpdateConfig(MealPeriodConfig config) {
+        log.info("保存配置: familyId={}, mealPeriod={}, startTime={}, endTime={}, orderDeadline={}",
+                config.getFamilyId(), config.getMealPeriod(), config.getStartTime(),
+                config.getEndTime(), config.getOrderDeadline());
+
         MealPeriodConfig existing = getByFamilyAndPeriod(config.getFamilyId(), config.getMealPeriod());
         if (existing != null) {
+            log.info("找到现有配置: id={}", existing.getId());
             config.setId(existing.getId());
+        } else {
+            log.info("未找到现有配置,将创建新配置");
         }
         saveOrUpdate(config);
+        log.info("配置保存成功: id={}", config.getId());
     }
 
     @Override
@@ -78,9 +87,11 @@ public class MealPeriodConfigServiceImpl extends ServiceImpl<MealPeriodConfigMap
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void batchSaveConfigs(Long familyId, List<MealPeriodConfig> configs) {
+        log.info("批量保存配置: familyId={}, configs.size={}", familyId, configs.size());
         for (MealPeriodConfig config : configs) {
             config.setFamilyId(familyId);
             saveOrUpdateConfig(config);
         }
+        log.info("批量保存完成");
     }
 }

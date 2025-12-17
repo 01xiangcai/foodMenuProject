@@ -2,8 +2,10 @@ package com.yao.food_menu.controller;
 
 import com.yao.food_menu.common.Result;
 import com.yao.food_menu.common.util.JwtUtil;
+import com.yao.food_menu.entity.Family;
 import com.yao.food_menu.entity.MealPeriodConfig;
 import com.yao.food_menu.entity.User;
+import com.yao.food_menu.service.FamilyService;
 import com.yao.food_menu.service.MealPeriodConfigService;
 import com.yao.food_menu.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,7 +32,40 @@ public class AdminMealPeriodConfigController {
     private UserService userService;
 
     @Autowired
+    private FamilyService familyService;
+
+    @Autowired
     private JwtUtil jwtUtil;
+
+    /**
+     * 获取所有家庭列表(仅超级管理员)
+     */
+    @Operation(summary = "获取所有家庭列表", description = "仅超级管理员可以访问")
+    @GetMapping("/families")
+    public Result<List<Family>> getFamilies(@RequestHeader("Authorization") String token) {
+        try {
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7);
+            }
+
+            Long userId = jwtUtil.getUserId(token);
+            User user = userService.getById(userId);
+            if (user == null) {
+                return Result.error("用户信息不存在");
+            }
+
+            // 只有超级管理员可以查看所有家庭
+            if (user.getRole() != 2) {
+                return Result.error("无权限访问");
+            }
+
+            List<Family> families = familyService.list();
+            return Result.success(families);
+        } catch (Exception e) {
+            log.error("获取家庭列表失败", e);
+            return Result.error("获取失败: " + e.getMessage());
+        }
+    }
 
     /**
      * 获取餐次配置

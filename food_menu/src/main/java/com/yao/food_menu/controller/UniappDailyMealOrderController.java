@@ -114,6 +114,7 @@ public class UniappDailyMealOrderController {
             LambdaQueryWrapper<Orders> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(Orders::getDailyMealOrderId, id);
             wrapper.ne(Orders::getStatus, Orders.STATUS_CANCELLED); // 排除已取消的订单
+            wrapper.eq(Orders::getPayStatus, Orders.PAY_STATUS_PAID); // 只查询已支付的订单
             wrapper.orderByAsc(Orders::getCreateTime);
             List<Orders> ordersList = ordersService.list(wrapper);
 
