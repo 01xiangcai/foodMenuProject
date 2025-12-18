@@ -290,6 +290,9 @@ export const fetchOperationLogDetail = (id: number) => http.get(`/admin/operatio
 export const deleteOperationLog = (id: number) => http.delete(`/admin/operationLog/${id}`);
 export const batchDeleteOperationLogs = (endTime: string) => http.delete('/admin/operationLog/batch', { params: { endTime } });
 
+// 餐次订单统计
+export const fetchDailyMealOrderStats = () => http.get('/admin/daily-meal-order/statistics');
+
 // 钱包管理
 export type WalletQuery = {
   page: number;

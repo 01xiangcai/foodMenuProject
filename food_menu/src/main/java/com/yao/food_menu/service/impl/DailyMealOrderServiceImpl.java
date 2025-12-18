@@ -314,4 +314,43 @@ public class DailyMealOrderServiceImpl extends ServiceImpl<DailyMealOrderMapper,
         // 已确认或已截止的订单不可修改
         return dailyMealOrder.getStatus() == DailyMealOrder.STATUS_COLLECTING;
     }
+
+    @Override
+    public java.util.Map<String, Object> getStatistics(Long familyId) {
+        java.util.Map<String, Object> stats = new java.util.HashMap<>();
+
+        // 查询符合条件的所有大订单
+        LambdaQueryWrapper<DailyMealOrder> wrapper = new LambdaQueryWrapper<>();
+        if (familyId != null) {
+            wrapper.eq(DailyMealOrder::getFamilyId, familyId);
+        }
+        List<DailyMealOrder> allOrders = list(wrapper);
+
+        // 1. 各状态数量统计
+        long total = allOrders.size();
+        long collecting = allOrders.stream().filter(o -> o.getStatus() != null && o.getStatus() == 0).count();
+        long normal = allOrders.stream().filter(o -> o.getStatus() != null && o.getStatus() == 1).count();
+        long closed = allOrders.stream().filter(o -> o.getStatus() != null && o.getStatus() == 2).count();
+
+        java.util.Map<Integer, Long> counts = new java.util.HashMap<>();
+        counts.put(-1, total);
+        counts.put(0, collecting);
+        counts.put(1, normal);
+        counts.put(2, closed);
+        stats.put("counts", counts);
+
+        // 2. 汇总数据统计 (累计流水、总人数)
+        BigDecimal totalRevenue = BigDecimal.ZERO;
+        int totalPeople = 0;
+        for (DailyMealOrder order : allOrders) {
+            totalRevenue = totalRevenue.add(order.getTotalAmount() != null ? order.getTotalAmount() : BigDecimal.ZERO);
+            totalPeople += (order.getMemberCount() != null ? order.getMemberCount() : 0);
+        }
+        stats.put("totalRevenue", totalRevenue.setScale(2, java.math.RoundingMode.HALF_UP));
+        stats.put("totalPeople", totalPeople);
+        stats.put("totalCount", total);
+        stats.put("pendingCount", collecting);
+
+        return stats;
+    }
 }

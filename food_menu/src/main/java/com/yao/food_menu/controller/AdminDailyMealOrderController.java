@@ -14,11 +14,15 @@ import com.yao.food_menu.service.DailyMealOrderService;
 import com.yao.food_menu.service.OrderItemService;
 import com.yao.food_menu.service.UserService;
 import com.yao.food_menu.service.WxUserService;
+import com.yao.food_menu.service.OssService;
 import com.yao.food_menu.mapper.OrdersMapper;
+import com.yao.food_menu.common.config.LocalStorageProperties;
+import com.yao.food_menu.common.config.FileStorageProperties;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -35,6 +39,9 @@ import java.util.Map;
 @RequestMapping("/admin/daily-meal-order")
 @Slf4j
 public class AdminDailyMealOrderController {
+
+    private static final String DEFAULT_AVATAR = "https://dummyimage.com/100x100/ccc/fff&text=User";
+    private static final String DEFAULT_DISH_IMAGE = "https://dummyimage.com/100x100/e2e8f0/94a3b8&text=No+Image";
 
     @Autowired
     private DailyMealOrderService dailyMealOrderService;
@@ -53,6 +60,15 @@ public class AdminDailyMealOrderController {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private LocalStorageProperties localStorageProperties;
+
+    @Autowired
+    private FileStorageProperties fileStorageProperties;
+
+    @Autowired
+    private OssService ossService;
 
     /**
      * 分页查询大订单
@@ -162,14 +178,31 @@ public class AdminDailyMealOrderController {
                 if (member != null) {
                     memberOrder.put("userId", member.getId());
                     memberOrder.put("nickname", member.getNickname());
-                    memberOrder.put("avatar", member.getAvatar());
+                    // 处理头像URL
+                    String avatar = member.getAvatar();
+                    memberOrder.put("avatar", processImageUrl(avatar, DEFAULT_AVATAR));
                 }
 
                 // 查询订单项
                 LambdaQueryWrapper<OrderItem> itemWrapper = new LambdaQueryWrapper<>();
                 itemWrapper.eq(OrderItem::getOrderId, order.getId());
                 List<OrderItem> items = orderItemService.list(itemWrapper);
-                memberOrder.put("items", items);
+
+                // 处理菜品图片URL
+                List<Map<String, Object>> processedItems = new ArrayList<>();
+                for (OrderItem item : items) {
+                    Map<String, Object> itemMap = new HashMap<>();
+                    itemMap.put("id", item.getId());
+                    itemMap.put("dishId", item.getDishId());
+                    itemMap.put("dishName", item.getDishName());
+                    itemMap.put("price", item.getPrice());
+                    itemMap.put("quantity", item.getQuantity());
+                    itemMap.put("subtotal", item.getSubtotal());
+                    // 处理菜品图片URL
+                    itemMap.put("dishImage", processImageUrl(item.getDishImage(), DEFAULT_DISH_IMAGE));
+                    processedItems.add(itemMap);
+                }
+                memberOrder.put("items", processedItems);
 
                 memberOrders.add(memberOrder);
             }
@@ -226,6 +259,75 @@ public class AdminDailyMealOrderController {
         } catch (Exception e) {
             log.error("审核迟到订单失败", e);
             return Result.error("审核失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取大订单统计信息
+     */
+    @Operation(summary = "获取大订单统计信息", description = "获取各状态大订单数量及汇总数据")
+    @GetMapping("/statistics")
+    public Result<Map<String, Object>> getStatistics(@RequestHeader("Authorization") String token) {
+        try {
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7);
+            }
+
+            Long userId = jwtUtil.getUserId(token);
+            User user = userService.getById(userId);
+            if (user == null) {
+                return Result.error("用户信息不存在");
+            }
+
+            Long familyId = null;
+            // 非超级管理员只能查看自己家庭的数据
+            if (user.getRole() != 2 && user.getFamilyId() != null) {
+                familyId = user.getFamilyId();
+            }
+
+            Map<String, Object> stats = dailyMealOrderService.getStatistics(familyId);
+            return Result.success(stats);
+        } catch (Exception e) {
+            log.error("获取大订单统计信息失败", e);
+            return Result.error("获取失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 处理图片URL，根据存储方式转换为完整URL
+     * 
+     * @param image        原始图片路径
+     * @param defaultImage 默认图片URL
+     * @return 完整的图片URL
+     */
+    private String processImageUrl(String image, String defaultImage) {
+        if (!StringUtils.hasText(image)) {
+            return defaultImage;
+        }
+
+        // 如果已经是完整URL，直接返回
+        if (image.startsWith("http://") || image.startsWith("https://")) {
+            return image;
+        }
+
+        // 根据存储方式处理
+        if (fileStorageProperties.isLocal()) {
+            // 本地存储模式：拼接URL前缀
+            String urlPrefix = localStorageProperties.getUrlPrefix();
+            if (!urlPrefix.endsWith("/")) {
+                urlPrefix += "/";
+            }
+            // 移除image开头的斜杠
+            String localPath = image.startsWith("/") ? image.substring(1) : image;
+            return urlPrefix + localPath;
+        } else {
+            // OSS存储模式：转换为预签名URL
+            try {
+                return ossService.generatePresignedUrl(image);
+            } catch (Exception e) {
+                log.warn("Failed to generate presigned URL for image: {}", image, e);
+                return defaultImage;
+            }
         }
     }
 }

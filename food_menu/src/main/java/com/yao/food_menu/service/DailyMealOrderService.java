@@ -62,4 +62,12 @@ public interface DailyMealOrderService extends IService<DailyMealOrder> {
      * 检查订单是否可以修改/取消
      */
     boolean canModifyOrder(Long dailyMealOrderId);
+
+    /**
+     * 获取大订单统计信息(各状态数量及汇总)
+     * 
+     * @param familyId 家庭ID，超级管理员传null则查询全部
+     * @return 统计信息Map
+     */
+    java.util.Map<String, Object> getStatistics(Long familyId);
 }

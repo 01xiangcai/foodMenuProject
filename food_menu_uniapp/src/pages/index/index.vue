@@ -17,10 +17,6 @@
           <text class="hero-icon floated">🥘</text>
         </view>
       </view>
-      <view class="hero-action" @tap="navigateTo('/pages/vote/initiate')">
-        <text class="action-text">开始投票</text>
-        <text class="action-arrow">→</text>
-      </view>
     </view>
 
     <!-- 轮播图 -->
