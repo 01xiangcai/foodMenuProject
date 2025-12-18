@@ -141,8 +141,8 @@ export const getAdminOrderCounts = (params?: { familyId?: number | null }) => ht
  * @param orderId 订单ID
  * @param action 审核操作: 1-接受, 2-拒绝
  */
-export const reviewLateOrder = (orderId: number, action: number) =>
-  http.post(`/admin/daily-meal-order/review-late-order/${orderId}`, null, { params: { action } });
+export const reviewLateOrder = (orderId: number, action: number, dishIds?: number[]) =>
+  http.post(`/admin/daily-meal-order/review-late-order/${orderId}`, dishIds, { params: { action } });
 
 export const uploadImage = (file: File) => {
   const formData = new FormData();
@@ -291,7 +291,9 @@ export const deleteOperationLog = (id: number) => http.delete(`/admin/operationL
 export const batchDeleteOperationLogs = (endTime: string) => http.delete('/admin/operationLog/batch', { params: { endTime } });
 
 // 餐次订单统计
-export const fetchDailyMealOrderStats = () => http.get('/admin/daily-meal-order/statistics');
+export const fetchDailyMealOrderStats = (params?: { paramFamilyId?: number }) => http.get('/admin/daily-meal-order/statistics', { params });
+export const confirmPublish = (id: number, dishIds?: number[]) =>
+  http.post(`/admin/daily-meal-order/confirm-publish/${id}`, dishIds);
 
 // 钱包管理
 export type WalletQuery = {

@@ -81,6 +81,18 @@
           />
         </div>
         
+        <div v-if="userStore.isAdmin" class="flex items-center gap-2">
+          <span class="text-sm font-bold text-text-secondary uppercase tracking-widest text-[10px]">家庭</span>
+          <n-select
+            v-model:value="searchForm.familyId"
+            :options="familyOptions"
+            placeholder="全部家庭"
+            clearable
+            class="w-40"
+            @update:value="handleSearch"
+          />
+        </div>
+        
         <div class="flex items-center gap-2">
           <span class="text-sm font-bold text-text-secondary uppercase tracking-widest text-[10px]">餐次</span>
           <n-select
@@ -92,7 +104,7 @@
           />
         </div>
 
-        <div class="flex gap-2 ml-auto">
+        <div class="flex gap-2">
           <n-button strong secondary @click="handleReset" circle>
              <template #icon><i class="i-tabler-refresh" /></template>
           </n-button>
@@ -134,6 +146,8 @@
             </n-tag>
           </div>
 
+
+
           <!-- 核心统计展示 -->
           <div class="stats-overview grid grid-cols-2 gap-3 mb-5">
             <div class="overview-item">
@@ -173,14 +187,28 @@
               </template>
             </div>
             
-            <n-button 
-              type="primary" 
-              quaternary 
-              @click="handleViewDetail(row.id)"
-              class="font-bold rounded-lg"
-            >
-              详情 & 管理 <i class="i-tabler-chevron-right ml-1" />
-            </n-button>
+            <div class="flex items-center gap-2">
+              <n-button 
+                 v-if="row.status === 0"
+                 type="primary" 
+                 size="small"
+                 class="rounded-lg shadow-sm px-3 text-black"
+                 @click.stop="handleOpenPublishConfirm(row)"
+                 :loading="publishLoading === row.id"
+               >
+                 <template #icon><i class="i-tabler-send" /></template>
+                 发布
+               </n-button>
+            
+              <n-button 
+                type="primary" 
+                quaternary 
+                @click="handleViewDetail(row.id)"
+                class="font-bold rounded-lg"
+              >
+                详情 & 管理 <i class="i-tabler-chevron-right ml-1" />
+              </n-button>
+            </div>
           </div>
         </div>
       </div>
@@ -221,6 +249,19 @@
           <n-tag :type="getStatusType(currentDetail.status)" size="large" round>
             {{ getStatusLabel(currentDetail.status) }}
           </n-tag>
+          <!-- 新增: 详情内发布按钮 -->
+          <n-button 
+            v-if="currentDetail.status === 0"
+            type="primary" 
+            size="large"
+            round
+            class="ml-4"
+            @click="handleOpenPublishConfirm(currentDetail)"
+            :loading="publishLoading === currentDetail.id"
+          >
+            <template #icon><i class="i-tabler-send" /></template>
+            确认发布
+          </n-button>
         </div>
 
         <!-- 详细数据列 -->
@@ -240,7 +281,16 @@
 
         <!-- 成员订单列表 -->
         <div class="detail-section">
-          <h3 class="section-title">👥 成员个单明细 ({{ currentDetail.memberOrders?.length || 0 }})</h3>
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="section-title mb-0">👥 成员个单明细 ({{ currentDetail.memberOrders?.length || 0 }})</h3>
+            <!-- 新增: 全选控制 -->
+            <div v-if="currentDetail.status === 0" class="flex items-center gap-2">
+              <span class="text-xs text-text-secondary">已选中 {{ selectedDishIds.length }} 个菜品</span>
+              <n-button size="tiny" secondary @click="handleToggleAllSelection">
+                {{ isAllSelected ? '取消全选' : '全选所有' }}
+              </n-button>
+            </div>
+          </div>
           <n-scrollbar style="max-height: 600px">
             <div class="members-list">
               <div 
@@ -257,16 +307,35 @@
                       @error="handleImageError"
                     />
                     <div class="member-info">
-                      <div class="member-name">{{ member.nickname || '神秘参与者' }}</div>
+                      <div class="member-name flex items-center gap-2">
+                         {{ member.nickname || '神秘参与者' }}
+                         <n-tag v-if="member.isLateOrder === 1" type="error" size="tiny" round quaternary>迟到</n-tag>
+                      </div>
                       <div class="member-order-number">订单号: {{ member.orderNumber ? member.orderNumber.slice(-8) : '---' }}</div>
                     </div>
                   </div>
-                  <div class="member-total">¥{{ member.totalAmount }}</div>
+                  <div class="flex items-center gap-3">
+                    <div v-if="member.isLateOrder === 1 && member.lateOrderStatus === 0" class="flex gap-2">
+                      <n-button size="tiny" type="success" secondary @click="handleReviewLateOrder(member, 1)">接受</n-button>
+                      <n-button size="tiny" type="error" secondary @click="handleReviewLateOrder(member, 2)">拒绝</n-button>
+                    </div>
+                    <div v-else-if="member.isLateOrder === 1" class="text-[10px] text-text-secondary">
+                       {{ member.lateOrderStatus === 1 ? '已接受' : '已拒绝' }}
+                    </div>
+                    <div class="member-total">¥{{ member.totalAmount }}</div>
+                  </div>
                 </div>
                 
                 <!-- 菜品列表 -->
                 <div class="dishes-list">
-                  <div v-for="item in member.items" :key="item.id" class="dish-detail-item">
+                  <div v-for="item in member.items" :key="item.id" class="dish-detail-item group">
+                    <!-- 改动: 迟到待审核订单也要显示勾选框 -->
+                    <div v-if="currentDetail.status === 0 || (member.isLateOrder === 1 && member.lateOrderStatus === 0)" class="flex items-center pr-2">
+                       <n-checkbox 
+                        :checked="selectedDishIds.includes(item.id)"
+                        @update:checked="(val) => handleToggleDishSelection(item.id, val)"
+                       />
+                    </div>
                     <img
                       :src="getImgUrl(item.dishImage)"
                       :alt="item.dishName"
@@ -294,12 +363,15 @@ import { ref, reactive, h, onMounted, computed, watch } from 'vue';
 import {
   NCard, NTabs, NTabPane, NBadge, NDatePicker, NSelect, NButton, 
   NTag, NPagination, NModal, NAvatar, NSpin, NEmpty, NScrollbar,
-  useMessage
+  useMessage, useDialog, NCheckbox
 } from 'naive-ui';
 import http from '@/api/http';
-import { fetchDailyMealOrderStats } from '@/api/modules';
+import { fetchDailyMealOrderStats, confirmPublish, reviewLateOrder, fetchAllFamilies } from '@/api/modules';
+import { useUserStore } from '@/store/useUserStore';
 
 const message = useMessage();
+const dialog = useDialog();
+const userStore = useUserStore();
 
 // 核心统计数据
 const totalCount = ref(0);
@@ -310,11 +382,14 @@ const statusCounts = reactive<Record<number, number>>({
   [-1]: 0, 0: 0, 1: 0, 2: 0
 });
 
+const familyOptions = ref<any[]>([]); // 家庭列表选项
+
 // 搜索表单
 const searchForm = reactive({
   dateRange: null as [number, number] | null,
   mealPeriod: null,
-  status: -1 // 默认全部
+  status: -1, // 默认全部
+  familyId: null // 新增家庭筛选
 });
 
 // 配置项
@@ -344,13 +419,35 @@ const pagination = reactive({
 const showDetail = ref(false);
 const currentDetail = ref<any>(null);
 
+const publishLoading = ref<number | null>(null);
+const reviewLoading = ref<number | null>(null);
+
+// 菜品选择状态
+const selectedDishIds = ref<number[]>([]);
+
+const isAllSelected = computed(() => {
+  if (!currentDetail.value || !currentDetail.value.memberOrders) return false;
+  
+  let allItemsCount = 0;
+  // 计算逻辑：如果是收集中，算所有；如果是迟到，只算当前迟到的
+  if (currentDetail.value.status === 0) {
+    allItemsCount = currentDetail.value.memberOrders.reduce((acc: number, m: any) => acc + (m.items?.length || 0), 0);
+  } else {
+    allItemsCount = currentDetail.value.memberOrders
+        .filter((m: any) => m.isLateOrder === 1 && m.lateOrderStatus === 0)
+        .reduce((acc: number, m: any) => acc + (m.items?.length || 0), 0);
+  }
+  
+  return allItemsCount > 0 && selectedDishIds.value.length === allItemsCount;
+});
+
 // 辅助方法
 const getMealPeriodLabel = (period: string) => ({ BREAKFAST: '早餐', LUNCH: '中餐', DINNER: '晚餐' }[period] || period);
 const getMealPeriodColor = (period: string) => ({ BREAKFAST: 'warning', LUNCH: 'error', DINNER: 'info' }[period] || 'default') as 'warning' | 'error' | 'info' | 'default';
 const getStatusLabel = (status: number) => ({ 0: '收集中', 1: '正常供应', 2: '已收官' }[status] || '结算中');
-const getStatusType = (status: number) => ({ 0: 'info', 1: 'success', 2: 'error' }[status] || 'default') as 'info' | 'success' | 'error' | 'default';
-const getStatusIcon = (status: number) => ({ 0: 'i-tabler-loader', 1: 'i-tabler-check', 2: 'i-tabler-clock-stop' }[status] || '');
-const getBadgeType = (status: number) => ({ 0: 'info', 1: 'success', 2: 'warning' }[status] || 'default') as 'info' | 'success' | 'warning' | 'default';
+const getStatusType = (status: number) => ({ 0: 'warning', 1: 'success', 2: 'info' }[status] || 'default') as 'warning' | 'success' | 'info' | 'default';
+const getStatusIcon = (status: number) => ({ 0: 'i-tabler-loader', 1: 'i-tabler-check', 2: 'i-tabler-archive' }[status] || 'i-tabler-help');
+const getBadgeType = (status: number) => ({ 0: 'warning', 1: 'success', 2: 'info' }[status] || 'default') as 'warning' | 'success' | 'info' | 'default';
 
 // 图片处理
 const getImgUrl = (url: string | undefined) => {
@@ -362,20 +459,25 @@ const getImgUrl = (url: string | undefined) => {
 
 const handleImageError = (e: Event) => {
   const target = e.target as HTMLImageElement;
-  target.src = 'https://dummyimage.com/100x100/e2e8f0/94a3b8&text=No+Image';
+  target.src = '/default-dish.png';
 };
 
 // 数据加载逻辑
 const loadStats = async () => {
   try {
-    const res = await fetchDailyMealOrderStats();
+    const params: any = {};
+    if (searchForm.familyId) {
+      params.paramFamilyId = searchForm.familyId;
+    }
+    const res = await fetchDailyMealOrderStats(params);
     if (res.data) {
-      const { counts, totalRevenue: rev, totalPeople: ppl, totalCount: tot, pendingCount: pend } = res.data;
-      Object.assign(statusCounts, counts);
-      totalRevenue.value = rev;
-      todayPeople.value = ppl;
-      totalCount.value = tot;
-      pendingCount.value = pend;
+      totalCount.value = res.data.totalCount || 0;
+      pendingCount.value = res.data.pendingCount || 0;
+      todayPeople.value = res.data.todayPeople || 0;
+      totalRevenue.value = res.data.totalRevenue || '0.00';
+      if (res.data.statusCounts) {
+        Object.assign(statusCounts, res.data.statusCounts);
+      }
     }
   } catch (error) {
     console.warn('统计数据加载失败', error);
@@ -399,6 +501,7 @@ const loadData = async () => {
     }
     if (searchForm.mealPeriod) params.mealPeriod = searchForm.mealPeriod;
     if (searchForm.status !== -1) params.status = searchForm.status;
+    if (searchForm.familyId) params.familyId = searchForm.familyId;
 
     const res = await http.get('/admin/daily-meal-order', { params });
     tableData.value = res.data.records || [];
@@ -415,10 +518,23 @@ const handleViewDetail = async (id: number) => {
     const res = await http.get(`/admin/daily-meal-order/${id}`);
     if (res.data && res.data.dailyMealOrder) {
       // 合并大订单基础信息和成员订单列表，方便模板访问
+      const dailyMealOrder = res.data.dailyMealOrder;
+      const memberOrders = res.data.memberOrders || [];
       currentDetail.value = {
-        ...res.data.dailyMealOrder,
-        memberOrders: res.data.memberOrders || []
+        ...dailyMealOrder,
+        memberOrders
       };
+      
+      // 如果大订单在收集中，默认全选所有菜品
+      if (dailyMealOrder.status === 0) {
+        selectedDishIds.value = memberOrders.flatMap((m: any) => m.items.map((i: any) => i.id));
+      } else {
+        // 即使大订单已发布，迟到单如果是待审核状态，也默认全选其菜品以方便勾选
+        selectedDishIds.value = memberOrders
+          .filter((m: any) => m.isLateOrder === 1 && m.lateOrderStatus === 0)
+          .flatMap((m: any) => m.items.map((i: any) => i.id));
+      }
+      
       showDetail.value = true;
     }
   } catch (error) {
@@ -435,6 +551,7 @@ const handleReset = () => {
   searchForm.dateRange = null;
   searchForm.mealPeriod = null;
   searchForm.status = -1;
+  searchForm.familyId = null;
   handleSearch();
 };
 
@@ -444,7 +561,135 @@ const handlePageChange = (page: number) => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
+const handleOpenPublishConfirm = (row: any) => {
+  if (!showDetail.value || currentDetail.value?.id !== row.id) {
+    // 如果详情未打开，询问是否一键发布所有菜品
+    dialog.warning({
+      title: '确认一键发布',
+      content: `确认发布 ${row.orderDate} 的 ${getMealPeriodLabel(row.mealPeriod)} 所有已支付菜品吗？`,
+      positiveText: '确认发布',
+      negativeText: '取消',
+      onPositiveClick: () => {
+        executePublish(row.id, []); // 传空数组，后端逻辑是一键全发
+      }
+    });
+    return;
+  }
+
+  // 如果详情已打开，使用当前选中的ID
+  if (selectedDishIds.value.length === 0) {
+    message.warning('请至少选择一个菜品进行发布');
+    return;
+  }
+
+  dialog.warning({
+    title: '确认发布菜单',
+    content: `已选中 ${selectedDishIds.value.length} 个菜品，发布后无法取消，未选中的菜品将自动退款。确认继续吗？`,
+    positiveText: '确认发布',
+    negativeText: '取消',
+    onPositiveClick: () => {
+      executePublish(row.id, selectedDishIds.value);
+    }
+  });
+};
+
+const executePublish = async (id: number, dishIds: number[] = []) => {
+  publishLoading.value = id;
+  try {
+    await confirmPublish(id, dishIds);
+    message.success('菜单已成功发布');
+    // 如果在详情弹窗中，刷新详情
+    if (showDetail.value && currentDetail.value?.id === id) {
+      handleViewDetail(id);
+    }
+    loadData();
+  } catch (error) {
+    message.error('发布失败');
+  } finally {
+    publishLoading.value = null;
+  }
+};
+
+const handleToggleDishSelection = (id: number, checked: boolean) => {
+  if (checked) {
+    if (!selectedDishIds.value.includes(id)) {
+      selectedDishIds.value.push(id);
+    }
+  } else {
+    selectedDishIds.value = selectedDishIds.value.filter(item => item !== id);
+  }
+};
+
+const handleToggleAllSelection = () => {
+  if (isAllSelected.value) {
+    selectedDishIds.value = [];
+  } else if (currentDetail.value && currentDetail.value.memberOrders) {
+    let targetItems = [];
+    if (currentDetail.value.status === 0) {
+       targetItems = currentDetail.value.memberOrders.flatMap((m: any) => m.items);
+    } else {
+       targetItems = currentDetail.value.memberOrders
+        .filter((m: any) => m.isLateOrder === 1 && m.lateOrderStatus === 0)
+        .flatMap((m: any) => m.items);
+    }
+    selectedDishIds.value = targetItems.map((i: any) => i.id);
+  }
+};
+
+const handleReviewLateOrder = (member: any, action: number) => {
+  const orderId = member.orderId;
+  const actionText = action === 1 ? '接受' : '拒绝';
+  
+  // 提取该订单下当前被勾选的菜品
+  const currentMemberSelectedIds = member.items
+    .map((i: any) => i.id)
+    .filter((id: number) => selectedDishIds.value.includes(id));
+
+  if (action === 1 && currentMemberSelectedIds.length === 0) {
+    message.warning('请先勾选要接受的菜品');
+    return;
+  }
+
+  dialog.info({
+    title: '审核迟到订单',
+    content: action === 1 
+      ? `确认要接受该个单中的 ${currentMemberSelectedIds.length} 个菜品吗？未选中的菜品将自动退款。` 
+      : `确认要拒绝该个单吗？拒绝后将全额退款。`,
+    positiveText: `确认${actionText}`,
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await reviewLateOrder(orderId, action, currentMemberSelectedIds);
+        message.success(`已${actionText}订单`);
+        // 刷新详情
+        if (currentDetail.value) {
+          handleViewDetail(currentDetail.value.id);
+        }
+        loadData();
+      } catch (error) {
+        message.error('操作失败');
+      }
+    }
+  });
+};
+
+// 加载家庭列表
+const loadFamilies = async () => {
+  if (userStore.isAdmin) {
+    try {
+      const res = await fetchAllFamilies();
+      familyOptions.value = res.data.map((f: any) => ({
+        label: f.name,
+        value: f.id
+      }));
+    } catch (e) {
+      console.error('Failed to load families', e);
+    }
+  }
+};
+
 onMounted(() => {
+  loadFamilies();
   loadData();
 });
 </script>

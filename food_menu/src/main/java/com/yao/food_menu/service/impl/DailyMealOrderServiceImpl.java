@@ -49,6 +49,9 @@ public class DailyMealOrderServiceImpl extends ServiceImpl<DailyMealOrderMapper,
     @Autowired
     private com.yao.food_menu.service.WalletService walletService;
 
+    @Autowired
+    private com.yao.food_menu.service.DishStatisticsService dishStatisticsService;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public DailyMealOrder createOrGet(Long familyId, LocalDate orderDate, String mealPeriod) {
@@ -116,11 +119,10 @@ public class DailyMealOrderServiceImpl extends ServiceImpl<DailyMealOrderMapper,
             List<OrderItem> items = orderItemService.list(itemWrapper);
 
             for (OrderItem item : items) {
-                // 如果大订单已确认,则只统计[非迟到订单中的已发布项] 以及 [已接受的迟到订单中的所有项]
-                // 注意: 迟到订单一旦被接受,其下所有项都应计入统计(因为它们没有发布筛选流程,或是整体接受)
+                // 如果大订单已确认,则只统计已发布的菜品项(无论是正常订单还是迟到订单)
                 boolean shouldCount = true;
-                if (isConfirmed && (order.getIsLateOrder() == null || order.getIsLateOrder() == Orders.LATE_ORDER_NO)) {
-                    // 对于正常订单,只统计已发布的项
+                if (isConfirmed) {
+                    // 只统计已发布的项 (isPublished == 1)
                     shouldCount = (item.getIsPublished() != null && item.getIsPublished() == 1);
                 }
 
@@ -159,8 +161,26 @@ public class DailyMealOrderServiceImpl extends ServiceImpl<DailyMealOrderMapper,
             throw new RuntimeException("大订单已确认,无法重复确认");
         }
 
-        // 如果提供了菜品ID列表,则将选中的菜品标记为已发布
-        if (dishIds != null && !dishIds.isEmpty()) {
+        // 如果没有传入指定的dishIds, 则认为是要发布该大订单下所有[正常订单]的菜品
+        if (dishIds == null || dishIds.isEmpty()) {
+            dishIds = new ArrayList<>();
+            LambdaQueryWrapper<Orders> normalOrdersWrapper = new LambdaQueryWrapper<>();
+            normalOrdersWrapper.eq(Orders::getDailyMealOrderId, dailyMealOrderId);
+            normalOrdersWrapper.eq(Orders::getIsLateOrder, Orders.LATE_ORDER_NO);
+            normalOrdersWrapper.eq(Orders::getPayStatus, Orders.PAY_STATUS_PAID);
+            List<Orders> normalOrders = ordersMapper.selectList(normalOrdersWrapper);
+            for (Orders order : normalOrders) {
+                LambdaQueryWrapper<OrderItem> itemWrapper = new LambdaQueryWrapper<>();
+                itemWrapper.eq(OrderItem::getOrderId, order.getId());
+                List<OrderItem> items = orderItemService.list(itemWrapper);
+                for (OrderItem item : items) {
+                    dishIds.add(item.getId());
+                }
+            }
+        }
+
+        // 如果最终确定的菜品ID列表不为空, 则执行发布逻辑
+        if (!dishIds.isEmpty()) {
             // 获取该大订单下的所有小订单
             LambdaQueryWrapper<Orders> ordersWrapper = new LambdaQueryWrapper<>();
             ordersWrapper.eq(Orders::getDailyMealOrderId, dailyMealOrderId);
@@ -268,6 +288,20 @@ public class DailyMealOrderServiceImpl extends ServiceImpl<DailyMealOrderMapper,
             // 批量插入发布记录
             if (!publishItems.isEmpty()) {
                 dailyMealPublishItemService.batchInsert(publishItems);
+
+                // 新增: 更新菜品统计(明星菜热度)
+                try {
+                    List<Long> publishedDishIds = publishItems.stream()
+                            .map(com.yao.food_menu.entity.DailyMealPublishItem::getDishId)
+                            .distinct()
+                            .collect(java.util.stream.Collectors.toList());
+                    if (!publishedDishIds.isEmpty()) {
+                        dishStatisticsService.batchIncrementOrderCount(publishedDishIds);
+                        log.info("餐次订单发布: 更新了 {} 个菜品的热度统计", publishedDishIds.size());
+                    }
+                } catch (Exception e) {
+                    log.error("更新菜品热度统计失败", e);
+                }
             }
         }
 

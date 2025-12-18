@@ -159,7 +159,7 @@ public class UniappDailyMealOrderController {
             Map<String, Object> memberOrder = new HashMap<>();
             memberOrder.put("orderId", order.getId());
             memberOrder.put("orderNumber", order.getOrderNumber());
-            memberOrder.put("totalAmount", order.getTotalAmount());
+            // totalAmount 将在查询完菜品后根据实际发布的菜品重新计算
             memberOrder.put("createTime", order.getCreateTime());
             memberOrder.put("isLateOrder", order.getIsLateOrder());
             memberOrder.put("lateOrderStatus", order.getLateOrderStatus());
@@ -184,9 +184,17 @@ public class UniappDailyMealOrderController {
             // 根据订单状态决定查询来源
             List<Map<String, Object>> items = new ArrayList<>();
 
-            if (dailyMealOrder.getStatus() == DailyMealOrder.STATUS_CONFIRMED &&
-                    (order.getIsLateOrder() == null || order.getIsLateOrder() == Orders.LATE_ORDER_NO)) {
-                // 已确认订单且是非迟到订单:从发布记录表查询
+            // 判断是否应该从发布记录表查询
+            // 条件: 大订单已确认 且 (非迟到订单 或 已接受的迟到订单)
+            boolean shouldQueryFromPublish = dailyMealOrder.getStatus() == DailyMealOrder.STATUS_CONFIRMED &&
+                    (order.getIsLateOrder() == null ||
+                            order.getIsLateOrder() == Orders.LATE_ORDER_NO ||
+                            (order.getIsLateOrder() == Orders.LATE_ORDER_YES &&
+                                    order.getLateOrderStatus() != null &&
+                                    order.getLateOrderStatus() == Orders.LATE_STATUS_ACCEPTED));
+
+            if (shouldQueryFromPublish) {
+                // 已确认订单(包括已接受的迟到订单):从发布记录表查询
                 LambdaQueryWrapper<com.yao.food_menu.entity.DailyMealPublishItem> publishWrapper = new LambdaQueryWrapper<>();
                 publishWrapper.eq(com.yao.food_menu.entity.DailyMealPublishItem::getOrderId, order.getId());
                 List<com.yao.food_menu.entity.DailyMealPublishItem> publishItems = dailyMealPublishItemService
@@ -216,7 +224,7 @@ public class UniappDailyMealOrderController {
                     items.add(itemMap);
                 }
             } else {
-                // 未确认订单或迟到订单:从原订单项表查询
+                // 未确认订单或待审核迟到订单:从原订单项表查询
                 LambdaQueryWrapper<OrderItem> itemWrapper = new LambdaQueryWrapper<>();
                 itemWrapper.eq(OrderItem::getOrderId, order.getId());
                 List<OrderItem> orderItems = orderItemService.list(itemWrapper);
@@ -252,6 +260,18 @@ public class UniappDailyMealOrderController {
             }
 
             memberOrder.put("items", items);
+
+            // 重新计算该成员订单的实际金额（基于实际显示的菜品）
+            java.math.BigDecimal actualTotalAmount = java.math.BigDecimal.ZERO;
+            for (Map<String, Object> item : items) {
+                Object subtotalObj = item.get("subtotal");
+                if (subtotalObj instanceof java.math.BigDecimal) {
+                    actualTotalAmount = actualTotalAmount.add((java.math.BigDecimal) subtotalObj);
+                } else if (subtotalObj instanceof Number) {
+                    actualTotalAmount = actualTotalAmount.add(new java.math.BigDecimal(subtotalObj.toString()));
+                }
+            }
+            memberOrder.put("totalAmount", actualTotalAmount);
 
             // 只添加有菜品的订单
             if (!items.isEmpty()) {

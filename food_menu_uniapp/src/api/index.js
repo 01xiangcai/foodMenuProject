@@ -643,10 +643,12 @@ export const getTodayMeals = () => {
  * 审核迟到订单(管理员)
  * @param {Number} orderId 订单ID
  * @param {Number} action 操作: 1-接受, 2-拒绝
+ * @param {Array<Number>} dishIds 接受的菜品ID列表 (可选，仅接受时有效)
  */
-export const reviewLateOrder = (orderId, action) => {
+export const reviewLateOrder = (orderId, action, dishIds) => {
     return request({
         url: `/admin/daily-meal-order/review-late-order/${orderId}?action=${action}`,
-        method: 'POST'
+        method: 'POST',
+        data: dishIds || []
     })
 }

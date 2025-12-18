@@ -68,6 +68,9 @@ public class AdminDailyMealOrderController {
     private FileStorageProperties fileStorageProperties;
 
     @Autowired
+    private com.yao.food_menu.service.OrdersService ordersService;
+
+    @Autowired
     private OssService ossService;
 
     /**
@@ -82,6 +85,7 @@ public class AdminDailyMealOrderController {
             @RequestParam(required = false) String endDate,
             @RequestParam(required = false) String mealPeriod,
             @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) Long familyId,
             @RequestHeader("Authorization") String token) {
         try {
             if (token.startsWith("Bearer ")) {
@@ -113,6 +117,11 @@ public class AdminDailyMealOrderController {
             }
             if (status != null) {
                 wrapper.eq(DailyMealOrder::getStatus, status);
+            }
+
+            // 超级管理员且指定了家庭ID
+            if (user.getRole() == 2 && familyId != null) {
+                wrapper.eq(DailyMealOrder::getFamilyId, familyId);
             }
 
             wrapper.orderByDesc(DailyMealOrder::getOrderDate);
@@ -172,6 +181,9 @@ public class AdminDailyMealOrderController {
                 memberOrder.put("orderNumber", order.getOrderNumber());
                 memberOrder.put("totalAmount", order.getTotalAmount());
                 memberOrder.put("createTime", order.getCreateTime());
+                memberOrder.put("isLateOrder", order.getIsLateOrder());
+                memberOrder.put("lateOrderStatus", order.getLateOrderStatus());
+                memberOrder.put("status", order.getStatus());
 
                 // 查询用户信息
                 WxUser member = wxUserService.getById(order.getUserId());
@@ -186,6 +198,10 @@ public class AdminDailyMealOrderController {
                 // 查询订单项
                 LambdaQueryWrapper<OrderItem> itemWrapper = new LambdaQueryWrapper<>();
                 itemWrapper.eq(OrderItem::getOrderId, order.getId());
+                // 如果大订单已确认,只显示已发布的菜品项
+                if (dailyMealOrder.getStatus() == DailyMealOrder.STATUS_CONFIRMED) {
+                    itemWrapper.eq(OrderItem::getIsPublished, 1);
+                }
                 List<OrderItem> items = orderItemService.list(itemWrapper);
 
                 // 处理菜品图片URL
@@ -198,6 +214,7 @@ public class AdminDailyMealOrderController {
                     itemMap.put("price", item.getPrice());
                     itemMap.put("quantity", item.getQuantity());
                     itemMap.put("subtotal", item.getSubtotal());
+                    itemMap.put("isPublished", item.getIsPublished());
                     // 处理菜品图片URL
                     itemMap.put("dishImage", processImageUrl(item.getDishImage(), DEFAULT_DISH_IMAGE));
                     processedItems.add(itemMap);
@@ -226,6 +243,7 @@ public class AdminDailyMealOrderController {
     public Result<String> reviewLateOrder(
             @PathVariable Long orderId,
             @RequestParam Integer action,
+            @RequestBody(required = false) List<Long> dishIds,
             @RequestHeader("Authorization") String token) {
         try {
             if (token.startsWith("Bearer ")) {
@@ -244,15 +262,7 @@ public class AdminDailyMealOrderController {
             }
 
             // 调用Service层审核方法
-            com.yao.food_menu.service.OrdersService ordersService = (com.yao.food_menu.service.OrdersService) org.springframework.beans.factory.BeanFactoryUtils
-                    .beanOfTypeIncludingAncestors(
-                            org.springframework.web.context.support.WebApplicationContextUtils
-                                    .getWebApplicationContext(
-                                            ((org.springframework.web.context.request.ServletRequestAttributes) org.springframework.web.context.request.RequestContextHolder
-                                                    .currentRequestAttributes()).getRequest().getServletContext()),
-                            com.yao.food_menu.service.OrdersService.class);
-
-            ordersService.reviewLateOrder(orderId, action, userId);
+            ordersService.reviewLateOrder(orderId, action, userId, dishIds);
 
             String actionText = action == Orders.LATE_STATUS_ACCEPTED ? "接受" : "拒绝";
             return Result.success("审核成功: " + actionText);
@@ -263,11 +273,46 @@ public class AdminDailyMealOrderController {
     }
 
     /**
+     * 发布菜单
+     */
+    @Operation(summary = "发布菜单", description = "确认并发布餐次菜单,支持筛选菜品")
+    @PostMapping("/confirm-publish/{id}")
+    public Result<String> confirmPublish(
+            @PathVariable Long id,
+            @RequestBody(required = false) List<Long> dishIds,
+            @RequestHeader("Authorization") String token) {
+        try {
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7);
+            }
+
+            Long userId = jwtUtil.getUserId(token);
+            User user = userService.getById(userId);
+            if (user == null) {
+                return Result.error("用户信息不存在");
+            }
+
+            // 验证管理员权限
+            if (user.getRole() == null || user.getRole() < 1) {
+                return Result.error("无权限操作");
+            }
+
+            dailyMealOrderService.confirmOrder(id, userId, dishIds);
+            return Result.success("发布成功");
+        } catch (Exception e) {
+            log.error("发布菜单失败", e);
+            return Result.error("发布失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * 获取大订单统计信息
      */
     @Operation(summary = "获取大订单统计信息", description = "获取各状态大订单数量及汇总数据")
     @GetMapping("/statistics")
-    public Result<Map<String, Object>> getStatistics(@RequestHeader("Authorization") String token) {
+    public Result<Map<String, Object>> getStatistics(
+            @RequestParam(required = false) Long paramFamilyId,
+            @RequestHeader("Authorization") String token) {
         try {
             if (token.startsWith("Bearer ")) {
                 token = token.substring(7);
@@ -283,6 +328,9 @@ public class AdminDailyMealOrderController {
             // 非超级管理员只能查看自己家庭的数据
             if (user.getRole() != 2 && user.getFamilyId() != null) {
                 familyId = user.getFamilyId();
+            } else if (user.getRole() == 2 && paramFamilyId != null) {
+                // 超级管理员且筛选特定家庭
+                familyId = paramFamilyId;
             }
 
             Map<String, Object> stats = dailyMealOrderService.getStatistics(familyId);

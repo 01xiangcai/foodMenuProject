@@ -442,11 +442,14 @@ const handleBatchDelete = async () => {
 };
 
 const handlePageChange = (page: number) => {
+  pagination.value.page = page;
   filters.value.page = page;
   refreshLogs();
 };
 
 const handlePageSizeChange = (pageSize: number) => {
+  pagination.value.pageSize = pageSize;
+  pagination.value.page = 1;
   filters.value.pageSize = pageSize;
   filters.value.page = 1;
   refreshLogs();

@@ -29,13 +29,13 @@ import java.time.format.DateTimeFormatter;
 @RequestMapping("/admin/operationLog")
 @Slf4j
 public class OperationLogController {
-    
+
     @Autowired
     private OperationLogService operationLogService;
-    
+
     @Autowired
     private JwtUtil jwtUtil;
-    
+
     /**
      * 分页查询操作日志
      * 权限控制：
@@ -49,14 +49,15 @@ public class OperationLogController {
             @RequestParam(defaultValue = "10") int pageSize,
             OperationLogQueryDto queryDto,
             @RequestHeader(value = "Authorization", required = false) String token) {
-        
+
         log.info("查询操作日志: page={}, pageSize={}, queryDto={}", page, pageSize, queryDto);
-        
+
         try {
-            // 获取当前用户角色和家庭ID
+            // 获取当前用户角色、家庭ID和用户ID
             Integer userRole = null;
             Long userFamilyId = null;
-            
+            Long userId = null;
+
             if (StringUtils.hasText(token)) {
                 // 移除"Bearer "前缀
                 if (token.startsWith("Bearer ")) {
@@ -65,11 +66,12 @@ public class OperationLogController {
                 try {
                     userRole = jwtUtil.getRole(token);
                     userFamilyId = jwtUtil.getFamilyId(token);
+                    userId = jwtUtil.getUserId(token);
                 } catch (Exception e) {
                     log.warn("解析Token失败: {}", e.getMessage());
                 }
             }
-            
+
             // 如果从Token获取失败，尝试从上下文获取
             if (userRole == null) {
                 userRole = FamilyContext.getUserRole();
@@ -77,64 +79,86 @@ public class OperationLogController {
             if (userFamilyId == null) {
                 userFamilyId = FamilyContext.getFamilyId();
             }
-            
+            if (userId == null) {
+                userId = FamilyContext.getUserId();
+            }
+
             // 判断是否为超级管理员
             boolean isSuperAdmin = (userRole != null && userRole == 2);
-            
+
             Page<OperationLog> pageInfo = new Page<>(page, pageSize);
             LambdaQueryWrapper<OperationLog> queryWrapper = new LambdaQueryWrapper<>();
-            
-            // 权限控制：非超级管理员只能查看自己家庭的数据
-            if (!isSuperAdmin && userFamilyId != null) {
-                queryWrapper.eq(OperationLog::getFamilyId, userFamilyId);
-                log.debug("非超级管理员，限制查询范围: familyId={}", userFamilyId);
-            } else if (isSuperAdmin) {
+
+            // 权限控制
+            if (!isSuperAdmin) {
+                if (userId != null) {
+                    // 非超级管理员：只能查看(自己家庭的日志 OR 自己操作的日志)
+                    // 通过 OR 条件，确保即使日志没有记录 familyId，操作人也可以看到自己的日志
+                    Long finalUserFamilyId = userFamilyId;
+                    Long finalUserId = userId;
+
+                    queryWrapper.and(w -> {
+                        // 条件1: 自己操作的日志
+                        w.eq(OperationLog::getOperatorId, finalUserId);
+
+                        // 条件2: 自己家庭的日志 (如果当前用户有家庭)
+                        if (finalUserFamilyId != null) {
+                            w.or().eq(OperationLog::getFamilyId, finalUserFamilyId);
+                        }
+                    });
+
+                    log.debug("非超级管理员查询日志: userId={}, familyId={}", finalUserId, finalUserFamilyId);
+                } else if (userFamilyId != null) {
+                    // 只有家庭ID的情况（理论上不应该发生，因为有familyId通常意味着已登录）
+                    queryWrapper.eq(OperationLog::getFamilyId, userFamilyId);
+                } else {
+                    // 既无用户ID也无家庭ID，未登录或异常状态，返回空
+                    log.warn("无法获取用户信息，返回空结果");
+                    return Result.success(pageInfo);
+                }
+            } else {
                 // 超级管理员可以按家庭ID筛选（如果提供了familyId参数）
                 if (queryDto.getFamilyId() != null) {
                     queryWrapper.eq(OperationLog::getFamilyId, queryDto.getFamilyId());
                     log.debug("超级管理员按家庭筛选: familyId={}", queryDto.getFamilyId());
                 }
-            } else {
-                // 未登录或无法获取用户信息，返回空结果
-                log.warn("无法获取用户信息，返回空结果");
-                return Result.success(pageInfo);
             }
-            
+
             // 按操作类型查询
             if (StringUtils.hasText(queryDto.getOperationType())) {
                 queryWrapper.eq(OperationLog::getOperationType, queryDto.getOperationType());
             }
-            
+
             // 按操作模块查询
             if (StringUtils.hasText(queryDto.getOperationModule())) {
                 queryWrapper.eq(OperationLog::getOperationModule, queryDto.getOperationModule());
             }
-            
+
             // 按操作人ID查询
             if (queryDto.getOperatorId() != null) {
                 queryWrapper.eq(OperationLog::getOperatorId, queryDto.getOperatorId());
             }
-            
+
             // 按操作人姓名模糊查询
             if (StringUtils.hasText(queryDto.getOperatorName())) {
                 queryWrapper.like(OperationLog::getOperatorName, queryDto.getOperatorName());
             }
-            
+
             // 按操作人类型查询
             if (StringUtils.hasText(queryDto.getOperatorType())) {
                 queryWrapper.eq(OperationLog::getOperatorType, queryDto.getOperatorType());
             }
-            
+
             // 按状态查询
             if (queryDto.getStatus() != null) {
                 queryWrapper.eq(OperationLog::getStatus, queryDto.getStatus());
             }
-            
+
             // 按IP地址查询
             if (StringUtils.hasText(queryDto.getIpAddress())) {
                 queryWrapper.like(OperationLog::getIpAddress, queryDto.getIpAddress());
             }
-            
+
             // 按时间范围查询
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
             if (StringUtils.hasText(queryDto.getStartTime())) {
@@ -153,19 +177,19 @@ public class OperationLogController {
                     log.warn("结束时间格式错误: {}", queryDto.getEndTime());
                 }
             }
-            
+
             // 按创建时间降序排序
             queryWrapper.orderByDesc(OperationLog::getCreateTime);
-            
+
             operationLogService.page(pageInfo, queryWrapper);
-            
+
             return Result.success(pageInfo);
         } catch (Exception e) {
             log.error("查询操作日志失败", e);
             return Result.error("查询操作日志失败: " + e.getMessage());
         }
     }
-    
+
     /**
      * 根据ID查询操作日志详情
      * 权限控制：非超级管理员只能查看自己家庭的日志
@@ -176,25 +200,25 @@ public class OperationLogController {
             @PathVariable Long id,
             @RequestHeader(value = "Authorization", required = false) String token) {
         log.info("查询操作日志详情: id={}", id);
-        
+
         try {
             OperationLog operationLog = operationLogService.getById(id);
             if (operationLog == null) {
                 return Result.error("操作日志不存在");
             }
-            
+
             // 权限控制：检查是否有权限查看该日志
             if (!hasPermission(operationLog, token)) {
                 return Result.error("无权查看该操作日志");
             }
-            
+
             return Result.success(operationLog);
         } catch (Exception e) {
             log.error("查询操作日志详情失败", e);
             return Result.error("查询失败: " + e.getMessage());
         }
     }
-    
+
     /**
      * 删除操作日志（仅管理员）
      * 权限控制：非超级管理员只能删除自己家庭的日志
@@ -205,18 +229,18 @@ public class OperationLogController {
             @PathVariable Long id,
             @RequestHeader(value = "Authorization", required = false) String token) {
         log.warn("删除操作日志: id={}", id);
-        
+
         try {
             OperationLog operationLog = operationLogService.getById(id);
             if (operationLog == null) {
                 return Result.error("操作日志不存在");
             }
-            
+
             // 权限控制：检查是否有权限删除该日志
             if (!hasPermission(operationLog, token)) {
                 return Result.error("无权删除该操作日志");
             }
-            
+
             boolean success = operationLogService.removeById(id);
             if (success) {
                 return Result.success("删除成功");
@@ -228,7 +252,7 @@ public class OperationLogController {
             return Result.error("删除失败: " + e.getMessage());
         }
     }
-    
+
     /**
      * 批量删除操作日志（仅管理员）
      * 权限控制：非超级管理员只能删除自己家庭的日志
@@ -239,12 +263,12 @@ public class OperationLogController {
             @RequestParam String endTime,
             @RequestHeader(value = "Authorization", required = false) String token) {
         log.warn("批量删除操作日志: endTime={}", endTime);
-        
+
         try {
             // 获取当前用户角色和家庭ID
             Integer userRole = null;
             Long userFamilyId = null;
-            
+
             if (StringUtils.hasText(token)) {
                 if (token.startsWith("Bearer ")) {
                     token = token.substring(7);
@@ -256,29 +280,29 @@ public class OperationLogController {
                     log.warn("解析Token失败: {}", e.getMessage());
                 }
             }
-            
+
             if (userRole == null) {
                 userRole = FamilyContext.getUserRole();
             }
             if (userFamilyId == null) {
                 userFamilyId = FamilyContext.getFamilyId();
             }
-            
+
             boolean isSuperAdmin = (userRole != null && userRole == 2);
-            
+
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
             LocalDateTime end = LocalDateTime.parse(endTime, formatter);
-            
+
             LambdaQueryWrapper<OperationLog> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.le(OperationLog::getCreateTime, end);
-            
+
             // 权限控制：非超级管理员只能删除自己家庭的日志
             if (!isSuperAdmin && userFamilyId != null) {
                 queryWrapper.eq(OperationLog::getFamilyId, userFamilyId);
             } else if (!isSuperAdmin) {
                 return Result.error("无权执行批量删除操作");
             }
-            
+
             boolean success = operationLogService.remove(queryWrapper);
             if (success) {
                 return Result.success("批量删除成功");
@@ -290,13 +314,13 @@ public class OperationLogController {
             return Result.error("批量删除失败: " + e.getMessage());
         }
     }
-    
+
     /**
      * 检查是否有权限操作该日志
      * 超级管理员可以操作所有日志，普通管理员和家庭管理员只能操作自己家庭的日志
      * 
      * @param operationLog 操作日志
-     * @param token 用户Token
+     * @param token        用户Token
      * @return 是否有权限
      */
     private boolean hasPermission(OperationLog operationLog, String token) {
@@ -304,7 +328,7 @@ public class OperationLogController {
             // 获取当前用户角色和家庭ID
             Integer userRole = null;
             Long userFamilyId = null;
-            
+
             if (StringUtils.hasText(token)) {
                 if (token.startsWith("Bearer ")) {
                     token = token.substring(7);
@@ -316,24 +340,24 @@ public class OperationLogController {
                     log.warn("解析Token失败: {}", e.getMessage());
                 }
             }
-            
+
             if (userRole == null) {
                 userRole = FamilyContext.getUserRole();
             }
             if (userFamilyId == null) {
                 userFamilyId = FamilyContext.getFamilyId();
             }
-            
+
             // 超级管理员可以操作所有日志
             if (userRole != null && userRole == 2) {
                 return true;
             }
-            
+
             // 普通管理员和家庭管理员只能操作自己家庭的日志
             if (userFamilyId != null && operationLog.getFamilyId() != null) {
                 return userFamilyId.equals(operationLog.getFamilyId());
             }
-            
+
             // 如果日志没有家庭ID，则不允许非超级管理员操作
             return false;
         } catch (Exception e) {
@@ -342,4 +366,3 @@ public class OperationLogController {
         }
     }
 }
-

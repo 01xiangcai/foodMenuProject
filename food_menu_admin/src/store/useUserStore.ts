@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { fetchProfile, login } from '@/api/modules';
 
 type UserProfile = {
@@ -52,10 +52,15 @@ export const useUserStore = defineStore('user', () => {
     profile.value = null;
   };
 
+  const isAdmin = computed(() => {
+    return profile.value?.role === 2;
+  });
+
   return {
     token,
     loading,
     profile,
+    isAdmin,
     loginWithPassword,
     loadProfile,
     logout

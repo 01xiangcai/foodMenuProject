@@ -66,7 +66,11 @@
               class="dish-item" 
               v-for="item in member.items" 
               :key="item.id"
+              @tap="toggleLateDishSelection(member.orderId, item.id)"
             >
+              <view class="checkbox" :class="{ checked: isLateDishSelected(member.orderId, item.id) }">
+                <text v-if="isLateDishSelected(member.orderId, item.id)">✓</text>
+              </view>
               <image 
                 class="dish-image" 
                 :src="getDishImageUrl(item.dishImage)" 
@@ -176,7 +180,8 @@ const orderDetail = ref({})
 const memberOrders = ref([])
 const lateMemberOrders = ref([]) // 待审核迟到订单
 const isAdmin = ref(false)
-const selectedDishes = ref(new Set()) // 选中的菜品ID集合
+const selectedDishes = ref(new Set()) // 选中的菜品ID集合 (发布菜单用)
+const selectedLateDishes = ref({}) // 迟到订单选中的菜品 { orderId: Set<dishId> }
 
 const defaultAvatar = 'https://dummyimage.com/100x100/cccccc/ffffff&text=头像'
 const defaultDishImage = 'https://dummyimage.com/100x100/FF7D58/ffffff&text=菜品'
@@ -301,6 +306,8 @@ const loadOrderDetail = async () => {
       orderDetail.value = res.data.dailyMealOrder || {}
       memberOrders.value = res.data.memberOrders || []
       lateMemberOrders.value = res.data.lateOrders || []
+      // 初始化迟到订单菜品选中状态
+      initLateDishSelections()
     } else {
       uni.showToast({ title: res.msg || '加载失败', icon: 'none' })
     }
@@ -312,13 +319,66 @@ const loadOrderDetail = async () => {
   }
 }
 
+// 切换迟到订单菜品选中状态
+const toggleLateDishSelection = (orderId, dishId) => {
+  if (!selectedLateDishes.value[orderId]) {
+    selectedLateDishes.value[orderId] = new Set()
+  }
+  
+  if (selectedLateDishes.value[orderId].has(dishId)) {
+    selectedLateDishes.value[orderId].delete(dishId)
+  } else {
+    selectedLateDishes.value[orderId].add(dishId)
+  }
+  // 触发响应式更新
+  selectedLateDishes.value = { ...selectedLateDishes.value }
+}
+
+// 检查迟到订单菜品是否选中
+const isLateDishSelected = (orderId, dishId) => {
+  return selectedLateDishes.value[orderId]?.has(dishId) || false
+}
+
+// 获取迟到订单选中的菜品数量
+const getSelectedLateDishCount = (orderId) => {
+  return selectedLateDishes.value[orderId]?.size || 0
+}
+
+// 初始化迟到订单的菜品选中状态（默认全选）
+const initLateDishSelections = () => {
+  lateMemberOrders.value.forEach(member => {
+    if (!selectedLateDishes.value[member.orderId]) {
+      selectedLateDishes.value[member.orderId] = new Set()
+    }
+    member.items.forEach(item => {
+      selectedLateDishes.value[member.orderId].add(item.id)
+    })
+  })
+  selectedLateDishes.value = { ...selectedLateDishes.value }
+}
+
 // 审核迟到订单
 const handleReview = async (orderId, action) => {
   const actionText = action === 1 ? '接受' : '拒绝'
+  
+  // 如果是接受操作，需要检查是否有选中的菜品
+  if (action === 1) {
+    const selectedCount = getSelectedLateDishCount(orderId)
+    if (selectedCount === 0) {
+      uni.showToast({ title: '请至少选择一个菜品', icon: 'none' })
+      return
+    }
+  }
+  
   try {
+    const selectedCount = getSelectedLateDishCount(orderId)
+    let confirmContent = action === 2 
+      ? `确定要拒绝该迟到订单吗？\n拒绝后将自动撤销并退款。`
+      : `确定要接受选中的 ${selectedCount} 个菜品吗？\n未选中的菜品将被退款。`
+    
     const confirmRes = await uni.showModal({
       title: '审核提示',
-      content: `确定要${actionText}该迟到订单吗？${action === 2 ? '\n拒绝后将自动撤销并退款。' : ''}`,
+      content: confirmContent,
       cancelColor: '#999',
       confirmColor: action === 1 ? '#4caf50' : '#f44336'
     })
@@ -326,9 +386,15 @@ const handleReview = async (orderId, action) => {
     if (!confirmRes.confirm) return
 
     uni.showLoading({ title: '提交中...' })
-    const res = await reviewLateOrder(orderId, action)
+    
+    // 获取选中的菜品ID列表
+    const dishIds = action === 1 ? Array.from(selectedLateDishes.value[orderId] || []) : []
+    
+    const res = await reviewLateOrder(orderId, action, dishIds)
     if (res.code === 1) {
       uni.showToast({ title: `${actionText}成功`, icon: 'success' })
+      // 清除该订单的选中状态
+      delete selectedLateDishes.value[orderId]
       // 重新加载数据
       await loadOrderDetail()
     } else {

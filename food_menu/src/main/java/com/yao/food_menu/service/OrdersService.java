@@ -34,5 +34,5 @@ public interface OrdersService extends IService<Orders> {
     /**
      * 审核迟到订单
      */
-    void reviewLateOrder(Long orderId, Integer action, Long adminId);
+    void reviewLateOrder(Long orderId, Integer action, Long adminId, java.util.List<Long> dishIds);
 }

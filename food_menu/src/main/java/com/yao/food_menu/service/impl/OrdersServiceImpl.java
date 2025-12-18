@@ -26,6 +26,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -53,6 +54,9 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
 
     @Autowired
     private com.yao.food_menu.service.WxUserService wxUserService;
+
+    @Autowired
+    private com.yao.food_menu.service.DailyMealPublishItemService dailyMealPublishItemService;
 
     private static final AtomicLong orderCounter = new AtomicLong(1);
 
@@ -412,8 +416,9 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void reviewLateOrder(Long orderId, Integer action, Long adminId) {
-        log.info("Review late order: orderId={}, action={}, adminId={}", orderId, action, adminId);
+    public void reviewLateOrder(Long orderId, Integer action, Long adminId, List<Long> dishIds) {
+        log.info("Review late order with dishes: orderId={}, action={}, adminId={}, dishIds={}",
+                orderId, action, adminId, dishIds);
 
         Orders order = this.getById(orderId);
         if (order == null) {
@@ -434,16 +439,97 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
         }
 
         if (action == Orders.LATE_STATUS_ACCEPTED) {
-            order.setLateOrderStatus(Orders.LATE_STATUS_ACCEPTED);
-            this.updateById(order);
-            log.info("Late order accepted: {}", orderId);
-            // 修改点: 接受订单后触发大订单统计更新
-            if (order.getDailyMealOrderId() != null) {
-                try {
-                    dailyMealOrderService.updateStatistics(order.getDailyMealOrderId());
-                } catch (Exception e) {
-                    log.error("Failed to update daily meal order statistics after accepting late order", e);
+            // 获取该订单的所有菜品项
+            LambdaQueryWrapper<OrderItem> itemWrapper = new LambdaQueryWrapper<>();
+            itemWrapper.eq(OrderItem::getOrderId, order.getId());
+            List<OrderItem> allItems = orderItemService.list(itemWrapper);
+
+            // 如果没有传dishIds,默认接受全部菜品
+            if (dishIds == null || dishIds.isEmpty()) {
+                dishIds = allItems.stream().map(OrderItem::getId).collect(Collectors.toList());
+            }
+
+            List<com.yao.food_menu.entity.DailyMealPublishItem> publishItems = new ArrayList<>();
+            boolean hasPublishedItem = false;
+            BigDecimal refundAmount = BigDecimal.ZERO;
+
+            for (OrderItem item : allItems) {
+                BigDecimal itemSubtotal = item.getPrice().multiply(new BigDecimal(item.getQuantity()));
+                if (dishIds.contains(item.getId())) {
+                    // 标记已发布
+                    item.setIsPublished(1);
+                    orderItemService.updateById(item);
+                    hasPublishedItem = true;
+
+                    // 创建发布记录
+                    com.yao.food_menu.entity.DailyMealPublishItem publishItem = new com.yao.food_menu.entity.DailyMealPublishItem();
+                    publishItem.setDailyMealOrderId(order.getDailyMealOrderId());
+                    publishItem.setOrderItemId(item.getId());
+                    publishItem.setOrderId(order.getId());
+                    publishItem.setDishId(item.getDishId());
+                    publishItem.setDishName(item.getDishName());
+                    publishItem.setDishImage(item.getDishImage());
+                    publishItem.setQuantity(item.getQuantity());
+                    publishItem.setPrice(item.getPrice());
+                    publishItem.setSubtotal(itemSubtotal);
+                    publishItem.setUserId(order.getUserId());
+
+                    com.yao.food_menu.entity.WxUser wxUser = wxUserService.getById(order.getUserId());
+                    if (wxUser != null) {
+                        publishItem.setUserNickname(wxUser.getNickname());
+                    }
+                    publishItems.add(publishItem);
+                } else {
+                    // 未选中菜品,累计退款
+                    refundAmount = refundAmount.add(itemSubtotal);
                 }
+            }
+
+            if (hasPublishedItem) {
+                order.setLateOrderStatus(Orders.LATE_STATUS_ACCEPTED);
+                order.setStatus(Orders.STATUS_PREPARING);
+                this.updateById(order);
+
+                // 异步保存发布记录
+                if (!publishItems.isEmpty()) {
+                    dailyMealPublishItemService.batchInsert(publishItems);
+
+                    // 新增: 更新菜品统计(明星菜热度)
+                    try {
+                        List<Long> publishedDishIds = publishItems.stream()
+                                .map(com.yao.food_menu.entity.DailyMealPublishItem::getDishId)
+                                .distinct()
+                                .collect(Collectors.toList());
+                        if (!publishedDishIds.isEmpty()) {
+                            dishStatisticsService.batchIncrementOrderCount(publishedDishIds);
+                            log.info("迟到订单接受: 更新了 {} 个菜品的热度统计", publishedDishIds.size());
+                        }
+                    } catch (Exception e) {
+                        log.error("更新菜品热度统计失败", e);
+                    }
+                }
+
+                // 处理部分退款
+                if (refundAmount.compareTo(BigDecimal.ZERO) > 0 &&
+                        order.getPayMethod() != null && order.getPayMethod() == Orders.PAY_METHOD_WALLET) {
+                    try {
+                        walletService.refund(order.getUserId().toString(), refundAmount,
+                                order.getOrderNumber() + "-迟到订单部分接受退款");
+                    } catch (Exception e) {
+                        log.error("迟到订单 {} 部分退款失败: {}", order.getOrderNumber(), e.getMessage());
+                    }
+                }
+            } else {
+                // 一个菜都没选中,视为拒绝
+                order.setLateOrderStatus(Orders.LATE_STATUS_REJECTED);
+                order.setStatus(Orders.STATUS_CANCELLED);
+                this.updateById(order);
+                handleOrderCancelRefund(order);
+            }
+
+            // 更新大订单统计
+            if (order.getDailyMealOrderId() != null) {
+                dailyMealOrderService.updateStatistics(order.getDailyMealOrderId());
             }
         } else if (action == Orders.LATE_STATUS_REJECTED) {
             order.setLateOrderStatus(Orders.LATE_STATUS_REJECTED);
@@ -451,13 +537,8 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
             this.updateById(order);
             handleOrderCancelRefund(order);
             if (order.getDailyMealOrderId() != null) {
-                try {
-                    dailyMealOrderService.updateStatistics(order.getDailyMealOrderId());
-                } catch (Exception e) {
-                    log.error("Failed to update daily meal order statistics", e);
-                }
+                dailyMealOrderService.updateStatistics(order.getDailyMealOrderId());
             }
-            log.info("Late order rejected and refunded: {}", orderId);
         } else {
             throw new RuntimeException("无效的审核动作");
         }
