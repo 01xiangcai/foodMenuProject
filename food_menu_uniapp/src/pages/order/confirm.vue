@@ -9,6 +9,17 @@
           <text class="period-name">{{ getMealPeriodName(mealPeriod) }}</text>
         </view>
       </view>
+
+      <!-- 迟到订单警告 -->
+      <view class="late-order-warning" v-if="mealPeriodConfirmed">
+        <view class="warning-icon">⚠️</view>
+        <view class="warning-content">
+          <text class="warning-title">该餐次已发布</text>
+          <text class="warning-desc">
+            您的订单将作为迟到订单提交,需要等待管理员审核后才能加入餐次
+          </text>
+        </view>
+      </view>
       
       <view class="order-items">
         <view class="order-item" v-for="item in items" :key="item.id">
@@ -127,7 +138,7 @@
 
 import { ref, computed } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
-import { createOrder, getWalletInfo, checkPayPassword, payOrder, getOrderDetail, updateOrderRemark } from '@/api/index'
+import { createOrder, getWalletInfo, checkPayPassword, payOrder, getOrderDetail, updateOrderRemark, getTodayMeals } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 import { useCartStore } from '@/stores/cart'
 import { getDishImage } from '@/utils/image'
@@ -146,6 +157,7 @@ const isSubmitting = ref(false)
 const orderId = ref(null)
 const orderNumber = ref('')
 const mealPeriod = ref('') // 餐次
+const mealPeriodConfirmed = ref(false) // 餐次是否已发布
 
 // 获取餐次图标
 const getMealPeriodIcon = (period) => {
@@ -203,6 +215,22 @@ const loadWalletInfo = async () => {
     }
   } catch (error) {
     console.error('获取钱包信息失败:', error)
+  }
+}
+
+// 检查餐次状态
+const checkMealPeriodStatus = async () => {
+  if (!mealPeriod.value) return
+  try {
+    const res = await getTodayMeals()
+    if (res.data && Array.isArray(res.data)) {
+        const currentMeal = res.data.find(m => m.mealPeriod === mealPeriod.value)
+        if (currentMeal && currentMeal.status === 1) { // 1 = STATUS_CONFIRMED
+            mealPeriodConfirmed.value = true
+        }
+    }
+  } catch (error) {
+    console.error('检查餐次状态失败:', error)
   }
 }
 
@@ -366,6 +394,7 @@ onLoad((options) => {
   // 获取餐次参数
   if (options.mealPeriod) {
     mealPeriod.value = options.mealPeriod
+    checkMealPeriodStatus()
   }
   
   if (options.orderId) {
@@ -443,6 +472,41 @@ onShow(() => {
   font-size: 24rpx;
   color: #fff;
   font-weight: 600;
+}
+
+/* 迟到订单警告 */
+.late-order-warning {
+  display: flex;
+  align-items: flex-start;
+  padding: 30rpx;
+  margin: 0 0 30rpx;
+  background: linear-gradient(135deg, #FFF3E0 0%, #FFECB3 100%);
+  border-radius: 20rpx;
+  border: 2rpx solid #FFB74D;
+  
+  .warning-icon {
+    font-size: 48rpx;
+    margin-right: 20rpx;
+  }
+  
+  .warning-content {
+    flex: 1;
+  }
+  
+  .warning-title {
+    display: block;
+    font-size: 30rpx;
+    font-weight: 700;
+    color: #E65100;
+    margin-bottom: 8rpx;
+  }
+  
+  .warning-desc {
+    display: block;
+    font-size: 26rpx;
+    color: #F57C00;
+    line-height: 1.6;
+  }
 }
 
 .order-item {

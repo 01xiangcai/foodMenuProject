@@ -56,6 +56,16 @@
             </view>
           </view>
           
+          <!-- 迟到订单标识和审核状态 -->
+          <view class="late-order-info" v-if="order.isLateOrder === 1">
+            <view class="late-badge">⏰ 迟到</view>
+            <view class="review-status">
+              <text v-if="order.lateOrderStatus === 0" class="status-pending">待审核</text>
+              <text v-else-if="order.lateOrderStatus === 1" class="status-accepted">已接受</text>
+              <text v-else-if="order.lateOrderStatus === 2" class="status-rejected">已拒绝</text>
+            </view>
+          </view>
+          
           <!-- 用户信息 (管理员可见) -->
           <view class="user-info-row">
             <image class="user-avatar" :src="order.userAvatar || 'https://dummyimage.com/100x100/ccc/fff'" mode="aspectFill" lazy-load />
@@ -107,8 +117,18 @@
             </view>
             
             <view class="footer-actions">
+              <!-- 迟到订单审核按钮 -->
+              <view class="action-btns" v-if="order.isLateOrder === 1 && order.lateOrderStatus === 0">
+                <view class="btn-cancel" @tap.stop="handleReviewLate(order.id, 2)">
+                  <text>拒绝迟到</text>
+                </view>
+                <view class="btn-primary" @tap.stop="handleReviewLate(order.id, 1)">
+                  <text>接受迟到</text>
+                </view>
+              </view>
+
               <!-- 待接单: 接单, 取消 -->
-              <view class="action-btns" v-if="order.status === 0">
+              <view class="action-btns" v-else-if="order.status === 0">
                 <view class="btn-cancel" @tap.stop="handleStatusUpdate(order.id, 4)">
                   <text>取消</text>
                 </view>
@@ -161,7 +181,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getAllOrders, updateOrderStatus, getAdminOrderCounts } from '@/api/index'
+import { getAllOrders, updateOrderStatus, getAdminOrderCounts, reviewLateOrder } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 import { getDishImage } from '@/utils/image'
 
@@ -421,6 +441,40 @@ const handleStatusUpdate = (orderId, status) => {
   })
 }
 
+// 审核迟到订单
+const handleReviewLate = (orderId, action) => {
+  const actionText = action === 1 ? '接受' : '拒绝'
+  uni.showModal({
+    title: '审核提示',
+    content: `确定要${actionText}该迟到订单吗？${action === 2 ? '\n拒绝后将自动取消并退款。' : ''}`,
+    success: async (res) => {
+      if (res.confirm) {
+        uni.showLoading({ title: '处理中...', mask: true })
+        try {
+          await reviewLateOrder(orderId, action)
+          
+          uni.showToast({
+            title: '操作成功',
+            icon: 'success'
+          })
+          
+          // 刷新列表
+          loadOrders(true)
+        } catch (error) {
+          console.error('操作失败:', error)
+          uni.showToast({
+            title: '操作失败',
+            icon: 'none'
+          })
+        } finally {
+          uni.hideLoading()
+          fetchOrderCounts()
+        }
+      }
+    }
+  })
+}
+
 // 图片加载失败处理
 const handleImageError = (e) => {
   console.warn('Image load failed:', e)
@@ -608,6 +662,48 @@ onShow(() => {
     background: rgba(139, 143, 163, 0.15);
     color: v-bind('themeConfig.textSecondary');
     border: 1px solid rgba(139, 143, 163, 0.3);
+  }
+}
+
+.late-order-info {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
+  padding: 0 16rpx;
+}
+
+.late-badge {
+  padding: 4rpx 16rpx;
+  background: linear-gradient(135deg, #FFB74D 0%, #FFA726 100%);
+  border-radius: 12rpx;
+  font-size: 20rpx;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 4rpx 12rpx rgba(255, 152, 0, 0.2);
+}
+
+.review-status {
+  text {
+    padding: 4rpx 12rpx;
+    border-radius: 8rpx;
+    font-size: 20rpx;
+    font-weight: 600;
+  }
+  
+  .status-pending {
+    background: rgba(255, 152, 0, 0.1);
+    color: #F57C00;
+  }
+  
+  .status-accepted {
+    background: rgba(76, 175, 80, 0.1);
+    color: #2E7D32;
+  }
+  
+  .status-rejected {
+    background: rgba(244, 67, 54, 0.1);
+    color: #C62828;
   }
 }
 

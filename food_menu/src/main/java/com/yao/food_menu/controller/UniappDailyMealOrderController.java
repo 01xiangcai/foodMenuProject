@@ -110,126 +110,155 @@ public class UniappDailyMealOrderController {
                 return Result.error("无权限查看");
             }
 
-            // 查询该大订单下的所有小订单
+            // 查询该大订单下的所有小订单 (正常订单或已被接受的迟到订单)
             LambdaQueryWrapper<Orders> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(Orders::getDailyMealOrderId, id);
             wrapper.ne(Orders::getStatus, Orders.STATUS_CANCELLED); // 排除已取消的订单
             wrapper.eq(Orders::getPayStatus, Orders.PAY_STATUS_PAID); // 只查询已支付的订单
+            // 修改点: 包含正常订单 OR 迟到但已接受的订单
+            wrapper.and(w -> w.eq(Orders::getIsLateOrder, Orders.LATE_ORDER_NO)
+                    .or(ow -> ow.eq(Orders::getIsLateOrder, Orders.LATE_ORDER_YES)
+                            .eq(Orders::getLateOrderStatus, Orders.LATE_STATUS_ACCEPTED)));
+
             wrapper.orderByAsc(Orders::getCreateTime);
             List<Orders> ordersList = ordersService.list(wrapper);
 
-            // 组装返回数据
-            List<Map<String, Object>> memberOrders = new ArrayList<>();
-            for (Orders order : ordersList) {
-                Map<String, Object> memberOrder = new HashMap<>();
-                memberOrder.put("orderId", order.getId());
-                memberOrder.put("orderNumber", order.getOrderNumber());
-                memberOrder.put("totalAmount", order.getTotalAmount());
-                memberOrder.put("createTime", order.getCreateTime());
+            // 查询该大订单下的待审核迟到订单
+            LambdaQueryWrapper<Orders> lateWrapper = new LambdaQueryWrapper<>();
+            lateWrapper.eq(Orders::getDailyMealOrderId, id);
+            lateWrapper.eq(Orders::getIsLateOrder, Orders.LATE_ORDER_YES);
+            lateWrapper.eq(Orders::getLateOrderStatus, Orders.LATE_STATUS_PENDING);
+            lateWrapper.eq(Orders::getPayStatus, Orders.PAY_STATUS_PAID);
+            lateWrapper.orderByAsc(Orders::getCreateTime);
+            List<Orders> lateOrdersList = ordersService.list(lateWrapper);
 
-                // 查询用户信息
-                WxUser member = wxUserService.getById(order.getUserId());
-                if (member != null) {
-                    memberOrder.put("userId", member.getId());
-                    memberOrder.put("nickname", member.getNickname());
-                    // 处理头像URL
-                    String avatar = member.getAvatar();
-                    if (avatar != null && !avatar.startsWith("http://") && !avatar.startsWith("https://")) {
-                        String urlPrefix = localStorageProperties.getUrlPrefix();
-                        if (!urlPrefix.endsWith("/")) {
-                            urlPrefix += "/";
-                        }
-                        avatar = urlPrefix + avatar;
-                    }
-                    memberOrder.put("avatar", avatar);
-                }
+            // 组装返回数据 - 正常及已接受订单
+            List<Map<String, Object>> memberOrders = processOrdersToMap(ordersList, dailyMealOrder);
 
-                // 根据订单状态决定查询来源
-                List<Map<String, Object>> items = new ArrayList<>();
-
-                if (dailyMealOrder.getStatus() == DailyMealOrder.STATUS_CONFIRMED) {
-                    // 已确认订单:从发布记录表查询
-                    LambdaQueryWrapper<com.yao.food_menu.entity.DailyMealPublishItem> publishWrapper = new LambdaQueryWrapper<>();
-                    publishWrapper.eq(com.yao.food_menu.entity.DailyMealPublishItem::getOrderId, order.getId());
-                    List<com.yao.food_menu.entity.DailyMealPublishItem> publishItems = dailyMealPublishItemService
-                            .list(publishWrapper);
-
-                    for (com.yao.food_menu.entity.DailyMealPublishItem publishItem : publishItems) {
-                        Map<String, Object> itemMap = new HashMap<>();
-                        itemMap.put("id", publishItem.getOrderItemId());
-                        itemMap.put("dishId", publishItem.getDishId());
-                        itemMap.put("dishName", publishItem.getDishName());
-                        itemMap.put("quantity", publishItem.getQuantity());
-                        itemMap.put("price", publishItem.getPrice());
-                        itemMap.put("subtotal", publishItem.getSubtotal());
-
-                        // 处理菜品图片URL
-                        String dishImage = publishItem.getDishImage();
-                        if (dishImage != null && !dishImage.startsWith("http://")
-                                && !dishImage.startsWith("https://")) {
-                            String urlPrefix = localStorageProperties.getUrlPrefix();
-                            if (!urlPrefix.endsWith("/")) {
-                                urlPrefix += "/";
-                            }
-                            dishImage = urlPrefix + dishImage;
-                        }
-                        itemMap.put("dishImage", dishImage);
-
-                        items.add(itemMap);
-                    }
-                } else {
-                    // 未确认订单:从原订单项表查询
-                    LambdaQueryWrapper<OrderItem> itemWrapper = new LambdaQueryWrapper<>();
-                    itemWrapper.eq(OrderItem::getOrderId, order.getId());
-                    List<OrderItem> orderItems = orderItemService.list(itemWrapper);
-
-                    for (OrderItem item : orderItems) {
-                        Map<String, Object> itemMap = new HashMap<>();
-                        itemMap.put("id", item.getId());
-                        itemMap.put("dishId", item.getDishId());
-                        itemMap.put("dishName", item.getDishName());
-                        itemMap.put("quantity", item.getQuantity());
-                        itemMap.put("price", item.getPrice());
-                        itemMap.put("isPublished", item.getIsPublished() != null ? item.getIsPublished() : 0);
-
-                        // 计算小计
-                        java.math.BigDecimal subtotal = item.getPrice()
-                                .multiply(new java.math.BigDecimal(item.getQuantity()));
-                        itemMap.put("subtotal", subtotal);
-
-                        // 处理菜品图片URL
-                        String dishImage = item.getDishImage();
-                        if (dishImage != null && !dishImage.startsWith("http://")
-                                && !dishImage.startsWith("https://")) {
-                            String urlPrefix = localStorageProperties.getUrlPrefix();
-                            if (!urlPrefix.endsWith("/")) {
-                                urlPrefix += "/";
-                            }
-                            dishImage = urlPrefix + dishImage;
-                        }
-                        itemMap.put("dishImage", dishImage);
-
-                        items.add(itemMap);
-                    }
-                }
-
-                memberOrder.put("items", items);
-
-                // 只添加有菜品的订单
-                if (!items.isEmpty()) {
-                    memberOrders.add(memberOrder);
-                }
-            }
+            // 组装返回数据 - 待审核迟到订单
+            List<Map<String, Object>> lateMemberOrders = processOrdersToMap(lateOrdersList, dailyMealOrder);
 
             Map<String, Object> result = new HashMap<>();
             result.put("dailyMealOrder", dailyMealOrder);
             result.put("memberOrders", memberOrders);
+            result.put("lateOrders", lateMemberOrders);
 
             return Result.success(result);
         } catch (Exception e) {
             log.error("获取大订单详情失败", e);
             return Result.error("获取失败: " + e.getMessage());
         }
+    }
+
+    /**
+     * 将订单列表转换为前端需要的Map格式
+     */
+    private List<Map<String, Object>> processOrdersToMap(List<Orders> ordersList, DailyMealOrder dailyMealOrder) {
+        List<Map<String, Object>> memberOrders = new ArrayList<>();
+        for (Orders order : ordersList) {
+            Map<String, Object> memberOrder = new HashMap<>();
+            memberOrder.put("orderId", order.getId());
+            memberOrder.put("orderNumber", order.getOrderNumber());
+            memberOrder.put("totalAmount", order.getTotalAmount());
+            memberOrder.put("createTime", order.getCreateTime());
+            memberOrder.put("isLateOrder", order.getIsLateOrder());
+            memberOrder.put("lateOrderStatus", order.getLateOrderStatus());
+
+            // 查询用户信息
+            WxUser member = wxUserService.getById(order.getUserId());
+            if (member != null) {
+                memberOrder.put("userId", member.getId());
+                memberOrder.put("nickname", member.getNickname());
+                // 处理头像URL
+                String avatar = member.getAvatar();
+                if (avatar != null && !avatar.startsWith("http://") && !avatar.startsWith("https://")) {
+                    String urlPrefix = localStorageProperties.getUrlPrefix();
+                    if (!urlPrefix.endsWith("/")) {
+                        urlPrefix += "/";
+                    }
+                    avatar = urlPrefix + avatar;
+                }
+                memberOrder.put("avatar", avatar);
+            }
+
+            // 根据订单状态决定查询来源
+            List<Map<String, Object>> items = new ArrayList<>();
+
+            if (dailyMealOrder.getStatus() == DailyMealOrder.STATUS_CONFIRMED &&
+                    (order.getIsLateOrder() == null || order.getIsLateOrder() == Orders.LATE_ORDER_NO)) {
+                // 已确认订单且是非迟到订单:从发布记录表查询
+                LambdaQueryWrapper<com.yao.food_menu.entity.DailyMealPublishItem> publishWrapper = new LambdaQueryWrapper<>();
+                publishWrapper.eq(com.yao.food_menu.entity.DailyMealPublishItem::getOrderId, order.getId());
+                List<com.yao.food_menu.entity.DailyMealPublishItem> publishItems = dailyMealPublishItemService
+                        .list(publishWrapper);
+
+                for (com.yao.food_menu.entity.DailyMealPublishItem publishItem : publishItems) {
+                    Map<String, Object> itemMap = new HashMap<>();
+                    itemMap.put("id", publishItem.getOrderItemId());
+                    itemMap.put("dishId", publishItem.getDishId());
+                    itemMap.put("dishName", publishItem.getDishName());
+                    itemMap.put("quantity", publishItem.getQuantity());
+                    itemMap.put("price", publishItem.getPrice());
+                    itemMap.put("subtotal", publishItem.getSubtotal());
+
+                    // 处理菜品图片URL
+                    String dishImage = publishItem.getDishImage();
+                    if (dishImage != null && !dishImage.startsWith("http://")
+                            && !dishImage.startsWith("https://")) {
+                        String urlPrefix = localStorageProperties.getUrlPrefix();
+                        if (!urlPrefix.endsWith("/")) {
+                            urlPrefix += "/";
+                        }
+                        dishImage = urlPrefix + dishImage;
+                    }
+                    itemMap.put("dishImage", dishImage);
+
+                    items.add(itemMap);
+                }
+            } else {
+                // 未确认订单或迟到订单:从原订单项表查询
+                LambdaQueryWrapper<OrderItem> itemWrapper = new LambdaQueryWrapper<>();
+                itemWrapper.eq(OrderItem::getOrderId, order.getId());
+                List<OrderItem> orderItems = orderItemService.list(itemWrapper);
+
+                for (OrderItem item : orderItems) {
+                    Map<String, Object> itemMap = new HashMap<>();
+                    itemMap.put("id", item.getId());
+                    itemMap.put("dishId", item.getDishId());
+                    itemMap.put("dishName", item.getDishName());
+                    itemMap.put("quantity", item.getQuantity());
+                    itemMap.put("price", item.getPrice());
+                    itemMap.put("isPublished", item.getIsPublished() != null ? item.getIsPublished() : 0);
+
+                    // 计算小计
+                    java.math.BigDecimal subtotal = item.getPrice()
+                            .multiply(new java.math.BigDecimal(item.getQuantity()));
+                    itemMap.put("subtotal", subtotal);
+
+                    // 处理菜品图片URL
+                    String dishImage = item.getDishImage();
+                    if (dishImage != null && !dishImage.startsWith("http://")
+                            && !dishImage.startsWith("https://")) {
+                        String urlPrefix = localStorageProperties.getUrlPrefix();
+                        if (!urlPrefix.endsWith("/")) {
+                            urlPrefix += "/";
+                        }
+                        dishImage = urlPrefix + dishImage;
+                    }
+                    itemMap.put("dishImage", dishImage);
+
+                    items.add(itemMap);
+                }
+            }
+
+            memberOrder.put("items", items);
+
+            // 只添加有菜品的订单
+            if (!items.isEmpty()) {
+                memberOrders.add(memberOrder);
+            }
+        }
+        return memberOrders;
     }
 
     /**

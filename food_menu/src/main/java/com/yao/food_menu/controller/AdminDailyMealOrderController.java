@@ -184,4 +184,48 @@ public class AdminDailyMealOrderController {
             return Result.error("获取失败: " + e.getMessage());
         }
     }
+
+    /**
+     * 审核迟到订单
+     */
+    @Operation(summary = "审核迟到订单", description = "管理员审核迟到订单,接受或拒绝")
+    @PostMapping("/review-late-order/{orderId}")
+    public Result<String> reviewLateOrder(
+            @PathVariable Long orderId,
+            @RequestParam Integer action,
+            @RequestHeader("Authorization") String token) {
+        try {
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7);
+            }
+
+            Long userId = jwtUtil.getUserId(token);
+            User user = userService.getById(userId);
+            if (user == null) {
+                return Result.error("用户信息不存在");
+            }
+
+            // 验证管理员权限(家庭管理员或超级管理员)
+            if (user.getRole() == null || user.getRole() < 1) {
+                return Result.error("无权限操作");
+            }
+
+            // 调用Service层审核方法
+            com.yao.food_menu.service.OrdersService ordersService = (com.yao.food_menu.service.OrdersService) org.springframework.beans.factory.BeanFactoryUtils
+                    .beanOfTypeIncludingAncestors(
+                            org.springframework.web.context.support.WebApplicationContextUtils
+                                    .getWebApplicationContext(
+                                            ((org.springframework.web.context.request.ServletRequestAttributes) org.springframework.web.context.request.RequestContextHolder
+                                                    .currentRequestAttributes()).getRequest().getServletContext()),
+                            com.yao.food_menu.service.OrdersService.class);
+
+            ordersService.reviewLateOrder(orderId, action, userId);
+
+            String actionText = action == Orders.LATE_STATUS_ACCEPTED ? "接受" : "拒绝";
+            return Result.success("审核成功: " + actionText);
+        } catch (Exception e) {
+            log.error("审核迟到订单失败", e);
+            return Result.error("审核失败: " + e.getMessage());
+        }
+    }
 }

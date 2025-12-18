@@ -131,6 +131,7 @@
             <div class="order-number">
               <span class="label">订单号</span>
               <span class="value">{{ order.orderNumber }}</span>
+              <NTag v-if="order.isLateOrder === 1" size="small" type="error" class="late-tag">⏰ 迟到</NTag>
             </div>
             <NTag :type="getStatusType(order.status, order.payStatus)" :bordered="false">
               {{ getStatusText(order.status, order.payStatus) }}
@@ -186,7 +187,13 @@
             <div class="order-actions">
               <NButton size="small" tertiary @click="openDetail(order.id)"> 详情 </NButton>
 
-              <NButton v-if="order.status === 0" size="small" type="primary" class="action-btn" @click="updateStatus(order.id, 1)">
+              <!-- 迟到订单审核逻辑 -->
+              <template v-if="order.isLateOrder === 1 && order.lateOrderStatus === 0">
+                <NButton size="small" type="success" @click="handleReviewLateOrder(order.id, 1)"> 接受迟到 </NButton>
+                <NButton size="small" type="error" @click="handleReviewLateOrder(order.id, 2)"> 拒绝迟到 </NButton>
+              </template>
+
+              <NButton v-else-if="order.status === 0" size="small" type="primary" class="action-btn" @click="updateStatus(order.id, 1)">
                 接单
               </NButton>
 
@@ -279,6 +286,9 @@
                 <NTag :type="getStatusType(detailModal.data.status)">
                   {{ getStatusText(detailModal.data.status) }}
                 </NTag>
+                <NTag v-if="detailModal.data.isLateOrder === 1" type="error" style="margin-left: 8px">
+                  迟到订单 ({{ detailModal.data.lateOrderStatus === 0 ? '待审核' : (detailModal.data.lateOrderStatus === 1 ? '已接受' : '已拒绝') }})
+                </NTag>
               </div>
               <div class="info-item">
                 <span class="info-label">下单时间</span>
@@ -363,7 +373,7 @@ import {
   useDialog,
   useMessage
 } from 'naive-ui';
-import { fetchOrders, updateOrderStatus, deleteOrder, fetchAllFamilies, fetchProfile, getAdminOrderCounts } from '@/api/modules';
+import { fetchOrders, updateOrderStatus, deleteOrder, fetchAllFamilies, fetchProfile, getAdminOrderCounts, reviewLateOrder } from '@/api/modules';
 
 type OrderItemRecord = {
   id: number;
@@ -384,6 +394,8 @@ type OrderRecord = {
   totalAmount: string | number;
   status: number;
   payStatus: number; // 0=未支付, 1=已支付
+  isLateOrder?: number;
+  lateOrderStatus?: number;
   remark?: string;
   createTime: string;
   updateTime: string;
@@ -619,6 +631,26 @@ const updateStatus = async (id: number, status: number) => {
   } catch (error) {
     message.error((error as Error).message || '更新失败');
   }
+};
+
+const handleReviewLateOrder = async (id: number, action: number) => {
+  const actionText = action === 1 ? '接受' : '拒绝';
+  dialog.info({
+    title: '审核迟到订单',
+    content: `确定要 ${actionText} 这个迟到订单吗？`,
+    positiveText: '确定',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await reviewLateOrder(id, action);
+        message.success(`已${actionText}迟到订单`);
+        await loadOrders();
+        loadOrderCounts();
+      } catch (error) {
+        message.error((error as Error).message || '操作失败');
+      }
+    }
+  });
 };
 
 const handleDelete = (id: number) => {

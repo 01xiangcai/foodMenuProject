@@ -136,6 +136,14 @@ export const updateOrderStatus = (id: number, status: number) =>
 export const deleteOrder = (id: number) => http.delete(`/order/${id}`);
 export const getAdminOrderCounts = (params?: { familyId?: number | null }) => http.get('/order/admin/count', { params });
 
+/**
+ * 审核迟到订单
+ * @param orderId 订单ID
+ * @param action 审核操作: 1-接受, 2-拒绝
+ */
+export const reviewLateOrder = (orderId: number, action: number) =>
+  http.post(`/admin/daily-meal-order/review-late-order/${orderId}`, null, { params: { action } });
+
 export const uploadImage = (file: File) => {
   const formData = new FormData();
   formData.append('file', file);

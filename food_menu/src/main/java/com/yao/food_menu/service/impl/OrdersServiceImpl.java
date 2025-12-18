@@ -94,10 +94,29 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
                         ordersDto.getMealPeriod());
                 ordersDto.setDailyMealOrderId(dailyMealOrder.getId());
                 log.info("Associated with daily meal order: {}", dailyMealOrder.getId());
+
+                // 判断是否为迟到订单
+                if (dailyMealOrder.getStatus() == com.yao.food_menu.entity.DailyMealOrder.STATUS_CONFIRMED) {
+                    // 餐次已发布,标记为迟到订单
+                    ordersDto.setIsLateOrder(Orders.LATE_ORDER_YES);
+                    ordersDto.setLateOrderStatus(Orders.LATE_STATUS_PENDING);
+                    log.info("Order marked as late order (meal period already confirmed)");
+                } else {
+                    // 正常订单
+                    ordersDto.setIsLateOrder(Orders.LATE_ORDER_NO);
+                    ordersDto.setLateOrderStatus(null);
+                }
             } catch (Exception e) {
                 log.error("Failed to create or get daily meal order", e);
                 // 不影响订单提交,继续执行
+                // 默认设置为正常订单
+                ordersDto.setIsLateOrder(Orders.LATE_ORDER_NO);
+                ordersDto.setLateOrderStatus(null);
             }
+        } else {
+            // 没有餐次信息,设置为正常订单
+            ordersDto.setIsLateOrder(Orders.LATE_ORDER_NO);
+            ordersDto.setLateOrderStatus(null);
         }
 
         // 生成订单号
@@ -389,5 +408,58 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         long sequence = orderCounter.getAndIncrement() % 10000;
         return "FM" + timestamp + String.format("%04d", sequence);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void reviewLateOrder(Long orderId, Integer action, Long adminId) {
+        log.info("Review late order: orderId={}, action={}, adminId={}", orderId, action, adminId);
+
+        Orders order = this.getById(orderId);
+        if (order == null) {
+            throw new RuntimeException("订单不存在");
+        }
+
+        if (order.getIsLateOrder() == null || order.getIsLateOrder() != Orders.LATE_ORDER_YES) {
+            throw new RuntimeException("该订单不是迟到订单");
+        }
+
+        if (order.getLateOrderStatus() != null && order.getLateOrderStatus() != Orders.LATE_STATUS_PENDING) {
+            String statusText = order.getLateOrderStatus() == Orders.LATE_STATUS_ACCEPTED ? "已接受" : "已拒绝";
+            throw new RuntimeException("该订单已审核(" + statusText + "),无法重复审核");
+        }
+
+        if (order.getPayStatus() != Orders.PAY_STATUS_PAID) {
+            throw new RuntimeException("订单未支付,无需审核");
+        }
+
+        if (action == Orders.LATE_STATUS_ACCEPTED) {
+            order.setLateOrderStatus(Orders.LATE_STATUS_ACCEPTED);
+            this.updateById(order);
+            log.info("Late order accepted: {}", orderId);
+            // 修改点: 接受订单后触发大订单统计更新
+            if (order.getDailyMealOrderId() != null) {
+                try {
+                    dailyMealOrderService.updateStatistics(order.getDailyMealOrderId());
+                } catch (Exception e) {
+                    log.error("Failed to update daily meal order statistics after accepting late order", e);
+                }
+            }
+        } else if (action == Orders.LATE_STATUS_REJECTED) {
+            order.setLateOrderStatus(Orders.LATE_STATUS_REJECTED);
+            order.setStatus(Orders.STATUS_CANCELLED);
+            this.updateById(order);
+            handleOrderCancelRefund(order);
+            if (order.getDailyMealOrderId() != null) {
+                try {
+                    dailyMealOrderService.updateStatistics(order.getDailyMealOrderId());
+                } catch (Exception e) {
+                    log.error("Failed to update daily meal order statistics", e);
+                }
+            }
+            log.info("Late order rejected and refunded: {}", orderId);
+        } else {
+            throw new RuntimeException("无效的审核动作");
+        }
     }
 }

@@ -30,4 +30,9 @@ public interface OrdersService extends IService<Orders> {
      * Get admin order counts (optionally filtered by familyId)
      */
     java.util.Map<Integer, Long> getAdminOrderCounts(Long familyId);
+
+    /**
+     * 审核迟到订单
+     */
+    void reviewLateOrder(Long orderId, Integer action, Long adminId);
 }

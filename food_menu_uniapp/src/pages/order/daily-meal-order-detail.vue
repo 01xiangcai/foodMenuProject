@@ -29,6 +29,60 @@
       </view>
     </view>
 
+    <!-- 迟到订单审核 (仅管理员可见) -->
+    <view class="section" v-if="isAdmin && lateMemberOrders.length > 0">
+      <view class="section-header">
+        <view class="section-title-group">
+          <text class="section-title">待审核迟到订单</text>
+          <text class="late-tip">⏰ 仅限迟到单</text>
+        </view>
+      </view>
+      <view class="member-list">
+        <view 
+          class="member-card late-card" 
+          v-for="member in lateMemberOrders" 
+          :key="member.orderId"
+        >
+          <view class="member-header">
+            <view class="member-info">
+              <image 
+                class="member-avatar" 
+                :src="getAvatarUrl(member.avatar)" 
+                mode="aspectFill"
+              />
+              <view class="member-detail">
+                <text class="member-name">{{ member.nickname }}</text>
+                <text class="order-time">{{ formatTime(member.createTime) }}</text>
+              </view>
+            </view>
+            <view class="late-actions">
+               <button class="review-btn btn-reject" @tap="handleReview(member.orderId, 2)">拒绝</button>
+               <button class="review-btn btn-accept" @tap="handleReview(member.orderId, 1)">接受</button>
+            </view>
+          </view>
+          
+          <view class="dish-list">
+            <view 
+              class="dish-item" 
+              v-for="item in member.items" 
+              :key="item.id"
+            >
+              <image 
+                class="dish-image" 
+                :src="getDishImageUrl(item.dishImage)" 
+                mode="aspectFill"
+              />
+              <view class="dish-info">
+                <text class="dish-name">{{ item.dishName }}</text>
+                <text class="dish-price">¥{{ item.price }} × {{ item.quantity }}</text>
+              </view>
+              <text class="dish-subtotal">¥{{ item.subtotal }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
     <!-- 成员订单列表 -->
     <view class="section">
       <view class="section-header">
@@ -55,6 +109,7 @@
               />
               <view class="member-detail">
                 <text class="member-name">{{ member.nickname }}</text>
+                <text class="late-tag-mini" v-if="member.isLateOrder === 1">已接受迟到</text>
                 <text class="order-time">{{ formatTime(member.createTime) }}</text>
               </view>
             </view>
@@ -111,6 +166,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { useTheme } from '@/stores/theme'
 import { request } from '@/utils/request'
 import { getImageUrl } from '@/utils/image'
+import { reviewLateOrder } from '@/api/index'
 
 const { currentTheme } = useTheme()
 
@@ -118,6 +174,7 @@ const { currentTheme } = useTheme()
 const orderId = ref('')
 const orderDetail = ref({})
 const memberOrders = ref([])
+const lateMemberOrders = ref([]) // 待审核迟到订单
 const isAdmin = ref(false)
 const selectedDishes = ref(new Set()) // 选中的菜品ID集合
 
@@ -243,12 +300,43 @@ const loadOrderDetail = async () => {
     if (res.code === 1 && res.data) {
       orderDetail.value = res.data.dailyMealOrder || {}
       memberOrders.value = res.data.memberOrders || []
+      lateMemberOrders.value = res.data.lateOrders || []
     } else {
       uni.showToast({ title: res.msg || '加载失败', icon: 'none' })
     }
   } catch (error) {
     console.error('加载大订单详情失败:', error)
     uni.showToast({ title: '加载失败', icon: 'none' })
+  } finally {
+    uni.hideLoading()
+  }
+}
+
+// 审核迟到订单
+const handleReview = async (orderId, action) => {
+  const actionText = action === 1 ? '接受' : '拒绝'
+  try {
+    const confirmRes = await uni.showModal({
+      title: '审核提示',
+      content: `确定要${actionText}该迟到订单吗？${action === 2 ? '\n拒绝后将自动撤销并退款。' : ''}`,
+      cancelColor: '#999',
+      confirmColor: action === 1 ? '#4caf50' : '#f44336'
+    })
+
+    if (!confirmRes.confirm) return
+
+    uni.showLoading({ title: '提交中...' })
+    const res = await reviewLateOrder(orderId, action)
+    if (res.code === 1) {
+      uni.showToast({ title: `${actionText}成功`, icon: 'success' })
+      // 重新加载数据
+      await loadOrderDetail()
+    } else {
+      uni.showToast({ title: res.msg || '操作失败', icon: 'none' })
+    }
+  } catch (error) {
+    console.error('审核订单失败:', error)
+    uni.showToast({ title: '操作失败', icon: 'none' })
   } finally {
     uni.hideLoading()
   }
@@ -603,6 +691,75 @@ onMounted(() => {
   font-weight: 600;
   color: var(--text-primary);
   flex-shrink: 0;
+}
+
+/* 迟到订单样式 */
+.section-title-group {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.late-tip {
+  font-size: 22rpx;
+  color: #ff9800;
+  background: rgba(255, 152, 0, 0.1);
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  font-weight: 600;
+}
+
+.late-card {
+  border-left: 8rpx solid #ff9800;
+  background: v-bind('currentTheme === "dark" ? "rgba(255, 152, 0, 0.05)" : "#fffcf5"');
+}
+
+.late-tag-mini {
+  font-size: 20rpx;
+  color: #ff9800;
+  background: rgba(255, 152, 0, 0.1);
+  padding: 2rpx 10rpx;
+  border-radius: 6rpx;
+  display: inline-block;
+  margin-left: 8rpx;
+  font-weight: 500;
+}
+
+.late-actions {
+  display: flex;
+  gap: 12rpx;
+}
+
+.review-btn {
+  margin: 0;
+  padding: 0 24rpx;
+  height: 54rpx;
+  line-height: 54rpx;
+  font-size: 24rpx;
+  border-radius: 27rpx;
+  border: none;
+  font-weight: 600;
+  
+  &::after {
+    display: none;
+  }
+  
+  &:active {
+    opacity: 0.8;
+    transform: scale(0.95);
+  }
+}
+
+.btn-reject {
+  background: rgba(244, 67, 54, 0.1);
+  color: #f44336;
+  border: 1px solid rgba(244, 67, 54, 0.2);
+}
+
+.btn-accept {
+  background: linear-gradient(135deg, #4caf50, #66bb6a);
+  color: #fff;
+  box-shadow: 0 4rpx 12rpx rgba(76, 175, 80, 0.2);
 }
 
 .footer-actions {

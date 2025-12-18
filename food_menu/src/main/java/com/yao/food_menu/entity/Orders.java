@@ -65,6 +65,12 @@ public class Orders implements Serializable {
     // 大订单ID
     private Long dailyMealOrderId;
 
+    // 是否迟到订单: 0-正常, 1-迟到
+    private Integer isLateOrder;
+
+    // 迟到订单状态: 0-待审核, 1-已接受, 2-已拒绝
+    private Integer lateOrderStatus;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 
@@ -93,4 +99,13 @@ public class Orders implements Serializable {
     public static final int STATUS_COMPLETED = 3; // 已完成
     public static final int STATUS_CANCELLED = 4; // 已取消
     public static final int STATUS_UNPAID = 5; // 待支付
+
+    // 迟到订单标识常量
+    public static final int LATE_ORDER_NO = 0; // 正常订单
+    public static final int LATE_ORDER_YES = 1; // 迟到订单
+
+    // 迟到订单状态常量
+    public static final int LATE_STATUS_PENDING = 0; // 待审核
+    public static final int LATE_STATUS_ACCEPTED = 1; // 已接受
+    public static final int LATE_STATUS_REJECTED = 2; // 已拒绝
 }

@@ -55,6 +55,16 @@
               </view>
             </view>
           </view>
+
+          <!-- 迟到订单标识和审核状态 -->
+          <view class="late-order-info" v-if="order.isLateOrder === 1">
+            <view class="late-badge">⏰ 迟到</view>
+            <view class="review-status">
+              <text v-if="order.lateOrderStatus === 0" class="status-pending">待审核</text>
+              <text v-else-if="order.lateOrderStatus === 1" class="status-accepted">已接受</text>
+              <text v-else-if="order.lateOrderStatus === 2" class="status-rejected">已拒绝</text>
+            </view>
+          </view>
           
           <view class="order-count">{{ order.items?.length || 0 }}个菜品</view>
 
@@ -293,6 +303,8 @@ const loadOrders = async (reset = false) => {
     // 映射后端数据到前端格式
     const mappedList = list.map(order => ({
       ...order,
+      isLateOrder: order.isLateOrder || 0,
+      lateOrderStatus: order.lateOrderStatus,
       expanded: false, // 默认收起
       items: (order.orderItems || []).map(item => ({
         id: item.id,
@@ -618,6 +630,47 @@ const getBadgeStyle = (status) => {
     background: rgba(139, 143, 163, 0.15);
     color: v-bind('themeConfig.textSecondary');
     border: 1px solid rgba(139, 143, 163, 0.3);
+  }
+}
+
+.late-order-info {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
+}
+
+.late-badge {
+  padding: 4rpx 16rpx;
+  background: linear-gradient(135deg, #FFB74D 0%, #FFA726 100%);
+  border-radius: 12rpx;
+  font-size: 20rpx;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 4rpx 12rpx rgba(255, 152, 0, 0.2);
+}
+
+.review-status {
+  text {
+    padding: 4rpx 12rpx;
+    border-radius: 8rpx;
+    font-size: 20rpx;
+    font-weight: 600;
+  }
+  
+  .status-pending {
+    background: #FFF3E0;
+    color: #F57C00;
+  }
+  
+  .status-accepted {
+    background: #E8F5E9;
+    color: #2E7D32;
+  }
+  
+  .status-rejected {
+    background: #FFEBEE;
+    color: #C62828;
   }
 }
 

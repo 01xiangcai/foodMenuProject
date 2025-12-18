@@ -9,6 +9,23 @@
       </view>
     </view>
 
+    <!-- 迟到订单提示 -->
+    <view class="late-order-tip" v-if="order.isLateOrder === 1">
+      <view class="tip-icon">⏰</view>
+      <view class="tip-content">
+        <text class="tip-title">迟到订单</text>
+        <text class="tip-desc" v-if="order.lateOrderStatus === 0">
+          该订单在餐次发布后提交,正在等待管理员审核
+        </text>
+        <text class="tip-desc success" v-else-if="order.lateOrderStatus === 1">
+          ✓ 管理员已接受此订单
+        </text>
+        <text class="tip-desc error" v-else-if="order.lateOrderStatus === 2">
+          ✗ 管理员已拒绝此订单,订单已自动退款
+        </text>
+      </view>
+    </view>
+
     <!-- 订单商品 -->
     <view class="section-card">
       <view class="card-header">
@@ -332,6 +349,8 @@ const loadOrderDetail = async (id) => {
         payStatus: data.payStatus,
         remark: data.remark || '',
         mealPeriod: data.mealPeriod || '', // 餐次
+        isLateOrder: data.isLateOrder || 0,
+        lateOrderStatus: data.lateOrderStatus,
         items: (data.orderItems || []).map(item => ({
           id: item.id,
           dishId: item.dishId,
@@ -657,6 +676,50 @@ onShow(() => {
   display: block;
   font-size: 26rpx;
   opacity: 0.9;
+}
+
+/* 迟到订单提示 */
+.late-order-tip {
+  display: flex;
+  align-items: flex-start;
+  padding: 30rpx;
+  margin-bottom: 24rpx;
+  background: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%);
+  border-radius: 24rpx;
+  border-left: 8rpx solid #FF9800;
+  box-shadow: 0 4rpx 12rpx rgba(255, 152, 0, 0.15);
+  
+  .tip-icon {
+    font-size: 48rpx;
+    margin-right: 20rpx;
+  }
+  
+  .tip-content {
+    flex: 1;
+  }
+  
+  .tip-title {
+    display: block;
+    font-size: 30rpx;
+    font-weight: 700;
+    color: #E65100;
+    margin-bottom: 8rpx;
+  }
+  
+  .tip-desc {
+    display: block;
+    font-size: 26rpx;
+    color: #F57C00;
+    line-height: 1.5;
+    
+    &.success {
+      color: #2E7D32;
+    }
+    
+    &.error {
+      color: #C62828;
+    }
+  }
 }
 
 /* 通用卡片样式 */

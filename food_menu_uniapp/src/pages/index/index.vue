@@ -789,29 +789,37 @@ onShow(() => {
 
         .dish-info {
             flex: 1;
+            min-width: 0; /* 关键：允许 flex 子元素在空间不足时收缩 */
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             height: 120rpx;
-            padding-right: 20rpx;
+            padding-right: 10rpx;
         }
 
         .dish-title {
             font-size: 32rpx;
             font-weight: 700;
             color: var(--text-primary);
-            margin-bottom: 8rpx;
+            margin-bottom: 4rpx;
+            /* 防止标题过长也挤压布局 */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
         }
 
         .dish-desc {
             font-size: 24rpx;
             color: var(--text-secondary);
+            margin-bottom: 8rpx;
+            /* 严格的多行截断逻辑 */
             display: -webkit-box;
             -webkit-line-clamp: 1;
-            line-clamp: 1;
             -webkit-box-orient: vertical;
             overflow: hidden;
-            margin-bottom: 12rpx;
+            text-overflow: ellipsis;
+            word-break: break-all;
         }
 
         .dish-tag {

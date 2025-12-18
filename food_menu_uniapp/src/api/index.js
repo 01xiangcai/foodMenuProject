@@ -630,3 +630,23 @@ export const uploadDishImage = (filePath) => {
         })
     })
 }
+/**
+ * 获取今日菜单列表(早中晚三个卡片数据)
+ */
+export const getTodayMeals = () => {
+    return request({
+        url: '/uniapp/daily-meal-order/today',
+        method: 'GET'
+    })
+}
+/**
+ * 审核迟到订单(管理员)
+ * @param {Number} orderId 订单ID
+ * @param {Number} action 操作: 1-接受, 2-拒绝
+ */
+export const reviewLateOrder = (orderId, action) => {
+    return request({
+        url: `/admin/daily-meal-order/review-late-order/${orderId}?action=${action}`,
+        method: 'POST'
+    })
+}
