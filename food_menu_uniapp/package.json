@@ -26,6 +26,7 @@
         "@dcloudio/uni-components": "3.0.0-4020920240930001",
         "@dcloudio/vite-plugin-uni": "3.0.0-4020920240930001",
         "sass": "^1.77.0",
+        "sharp": "^0.34.5",
         "vite": "5.2.8"
     }
 }

@@ -11,7 +11,7 @@
  Target Server Version : 80042 (8.0.42)
  File Encoding         : 65001
 
- Date: 16/12/2025 01:35:08
+ Date: 19/12/2025 23:19:42
 */
 
 SET NAMES utf8mb4;
@@ -134,6 +134,55 @@ CREATE TABLE `category`  (
   UNIQUE INDEX `idx_category_name`(`name` ASC) USING BTREE,
   INDEX `idx_family_id`(`family_id` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 14 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '菜品分类' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for daily_meal_order
+-- ----------------------------
+DROP TABLE IF EXISTS `daily_meal_order`;
+CREATE TABLE `daily_meal_order`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `family_id` bigint NOT NULL COMMENT '家庭ID',
+  `order_date` date NOT NULL COMMENT '订单日期',
+  `meal_period` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '餐次类型: BREAKFAST/LUNCH/DINNER',
+  `status` tinyint NOT NULL DEFAULT 0 COMMENT '状态: 0-收集中, 1-已确认, 2-已截止, 3-已出餐',
+  `total_amount` decimal(10, 2) NOT NULL DEFAULT 0.00 COMMENT '总金额',
+  `member_count` int NOT NULL DEFAULT 0 COMMENT '参与人数',
+  `dish_count` int NOT NULL DEFAULT 0 COMMENT '菜品数量',
+  `confirmed_by` bigint NULL DEFAULT NULL COMMENT '确认人ID',
+  `confirmed_time` datetime NULL DEFAULT NULL COMMENT '确认时间',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` tinyint NOT NULL DEFAULT 0 COMMENT '逻辑删除: 0-未删除, 1-已删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_family_date_period`(`family_id` ASC, `order_date` ASC, `meal_period` ASC, `deleted` ASC) USING BTREE,
+  INDEX `idx_family_id`(`family_id` ASC) USING BTREE,
+  INDEX `idx_order_date`(`order_date` ASC) USING BTREE,
+  INDEX `idx_status`(`status` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 17 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '大订单表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for daily_meal_publish_item
+-- ----------------------------
+DROP TABLE IF EXISTS `daily_meal_publish_item`;
+CREATE TABLE `daily_meal_publish_item`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `daily_meal_order_id` bigint NOT NULL COMMENT '大订单ID',
+  `order_item_id` bigint NOT NULL COMMENT '订单项ID',
+  `order_id` bigint NOT NULL COMMENT '订单ID',
+  `dish_id` bigint NOT NULL COMMENT '菜品ID',
+  `dish_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '菜品名称',
+  `dish_image` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '菜品图片',
+  `quantity` int NOT NULL DEFAULT 1 COMMENT '数量',
+  `price` decimal(10, 2) NOT NULL COMMENT '单价',
+  `subtotal` decimal(10, 2) NOT NULL COMMENT '小计',
+  `user_id` bigint NOT NULL COMMENT '用户ID',
+  `user_nickname` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '用户昵称',
+  `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_daily_meal_order`(`daily_meal_order_id` ASC) USING BTREE,
+  INDEX `idx_order_item`(`order_item_id` ASC) USING BTREE,
+  INDEX `idx_order`(`order_id` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 47 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '餐次发布菜品记录表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for dish
@@ -263,7 +312,7 @@ CREATE TABLE `dish_statistics`  (
   INDEX `idx_total_count`(`total_order_count` DESC) USING BTREE COMMENT '总次数索引',
   INDEX `idx_month_count`(`month_order_count` DESC) USING BTREE COMMENT '月度次数索引',
   INDEX `idx_family_id`(`family_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 94 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '菜品统计表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 115 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '菜品统计表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for dish_tag
@@ -342,6 +391,25 @@ CREATE TABLE `marketing_activity`  (
 ) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '营销活动主表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
+-- Table structure for meal_period_config
+-- ----------------------------
+DROP TABLE IF EXISTS `meal_period_config`;
+CREATE TABLE `meal_period_config`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `family_id` bigint NOT NULL COMMENT '家庭ID',
+  `meal_period` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '餐次类型: BREAKFAST/LUNCH/DINNER',
+  `start_time` time NOT NULL COMMENT '开始时间',
+  `end_time` time NOT NULL COMMENT '结束时间',
+  `order_deadline` time NULL DEFAULT NULL COMMENT '下单截止时间',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` tinyint NOT NULL DEFAULT 0 COMMENT '逻辑删除: 0-未删除, 1-已删除',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_family_period`(`family_id` ASC, `meal_period` ASC, `deleted` ASC) USING BTREE,
+  INDEX `idx_family_id`(`family_id` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 10 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '餐次配置表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
 -- Table structure for operation_log
 -- ----------------------------
 DROP TABLE IF EXISTS `operation_log`;
@@ -371,7 +439,7 @@ CREATE TABLE `operation_log`  (
   INDEX `idx_operation_module`(`operation_module` ASC) USING BTREE,
   INDEX `idx_create_time`(`create_time` ASC) USING BTREE,
   INDEX `idx_family_id`(`family_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 97 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 168 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for order_items
@@ -389,10 +457,11 @@ CREATE TABLE `order_items`  (
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `family_id` bigint NULL DEFAULT NULL COMMENT '家庭ID',
   `deleted` int NULL DEFAULT 0 COMMENT '逻辑删除 0:未删除 1:已删除',
+  `is_published` tinyint NULL DEFAULT 0 COMMENT '是否被发布 0-未发布 1-已发布',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_order_id`(`order_id` ASC) USING BTREE,
   INDEX `idx_dish_id`(`dish_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 120 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '订单明细表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 227 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '订单明细表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for orders
@@ -415,12 +484,20 @@ CREATE TABLE `orders`  (
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `family_id` bigint NULL DEFAULT NULL COMMENT '家庭ID',
   `deleted` int NULL DEFAULT 0 COMMENT '逻辑删除 0:未删除 1:已删除',
+  `meal_period` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '餐次类型: BREAKFAST/LUNCH/DINNER',
+  `daily_meal_order_id` bigint NULL DEFAULT NULL COMMENT '大订单ID',
+  `is_late_order` tinyint NULL DEFAULT 0 COMMENT '是否迟到订单: 0-正常, 1-迟到',
+  `late_order_status` tinyint NULL DEFAULT 0 COMMENT '迟到订单状态: 0-待审核, 1-已接受, 2-已拒绝',
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_order_number`(`order_number` ASC) USING BTREE,
   INDEX `idx_user_id`(`user_id` ASC) USING BTREE,
   INDEX `idx_create_time`(`create_time` ASC) USING BTREE,
-  INDEX `idx_family_id`(`family_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 48 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '订单表' ROW_FORMAT = Dynamic;
+  INDEX `idx_family_id`(`family_id` ASC) USING BTREE,
+  INDEX `idx_daily_meal_order_id`(`daily_meal_order_id` ASC) USING BTREE,
+  INDEX `idx_is_late_order`(`is_late_order` ASC) USING BTREE,
+  INDEX `idx_late_order_status`(`late_order_status` ASC) USING BTREE,
+  INDEX `idx_late_order_combined`(`is_late_order` ASC, `late_order_status` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 105 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '订单表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for system_config
@@ -438,7 +515,7 @@ CREATE TABLE `system_config`  (
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_config_key`(`config_key` ASC) USING BTREE,
   INDEX `idx_family_id`(`family_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 3 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '系统配置表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 7 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '系统配置表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for user
@@ -563,6 +640,6 @@ CREATE TABLE `wx_wallet_transaction`  (
   INDEX `idx_trans_type`(`trans_type` ASC) USING BTREE,
   INDEX `idx_create_time`(`create_time` ASC) USING BTREE,
   INDEX `idx_family_id`(`family_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 19 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '钱包流水表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 86 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '钱包流水表' ROW_FORMAT = Dynamic;
 
 SET FOREIGN_KEY_CHECKS = 1;

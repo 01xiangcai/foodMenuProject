@@ -49,7 +49,7 @@ public class FamilyControllerForUniapp {
         }
 
         // 获取当前用户ID
-        Long userId = FamilyContext.getUserId();
+        Long userId = FamilyContext.getCurrentWxUserId();
         if (userId == null) {
             return Result.error("用户未登录");
         }

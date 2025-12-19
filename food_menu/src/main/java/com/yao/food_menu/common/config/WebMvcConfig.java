@@ -1,6 +1,7 @@
 package com.yao.food_menu.common.config;
 
 import com.yao.food_menu.common.interceptor.JwtTokenInterceptor;
+import com.yao.food_menu.common.interceptor.UniappJwtInterceptor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.lang.NonNull;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -18,6 +19,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     private final LocalStorageProperties localStorageProperties;
     private final JwtTokenInterceptor jwtTokenInterceptor;
+    private final UniappJwtInterceptor uniappJwtInterceptor;
 
     @Override
     public void addResourceHandlers(@NonNull ResourceHandlerRegistry registry) {
@@ -39,17 +41,25 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(@NonNull InterceptorRegistry registry) {
-        // 注册JWT拦截器
-        registry.addInterceptor(jwtTokenInterceptor)
-                .addPathPatterns("/**")
+        // 注册小程序端JWT拦截器（优先级更高，专门处理/uniapp/**和/wx/**路径）
+        registry.addInterceptor(uniappJwtInterceptor)
+                .addPathPatterns("/uniapp/**", "/wx/**")
                 .excludePathPatterns(
-                        // 后台管理端登录和验证码接口
-                        "/user/login",
-                        "/user/sendcode",
                         // 小程序端登录、注册和验证码接口
                         "/wx/user/login",
                         "/wx/user/register",
-                        "/wx/user/sendcode",
+                        "/wx/user/sendcode");
+
+        // 注册后台管理端JWT拦截器
+        registry.addInterceptor(jwtTokenInterceptor)
+                .addPathPatterns("/**")
+                .excludePathPatterns(
+                        // 小程序端路径（由uniappJwtInterceptor处理）
+                        "/uniapp/**",
+                        "/wx/**",
+                        // 后台管理端登录和验证码接口
+                        "/user/login",
+                        "/user/sendcode",
                         // 静态资源和文档
                         "/uploads/**",
                         "/static/**",

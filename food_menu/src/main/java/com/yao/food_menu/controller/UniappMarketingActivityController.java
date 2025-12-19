@@ -49,7 +49,7 @@ public class UniappMarketingActivityController {
     @Operation(summary = "参与活动", description = "用户参与营销活动(抽奖/大转盘等)")
     @PostMapping("/{activityId}/participate")
     public Result<ParticipateResultDto> participate(@PathVariable Long activityId) {
-        Long userId = FamilyContext.getUserId();
+        Long userId = FamilyContext.getCurrentWxUserId();
         log.info("用户参与活动: userId={}, activityId={}", userId, activityId);
 
         // 检查用户ID是否为空
@@ -65,7 +65,7 @@ public class UniappMarketingActivityController {
     @Operation(summary = "获取剩余参与次数", description = "获取用户剩余参与次数")
     @GetMapping("/{activityId}/remain-times")
     public Result<Integer> getRemainTimes(@PathVariable Long activityId) {
-        Long userId = FamilyContext.getUserId();
+        Long userId = FamilyContext.getCurrentWxUserId();
         Integer remainTimes = activityParticipateService.getRemainTimes(activityId, userId);
         return Result.success(remainTimes);
     }
@@ -81,7 +81,7 @@ public class UniappMarketingActivityController {
     @Operation(summary = "我的优惠券", description = "获取用户的优惠券列表")
     @GetMapping("/my-coupons")
     public Result<List<UserCouponDto>> getMyCoupons(@RequestParam(required = false) Integer status) {
-        Long userId = FamilyContext.getUserId();
+        Long userId = FamilyContext.getCurrentWxUserId();
         List<UserCouponDto> coupons = userCouponService.getUserCoupons(userId, status);
         return Result.success(coupons);
     }
@@ -89,7 +89,7 @@ public class UniappMarketingActivityController {
     @Operation(summary = "我的奖品", description = "获取用户中奖的奖品列表")
     @GetMapping("/my-prizes")
     public Result<List<ActivityPrize>> getMyPrizes() {
-        Long userId = FamilyContext.getUserId();
+        Long userId = FamilyContext.getCurrentWxUserId();
         List<ActivityPrize> prizes = activityParticipateService.getMyPrizes(userId);
         return Result.success(prizes);
     }
@@ -97,7 +97,7 @@ public class UniappMarketingActivityController {
     @Operation(summary = "我的中奖记录", description = "获取用户的中奖记录列表")
     @GetMapping("/my-records")
     public Result<List<ActivityParticipateRecord>> getMyRecords() {
-        Long userId = FamilyContext.getUserId();
+        Long userId = FamilyContext.getCurrentWxUserId();
         List<ActivityParticipateRecord> records = activityParticipateService.getMyRecords(userId);
         return Result.success(records);
     }

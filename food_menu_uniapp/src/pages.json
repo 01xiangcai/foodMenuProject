@@ -19,6 +19,19 @@
             }
         },
         {
+            "path": "pages/chat/list",
+            "style": {
+                "navigationBarTitleText": "消息",
+                "enablePullDownRefresh": true
+            }
+        },
+        {
+            "path": "pages/chat/room",
+            "style": {
+                "navigationBarTitleText": "聊天"
+            }
+        },
+        {
             "path": "pages/menu/add-dish",
             "style": {
                 "navigationBarTitleText": "添加菜品",
@@ -161,6 +174,12 @@
                 "text": "点餐",
                 "iconPath": "/static/tab-menu.png",
                 "selectedIconPath": "/static/tab-menu-active.png"
+            },
+            {
+                "pagePath": "pages/chat/list",
+                "text": "消息",
+                "iconPath": "/static/tab-chat.png",
+                "selectedIconPath": "/static/tab-chat-active.png"
             },
             {
                 "pagePath": "pages/profile/profile",

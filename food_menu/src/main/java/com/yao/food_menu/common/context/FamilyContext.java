@@ -3,12 +3,19 @@ package com.yao.food_menu.common.context;
 /**
  * 家庭上下文工具类
  * 使用ThreadLocal存储当前请求的家庭ID和用户角色
+ * 
+ * 注意：
+ * - userId 用于后台管理端Admin用户
+ * - wxUserId 用于小程序端WxUser用户
  */
 public class FamilyContext {
 
     private static final ThreadLocal<Long> FAMILY_ID = new ThreadLocal<>();
     private static final ThreadLocal<Integer> USER_ROLE = new ThreadLocal<>();
+    // 后台管理员用户ID（admin端使用）
     private static final ThreadLocal<Long> USER_ID = new ThreadLocal<>();
+    // 小程序微信用户ID（uniapp端使用）
+    private static final ThreadLocal<Long> WX_USER_ID = new ThreadLocal<>();
     // 标记当前请求是否为登录操作（用于安全控制）
     private static final ThreadLocal<Boolean> IS_LOGIN_OPERATION = new ThreadLocal<>();
     // 标记当前请求是否为查询当前用户自己的信息（用于跳过数据隔离）
@@ -50,17 +57,38 @@ public class FamilyContext {
     }
 
     /**
-     * 设置用户ID
+     * 设置后台管理员用户ID（admin端使用）
      */
     public static void setUserId(Long userId) {
         USER_ID.set(userId);
     }
 
     /**
-     * 获取用户ID
+     * 获取后台管理员用户ID（admin端使用）
      */
     public static Long getUserId() {
         return USER_ID.get();
+    }
+
+    /**
+     * 设置小程序微信用户ID（uniapp端使用）
+     */
+    public static void setWxUserId(Long wxUserId) {
+        WX_USER_ID.set(wxUserId);
+    }
+
+    /**
+     * 获取小程序微信用户ID（uniapp端使用）
+     */
+    public static Long getWxUserId() {
+        return WX_USER_ID.get();
+    }
+
+    /**
+     * 获取当前微信用户ID（getWxUserId的别名，语义更清晰）
+     */
+    public static Long getCurrentWxUserId() {
+        return getWxUserId();
     }
 
     /**
@@ -117,6 +145,7 @@ public class FamilyContext {
         FAMILY_ID.remove();
         USER_ROLE.remove();
         USER_ID.remove();
+        WX_USER_ID.remove();
         IS_LOGIN_OPERATION.remove();
         IS_QUERY_CURRENT_USER.remove();
     }

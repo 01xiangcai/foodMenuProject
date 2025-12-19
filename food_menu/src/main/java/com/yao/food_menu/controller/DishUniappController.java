@@ -50,11 +50,11 @@ public class DishUniappController {
         Integer currentUserRole = FamilyContext.getUserRole();
         if (currentUserRole == null || currentUserRole != 1) {
             log.warn("非管理员用户尝试添加菜品: userId={}, role={}",
-                    FamilyContext.getUserId(), currentUserRole);
+                    FamilyContext.getCurrentWxUserId(), currentUserRole);
             return Result.error("无权限操作，仅管理员可添加菜品");
         }
 
-        Long userId = FamilyContext.getUserId();
+        Long userId = FamilyContext.getCurrentWxUserId();
         Long familyId = FamilyContext.getFamilyId();
 
         log.info("小程序管理员添加菜品: userId={}, familyId={}, dishName={}",
@@ -103,11 +103,11 @@ public class DishUniappController {
         Integer currentUserRole = FamilyContext.getUserRole();
         if (currentUserRole == null || currentUserRole != 1) {
             log.warn("非管理员用户尝试更新菜品: userId={}, role={}",
-                    FamilyContext.getUserId(), currentUserRole);
+                    FamilyContext.getCurrentWxUserId(), currentUserRole);
             return Result.error("无权限操作，仅管理员可更新菜品");
         }
 
-        Long userId = FamilyContext.getUserId();
+        Long userId = FamilyContext.getCurrentWxUserId();
         Long familyId = FamilyContext.getFamilyId();
 
         // 校验菜品ID

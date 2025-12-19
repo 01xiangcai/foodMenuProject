@@ -52,11 +52,11 @@
         <text class="label">我的收藏</text>
         <text class="arrow">→</text>
       </view>
-      <view class="menu-item" @tap="goToMessages">
+      <!-- <view class="menu-item" @tap="goToMessages">
         <text class="icon">🔔</text>
         <text class="label">我的消息</text>
         <text class="arrow">→</text>
-      </view>
+      </view> -->
       
     </view>
 

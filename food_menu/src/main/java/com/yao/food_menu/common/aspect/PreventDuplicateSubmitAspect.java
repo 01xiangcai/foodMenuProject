@@ -31,8 +31,8 @@ public class PreventDuplicateSubmitAspect {
      * key: 请求标识，value: 提交时间戳
      */
     private final Cache<String, Long> submitCache = Caffeine.newBuilder()
-            .expireAfterWrite(1, TimeUnit.HOURS)  // 1小时后自动过期
-            .maximumSize(10000)  // 最大缓存10000个key
+            .expireAfterWrite(1, TimeUnit.HOURS) // 1小时后自动过期
+            .maximumSize(10000) // 最大缓存10000个key
             .build();
 
     /**
@@ -42,33 +42,32 @@ public class PreventDuplicateSubmitAspect {
     public Object around(ProceedingJoinPoint joinPoint) throws Throwable {
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
         Method method = signature.getMethod();
-        
+
         // 获取注解
-        PreventDuplicateSubmit annotation = 
-            method.getAnnotation(PreventDuplicateSubmit.class);
-        
+        PreventDuplicateSubmit annotation = method.getAnnotation(PreventDuplicateSubmit.class);
+
         // 构建请求唯一标识
         String submitKey = buildSubmitKey(annotation, method);
-        
+
         // 获取上次提交时间
         Long lastSubmitTime = submitCache.getIfPresent(submitKey);
         long currentTime = System.currentTimeMillis();
-        
+
         if (lastSubmitTime != null) {
             long timeDiff = currentTime - lastSubmitTime;
             if (timeDiff < annotation.interval()) {
                 // 在时间间隔内重复提交
                 long remainingTime = (annotation.interval() - timeDiff) / 1000;
-                String message = String.format("%s，请%d秒后再试", 
-                    annotation.message(), remainingTime);
+                String message = String.format("%s，请%d秒后再试",
+                        annotation.message(), remainingTime);
                 log.warn("重复提交拦截: key={}, interval={}ms", submitKey, annotation.interval());
                 throw new RuntimeException(message);
             }
         }
-        
+
         // 记录本次提交时间
         submitCache.put(submitKey, currentTime);
-        
+
         try {
             // 执行业务方法
             return joinPoint.proceed();
@@ -84,10 +83,13 @@ public class PreventDuplicateSubmitAspect {
      */
     private String buildSubmitKey(PreventDuplicateSubmit annotation, Method method) {
         String methodName = method.getDeclaringClass().getName() + "." + method.getName();
-        
+
         if (annotation.byUser()) {
-            // 基于用户维度
-            Long userId = FamilyContext.getUserId();
+            // 基于用户维度（优先获取小程序用户ID，其次后台管理员ID）
+            Long userId = FamilyContext.getWxUserId();
+            if (userId == null) {
+                userId = FamilyContext.getUserId();
+            }
             String userKey = userId != null ? userId.toString() : "anonymous";
             return String.format("duplicate_submit:%s:user:%s", methodName, userKey);
         } else {
@@ -101,30 +103,28 @@ public class PreventDuplicateSubmitAspect {
      * 获取客户端IP
      */
     private String getClientIp() {
-        ServletRequestAttributes attributes = 
-            (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+
         if (attributes == null) {
             return "unknown";
         }
-        
+
         HttpServletRequest request = attributes.getRequest();
         String ip = request.getHeader("X-Forwarded-For");
-        
+
         if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
             ip = request.getHeader("X-Real-IP");
         }
-        
+
         if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
             ip = request.getRemoteAddr();
         }
-        
+
         // 处理多个IP的情况（取第一个）
         if (ip != null && ip.contains(",")) {
             ip = ip.split(",")[0].trim();
         }
-        
+
         return ip;
     }
 }
-
