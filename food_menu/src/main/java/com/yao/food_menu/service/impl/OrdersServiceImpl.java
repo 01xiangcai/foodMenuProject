@@ -99,8 +99,11 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
                 ordersDto.setDailyMealOrderId(dailyMealOrder.getId());
                 log.info("Associated with daily meal order: {}", dailyMealOrder.getId());
 
-                // 判断是否为迟到订单
-                if (dailyMealOrder.getStatus() == com.yao.food_menu.entity.DailyMealOrder.STATUS_CONFIRMED) {
+                // 判断是否为迟到订单或禁止下单
+                if (dailyMealOrder.getStatus() == com.yao.food_menu.entity.DailyMealOrder.STATUS_SERVED) {
+                    // 餐次已出餐,禁止下单
+                    throw new RuntimeException("该餐次已出餐，无法继续下单");
+                } else if (dailyMealOrder.getStatus() == com.yao.food_menu.entity.DailyMealOrder.STATUS_CONFIRMED) {
                     // 餐次已发布,标记为迟到订单
                     ordersDto.setIsLateOrder(Orders.LATE_ORDER_YES);
                     ordersDto.setLateOrderStatus(Orders.LATE_STATUS_PENDING);

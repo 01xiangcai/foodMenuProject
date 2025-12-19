@@ -33,7 +33,7 @@ public class DailyMealOrder implements Serializable {
     // 餐次类型: BREAKFAST/LUNCH/DINNER
     private String mealPeriod;
 
-    // 状态: 0-收集中, 1-已确认, 2-已截止
+    // 状态: 0-收集中, 1-已确认, 2-已截止, 3-已出餐
     private Integer status;
 
     // 总金额
@@ -67,4 +67,5 @@ public class DailyMealOrder implements Serializable {
     public static final int STATUS_COLLECTING = 0; // 收集中
     public static final int STATUS_CONFIRMED = 1; // 已确认
     public static final int STATUS_EXPIRED = 2; // 已截止
+    public static final int STATUS_SERVED = 3; // 已出餐
 }

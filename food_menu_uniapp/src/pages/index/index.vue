@@ -326,7 +326,7 @@ const loadTodayMeals = async () => {
         
         todayMeals.value = ['BREAKFAST', 'LUNCH', 'DINNER'].map(period => {
           const meal = data.find(m => m.mealPeriod === period)
-          const statusMap = { 0: '收集中', 1: '已确认', 2: '已截止' }
+          const statusMap = { 0: '收集中', 1: '已确认', 2: '已截止', 3: '已出餐' }
           
           return {
             id: meal?.id,

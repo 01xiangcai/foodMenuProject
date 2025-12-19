@@ -379,7 +379,7 @@ const pendingCount = ref(0);
 const todayPeople = ref(0);
 const totalRevenue = ref('0.00');
 const statusCounts = reactive<Record<number, number>>({
-  [-1]: 0, 0: 0, 1: 0, 2: 0
+  [-1]: 0, 0: 0, 1: 0, 2: 0, 3: 0
 });
 
 const familyOptions = ref<any[]>([]); // 家庭列表选项
@@ -402,8 +402,9 @@ const mealPeriodOptions = [
 const statusOptionsWithTotal = [
   { label: '全部餐次', value: -1 },
   { label: '收集中', value: 0 },
-  { label: '正常供应', value: 1 },
-  { label: '已收官', value: 2 }
+  { label: '已确认', value: 1 },
+  { label: '已截止', value: 2 },
+  { label: '已出餐', value: 3 }
 ];
 
 // 数据列表
@@ -444,10 +445,10 @@ const isAllSelected = computed(() => {
 // 辅助方法
 const getMealPeriodLabel = (period: string) => ({ BREAKFAST: '早餐', LUNCH: '中餐', DINNER: '晚餐' }[period] || period);
 const getMealPeriodColor = (period: string) => ({ BREAKFAST: 'warning', LUNCH: 'error', DINNER: 'info' }[period] || 'default') as 'warning' | 'error' | 'info' | 'default';
-const getStatusLabel = (status: number) => ({ 0: '收集中', 1: '正常供应', 2: '已收官' }[status] || '结算中');
-const getStatusType = (status: number) => ({ 0: 'warning', 1: 'success', 2: 'info' }[status] || 'default') as 'warning' | 'success' | 'info' | 'default';
-const getStatusIcon = (status: number) => ({ 0: 'i-tabler-loader', 1: 'i-tabler-check', 2: 'i-tabler-archive' }[status] || 'i-tabler-help');
-const getBadgeType = (status: number) => ({ 0: 'warning', 1: 'success', 2: 'info' }[status] || 'default') as 'warning' | 'success' | 'info' | 'default';
+const getStatusLabel = (status: number) => ({ 0: '收集中', 1: '已确认', 2: '已截止', 3: '已出餐' }[status] || '未知');
+const getStatusType = (status: number) => ({ 0: 'warning', 1: 'success', 2: 'info', 3: 'default' }[status] || 'default') as 'warning' | 'success' | 'info' | 'default';
+const getStatusIcon = (status: number) => ({ 0: 'i-tabler-loader', 1: 'i-tabler-check', 2: 'i-tabler-archive', 3: 'i-tabler-chef-hat' }[status] || 'i-tabler-help');
+const getBadgeType = (status: number) => ({ 0: 'warning', 1: 'success', 2: 'info', 3: 'default' }[status] || 'default') as 'warning' | 'success' | 'info' | 'default';
 
 // 图片处理
 const getImgUrl = (url: string | undefined) => {
@@ -783,6 +784,7 @@ onMounted(() => {
 .status-accent-0 { border-top-color: #3b82f6; }
 .status-accent-1 { border-top-color: #10b981; }
 .status-accent-2 { border-top-color: #f59e0b; }
+.status-accent-3 { border-top-color: #8b5cf6; }
 
 .hover-rise-lg:hover {
   transform: translateY(-8px) scale(1.01);

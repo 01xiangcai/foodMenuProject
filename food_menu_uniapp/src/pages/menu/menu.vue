@@ -200,6 +200,7 @@ import { useCartStore } from '@/stores/cart'
 import CartPopup from '@/components/CartPopup.vue'
 import MealPeriodSelector from '@/components/MealPeriodSelector.vue'
 import { getDishImage } from '@/utils/image'
+import { request } from '@/utils/request'
 
 // 使用主题
 const { themeConfig, loadTheme } = useTheme()
@@ -418,6 +419,48 @@ const goToCheckout = async () => {
 
   try {
     uni.showLoading({ title: '创建订单中...' })
+    
+    // 0. 先检查当前餐次状态（防止用户停留页面时餐次状态已变更）
+    if (selectedMealPeriod.value) {
+      try {
+        const statusRes = await request({
+          url: '/uniapp/daily-meal-order/today',
+          method: 'GET'
+        })
+        if (statusRes.code === 1 && statusRes.data) {
+          const mealData = statusRes.data.find(m => m.mealPeriod === selectedMealPeriod.value)
+          if (mealData && mealData.status === 3) {
+            // 自动切换到第一个可用餐次
+            const availablePeriods = ['BREAKFAST', 'LUNCH', 'DINNER']
+            const firstAvailable = availablePeriods.find(p => {
+              const data = statusRes.data.find(m => m.mealPeriod === p)
+              return !data || data.status !== 3
+            })
+            
+            uni.hideLoading()
+            
+            if (firstAvailable) {
+              selectedMealPeriod.value = firstAvailable
+              uni.showToast({
+                title: '该餐次已出餐，已切换至' + (firstAvailable === 'BREAKFAST' ? '早餐' : firstAvailable === 'LUNCH' ? '中餐' : '晚餐'),
+                icon: 'none',
+                duration: 2000
+              })
+            } else {
+              uni.showToast({
+                title: '所有餐次均已出餐，无法下单',
+                icon: 'none',
+                duration: 2000
+              })
+            }
+            return
+          }
+        }
+      } catch (e) {
+        console.error('检查餐次状态失败:', e)
+        // 检查失败不阻止下单，后端会再次校验
+      }
+    }
     
     // 1. 构建订单数据
     const selectedItems = cartStore.cartList

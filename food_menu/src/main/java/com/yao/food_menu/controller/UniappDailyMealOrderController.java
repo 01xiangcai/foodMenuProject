@@ -185,8 +185,9 @@ public class UniappDailyMealOrderController {
             List<Map<String, Object>> items = new ArrayList<>();
 
             // 判断是否应该从发布记录表查询
-            // 条件: 大订单已确认 且 (非迟到订单 或 已接受的迟到订单)
-            boolean shouldQueryFromPublish = dailyMealOrder.getStatus() == DailyMealOrder.STATUS_CONFIRMED &&
+            // 条件: 大订单已确认或已出餐 且 (非迟到订单 或 已接受的迟到订单)
+            boolean shouldQueryFromPublish = (dailyMealOrder.getStatus() == DailyMealOrder.STATUS_CONFIRMED ||
+                    dailyMealOrder.getStatus() == DailyMealOrder.STATUS_SERVED) &&
                     (order.getIsLateOrder() == null ||
                             order.getIsLateOrder() == Orders.LATE_ORDER_NO ||
                             (order.getIsLateOrder() == Orders.LATE_ORDER_YES &&
@@ -336,6 +337,49 @@ public class UniappDailyMealOrderController {
         } catch (Exception e) {
             log.error("确认发布大订单失败", e);
             return Result.error("确认失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 标记餐次订单为已出餐(仅管理员)
+     */
+    @Operation(summary = "标记已出餐", description = "管理员标记餐次订单为已出餐,同时将关联的个人订单状态更新为已完成")
+    @PostMapping("/serve/{id}")
+    public Result<String> serveOrder(@PathVariable Long id,
+            @RequestHeader("Authorization") String token) {
+        try {
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7);
+            }
+
+            Long userId = jwtUtil.getUserId(token);
+            WxUser wxUser = wxUserService.getById(userId);
+            if (wxUser == null || wxUser.getFamilyId() == null) {
+                return Result.error("用户信息不完整");
+            }
+
+            // 检查是否为管理员
+            if (!wxUserService.isAdmin(userId)) {
+                return Result.error("无权限操作");
+            }
+
+            // 获取餐次订单
+            DailyMealOrder dailyMealOrder = dailyMealOrderService.getById(id);
+            if (dailyMealOrder == null) {
+                return Result.error("餐次订单不存在");
+            }
+
+            // 验证权限:只能操作自己家庭的订单
+            if (!dailyMealOrder.getFamilyId().equals(wxUser.getFamilyId())) {
+                return Result.error("无权限操作");
+            }
+
+            // 调用Service层方法
+            dailyMealOrderService.serveOrder(id, userId);
+            return Result.success("出餐成功");
+        } catch (Exception e) {
+            log.error("标记已出餐失败", e);
+            return Result.error("操作失败: " + e.getMessage());
         }
     }
 

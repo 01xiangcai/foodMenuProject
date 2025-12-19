@@ -106,7 +106,9 @@ public class DailyMealOrderServiceImpl extends ServiceImpl<DailyMealOrderMapper,
         Set<Long> userIds = new HashSet<>();
         int dishCount = 0;
 
-        boolean isConfirmed = dailyMealOrder.getStatus() == DailyMealOrder.STATUS_CONFIRMED;
+        // 如果餐次已确认(1)或已出餐(3)，则只统计已发布的菜品
+        boolean shouldFilterPublished = dailyMealOrder.getStatus() == DailyMealOrder.STATUS_CONFIRMED
+                || dailyMealOrder.getStatus() == DailyMealOrder.STATUS_SERVED;
 
         for (Orders order : ordersList) {
             BigDecimal orderEffectiveAmount = BigDecimal.ZERO;
@@ -119,9 +121,9 @@ public class DailyMealOrderServiceImpl extends ServiceImpl<DailyMealOrderMapper,
             List<OrderItem> items = orderItemService.list(itemWrapper);
 
             for (OrderItem item : items) {
-                // 如果大订单已确认,则只统计已发布的菜品项(无论是正常订单还是迟到订单)
+                // 如果大订单已确认或已出餐，则只统计已发布的菜品项
                 boolean shouldCount = true;
-                if (isConfirmed) {
+                if (shouldFilterPublished) {
                     // 只统计已发布的项 (isPublished == 1)
                     shouldCount = (item.getIsPublished() != null && item.getIsPublished() == 1);
                 }
@@ -288,20 +290,7 @@ public class DailyMealOrderServiceImpl extends ServiceImpl<DailyMealOrderMapper,
             // 批量插入发布记录
             if (!publishItems.isEmpty()) {
                 dailyMealPublishItemService.batchInsert(publishItems);
-
-                // 新增: 更新菜品统计(明星菜热度)
-                try {
-                    List<Long> publishedDishIds = publishItems.stream()
-                            .map(com.yao.food_menu.entity.DailyMealPublishItem::getDishId)
-                            .distinct()
-                            .collect(java.util.stream.Collectors.toList());
-                    if (!publishedDishIds.isEmpty()) {
-                        dishStatisticsService.batchIncrementOrderCount(publishedDishIds);
-                        log.info("餐次订单发布: 更新了 {} 个菜品的热度统计", publishedDishIds.size());
-                    }
-                } catch (Exception e) {
-                    log.error("更新菜品热度统计失败", e);
-                }
+                // 注: 菜品热度统计已移至serveOrder(出餐时)执行，避免确认但未出餐的情况
             }
         }
 
@@ -336,6 +325,73 @@ public class DailyMealOrderServiceImpl extends ServiceImpl<DailyMealOrderMapper,
         wrapper.orderByDesc(DailyMealOrder::getOrderDate);
 
         return list(wrapper);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void serveOrder(Long dailyMealOrderId, Long servedBy) {
+        DailyMealOrder dailyMealOrder = getById(dailyMealOrderId);
+        if (dailyMealOrder == null) {
+            throw new RuntimeException("餐次订单不存在");
+        }
+
+        // 只有已确认状态的订单才能标记为已出餐
+        if (dailyMealOrder.getStatus() != DailyMealOrder.STATUS_CONFIRMED) {
+            throw new RuntimeException("只有已确认的订单才能标记为已出餐");
+        }
+
+        // 更新餐次订单状态为已出餐
+        dailyMealOrder.setStatus(DailyMealOrder.STATUS_SERVED);
+        updateById(dailyMealOrder);
+
+        // 更新统计数据（只统计已发布的菜品）
+        updateStatistics(dailyMealOrderId);
+
+        // 1. 先查询发布记录表，获取该餐次订单下已发布的订单ID列表
+        LambdaQueryWrapper<com.yao.food_menu.entity.DailyMealPublishItem> publishWrapper = new LambdaQueryWrapper<>();
+        publishWrapper.eq(com.yao.food_menu.entity.DailyMealPublishItem::getDailyMealOrderId, dailyMealOrderId);
+        List<com.yao.food_menu.entity.DailyMealPublishItem> publishItems = dailyMealPublishItemService
+                .list(publishWrapper);
+
+        if (publishItems.isEmpty()) {
+            log.warn("餐次订单 {} 没有已发布的菜品记录", dailyMealOrderId);
+            return;
+        }
+
+        // 获取有发布记录的订单ID（去重）
+        Set<Long> publishedOrderIds = publishItems.stream()
+                .map(com.yao.food_menu.entity.DailyMealPublishItem::getOrderId)
+                .collect(java.util.stream.Collectors.toSet());
+
+        // 2. 只更新有发布记录的订单状态为已完成
+        int updatedCount = 0;
+        for (Long orderId : publishedOrderIds) {
+            Orders order = ordersMapper.selectById(orderId);
+            if (order != null &&
+                    order.getStatus() == Orders.STATUS_PREPARING &&
+                    order.getPayStatus() == Orders.PAY_STATUS_PAID) {
+                order.setStatus(Orders.STATUS_COMPLETED);
+                order.setCompleteTime(LocalDateTime.now());
+                ordersMapper.updateById(order);
+                updatedCount++;
+            }
+        }
+
+        // 3. 统计菜品热度
+        try {
+            List<Long> dishIds = publishItems.stream()
+                    .map(com.yao.food_menu.entity.DailyMealPublishItem::getDishId)
+                    .distinct()
+                    .collect(java.util.stream.Collectors.toList());
+            if (!dishIds.isEmpty()) {
+                dishStatisticsService.batchIncrementOrderCount(dishIds);
+                log.info("餐次订单出餐: 更新了 {} 个菜品的热度统计", dishIds.size());
+            }
+        } catch (Exception e) {
+            log.error("出餐时更新菜品热度统计失败", e);
+        }
+
+        log.info("餐次订单 {} 已标记为已出餐，共更新 {} 个个人订单状态为已完成", dailyMealOrderId, updatedCount);
     }
 
     @Override

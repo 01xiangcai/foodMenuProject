@@ -59,6 +59,14 @@ public interface DailyMealOrderService extends IService<DailyMealOrder> {
     List<DailyMealOrder> getHistoryOrders(Long familyId, LocalDate startDate, LocalDate endDate);
 
     /**
+     * 标记餐次订单为已出餐
+     * 
+     * @param dailyMealOrderId 餐次订单ID
+     * @param servedBy         操作人ID
+     */
+    void serveOrder(Long dailyMealOrderId, Long servedBy);
+
+    /**
      * 检查订单是否可以修改/取消
      */
     boolean canModifyOrder(Long dailyMealOrderId);

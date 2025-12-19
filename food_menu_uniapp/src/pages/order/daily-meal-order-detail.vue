@@ -161,6 +161,20 @@
         确认发布选中菜品
       </button>
     </view>
+
+    <!-- 确认出餐按钮 (仅管理员在已确认状态可见) -->
+    <view class="footer-actions" v-if="isAdmin && orderDetail.status === 1">
+      <view class="selection-stats">
+        <text class="stats-text">订单已确认，可以出餐</text>
+        <text class="stats-amount">¥{{ orderDetail.totalAmount || 0 }}</text>
+      </view>
+      <button 
+        class="serve-btn" 
+        @tap="serveOrder"
+      >
+        确认出餐
+      </button>
+    </view>
   </view>
 </template>
 
@@ -218,7 +232,8 @@ const statusText = computed(() => {
   const statusMap = {
     0: '收集中',
     1: '已确认',
-    2: '已截止'
+    2: '已截止',
+    3: '已出餐'
   }
   return statusMap[orderDetail.value.status] || '未知'
 })
@@ -455,6 +470,39 @@ const confirmOrder = async () => {
   }
 }
 
+// 确认出餐
+const serveOrder = async () => {
+  try {
+    const result = await uni.showModal({
+      title: '确认出餐',
+      content: '确认已出餐吗？此操作将完成订单'
+    })
+    
+    if (!result.confirm) return
+    
+    uni.showLoading({ title: '处理中...' })
+    
+    const res = await request({
+      url: `/uniapp/daily-meal-order/serve/${orderId.value}`,
+      method: 'POST'
+    })
+    
+    if (res.code === 1) {
+      uni.showToast({ title: '出餐成功', icon: 'success' })
+      setTimeout(() => {
+        loadOrderDetail()
+      }, 1500)
+    } else {
+      uni.showToast({ title: res.msg || '出餐失败', icon: 'none' })
+    }
+  } catch (error) {
+    console.error('确认出餐失败:', error)
+    uni.showToast({ title: '出餐失败', icon: 'none' })
+  } finally {
+    uni.hideLoading()
+  }
+}
+
 // 检查是否为管理员
 const checkAdmin = async () => {
   try {
@@ -536,6 +584,11 @@ onMounted(() => {
   
   &.status-2 {
     background: rgba(107, 114, 128, 0.3);
+    color: #fff;
+  }
+  
+  &.status-3 {
+    background: rgba(99, 102, 241, 0.3);
     color: #fff;
   }
 }
@@ -883,6 +936,24 @@ onMounted(() => {
     opacity: 0.5;
     background: var(--border-color);
     box-shadow: none;
+  }
+}
+
+.serve-btn {
+  flex-shrink: 0;
+  padding: 24rpx 48rpx;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  border-radius: 48rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  border: none;
+  box-shadow: 0 8rpx 24rpx rgba(99, 102, 241, 0.4);
+  transition: all 0.3s;
+  
+  &:active {
+    transform: scale(0.96);
+    opacity: 0.9;
   }
 }
 </style>

@@ -198,8 +198,9 @@ public class AdminDailyMealOrderController {
                 // 查询订单项
                 LambdaQueryWrapper<OrderItem> itemWrapper = new LambdaQueryWrapper<>();
                 itemWrapper.eq(OrderItem::getOrderId, order.getId());
-                // 如果大订单已确认,只显示已发布的菜品项
-                if (dailyMealOrder.getStatus() == DailyMealOrder.STATUS_CONFIRMED) {
+                // 如果大订单已确认或已出餐,只显示已发布的菜品项
+                if (dailyMealOrder.getStatus() == DailyMealOrder.STATUS_CONFIRMED ||
+                        dailyMealOrder.getStatus() == DailyMealOrder.STATUS_SERVED) {
                     itemWrapper.eq(OrderItem::getIsPublished, 1);
                 }
                 List<OrderItem> items = orderItemService.list(itemWrapper);

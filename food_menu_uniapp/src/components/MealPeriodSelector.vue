@@ -14,39 +14,48 @@
     <view class="period-tabs" v-if="expanded" :class="{ 'slide-down': expanded }">
       <view 
         class="tab-item" 
-        :class="{ active: selectedPeriod === 'BREAKFAST' }"
+        :class="{ active: selectedPeriod === 'BREAKFAST', disabled: isServed('BREAKFAST') }"
         @tap="selectPeriod('BREAKFAST')"
       >
         <text class="tab-icon">🍳</text>
         <text class="tab-name">早餐</text>
         <text class="tab-time" v-if="config.BREAKFAST">{{ config.BREAKFAST.time }}</text>
+        <view class="status-badge" :class="'status-' + getMealStatus('BREAKFAST')" v-if="getMealStatus('BREAKFAST') !== null">
+          <text>{{ getStatusText(getMealStatus('BREAKFAST')) }}</text>
+        </view>
       </view>
       
       <view 
         class="tab-item" 
-        :class="{ active: selectedPeriod === 'LUNCH' }"
+        :class="{ active: selectedPeriod === 'LUNCH', disabled: isServed('LUNCH') }"
         @tap="selectPeriod('LUNCH')"
       >
         <text class="tab-icon">🍱</text>
         <text class="tab-name">中餐</text>
         <text class="tab-time" v-if="config.LUNCH">{{ config.LUNCH.time }}</text>
+        <view class="status-badge" :class="'status-' + getMealStatus('LUNCH')" v-if="getMealStatus('LUNCH') !== null">
+          <text>{{ getStatusText(getMealStatus('LUNCH')) }}</text>
+        </view>
       </view>
       
       <view 
         class="tab-item" 
-        :class="{ active: selectedPeriod === 'DINNER' }"
+        :class="{ active: selectedPeriod === 'DINNER', disabled: isServed('DINNER') }"
         @tap="selectPeriod('DINNER')"
       >
         <text class="tab-icon">🍷</text>
         <text class="tab-name">晚餐</text>
         <text class="tab-time" v-if="config.DINNER">{{ config.DINNER.time }}</text>
+        <view class="status-badge" :class="'status-' + getMealStatus('DINNER')" v-if="getMealStatus('DINNER') !== null">
+          <text>{{ getStatusText(getMealStatus('DINNER')) }}</text>
+        </view>
       </view>
     </view>
   </view>
 </template>
 
 <script setup>
-import { ref, onMounted, defineEmits, defineProps } from 'vue'
+import { ref, onMounted, defineEmits, defineProps, watch } from 'vue'
 import { useTheme } from '@/stores/theme'
 import { request } from '@/utils/request'
 
@@ -65,6 +74,14 @@ const selectedPeriod = ref(props.modelValue || '')
 const currentTime = ref('')
 const config = ref({})
 const expanded = ref(false) // 默认折叠
+const mealStatus = ref({}) // 各餐次状态: { BREAKFAST: 0, LUNCH: 1, DINNER: 3 }
+
+// 监听外部值变化，同步更新内部状态
+watch(() => props.modelValue, (newVal) => {
+  if (newVal !== selectedPeriod.value) {
+    selectedPeriod.value = newVal
+  }
+})
 
 // 获取餐次名称
 const getPeriodName = (period) => {
@@ -144,6 +161,14 @@ const setDefaultPeriod = () => {
 
 // 选择餐次
 const selectPeriod = (period) => {
+  // 已出餐的餐次不允许选择
+  if (isServed(period)) {
+    uni.showToast({
+      title: '该餐次已出餐，无法下单',
+      icon: 'none'
+    })
+    return
+  }
   selectedPeriod.value = period
   emit('update:modelValue', period)
   emit('change', period)
@@ -151,10 +176,66 @@ const selectPeriod = (period) => {
   expanded.value = false
 }
 
+// 加载餐次状态
+const loadMealStatus = async () => {
+  try {
+    const res = await request({
+      url: '/uniapp/daily-meal-order/today',
+      method: 'GET'
+    })
+    if (res.code === 1 && res.data) {
+      const statusMap = {}
+      res.data.forEach(item => {
+        statusMap[item.mealPeriod] = item.status
+      })
+      mealStatus.value = statusMap
+      
+      // 检查当前选中的餐次是否已出餐，如果是则自动切换到第一个可用餐次
+      if (selectedPeriod.value && statusMap[selectedPeriod.value] === 3) {
+        const availablePeriods = ['BREAKFAST', 'LUNCH', 'DINNER']
+        const firstAvailable = availablePeriods.find(p => statusMap[p] !== 3)
+        if (firstAvailable) {
+          selectedPeriod.value = firstAvailable
+          emit('update:modelValue', firstAvailable)
+          emit('change', firstAvailable)
+          uni.showToast({
+            title: '当前餐次已出餐，已自动切换',
+            icon: 'none'
+          })
+        }
+      }
+    }
+  } catch (error) {
+    console.error('加载餐次状态失败:', error)
+  }
+}
+
+// 获取餐次状态
+const getMealStatus = (period) => {
+  return mealStatus.value[period] !== undefined ? mealStatus.value[period] : null
+}
+
+// 获取状态文本
+const getStatusText = (status) => {
+  const map = {
+    0: '收集中',
+    1: '已确认',
+    2: '已截止',
+    3: '已出餐'
+  }
+  return map[status] || ''
+}
+
+// 判断是否已出餐
+const isServed = (period) => {
+  return mealStatus.value[period] === 3
+}
+
 onMounted(() => {
   updateTime()
   setInterval(updateTime, 60000) // 每分钟更新一次时间
   loadConfig()
+  loadMealStatus() // 加载餐次状态
   
   if (!props.modelValue) {
     // 没有传入值,先设置默认值,然后尝试获取当前餐次
@@ -285,5 +366,66 @@ onMounted(() => {
 .tab-time {
   font-size: 20rpx;
   color: var(--text-secondary);
+}
+
+/* 状态标签 */
+.status-badge {
+  margin-top: 8rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 12rpx;
+  font-size: 18rpx;
+  
+  text {
+    font-weight: 500;
+  }
+  
+  /* 收集中 - 绿色 */
+  &.status-0 {
+    background: rgba(34, 197, 94, 0.15);
+    text {
+      color: #22c55e;
+    }
+  }
+  
+  /* 已确认 - 蓝色 */
+  &.status-1 {
+    background: rgba(59, 130, 246, 0.15);
+    text {
+      color: #3b82f6;
+    }
+  }
+  
+  /* 已截止 - 橙色 */
+  &.status-2 {
+    background: rgba(245, 158, 11, 0.15);
+    text {
+      color: #f59e0b;
+    }
+  }
+  
+  /* 已出餐 - 紫色 */
+  &.status-3 {
+    background: rgba(139, 92, 246, 0.15);
+    text {
+      color: #8b5cf6;
+    }
+  }
+}
+
+/* 禁用状态 - 已出餐不可选 */
+.tab-item.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 16rpx;
+  }
 }
 </style>
