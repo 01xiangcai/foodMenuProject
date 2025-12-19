@@ -353,18 +353,12 @@ const loadTags = async () => {
   try {
     const res = await getDishTagList()
     if (res.data) {
-      // 简单的 Emoji 映射，如果后台名称匹配则使用，否则随机或使用默认
-      const emojiMap = {
-        '川菜': '🌶️', '湘菜': '🔥', '粤菜': '🥯', '鲁菜': '🥘', 
-        '浙菜': '🐟', '东北菜': '🥟', '本帮菜': '�', '赣菜': '�', 
-        '徽菜': '🏔️', '西餐': '🥩', '日料': '�', '家常菜': '🏠', '轻食': '🥗'
-      }
-      
+      // 使用后台返回的 icon 字段，如果没有则使用默认图标
       cuisineOptions.value = res.data.map(tag => {
-        const emoji = emojiMap[tag.name] || '🏷️'
+        const icon = tag.icon || '🏷️'
         // PopupSelector 需要对象结构
         return {
-          label: `${emoji} ${tag.name}`,
+          label: `${icon} ${tag.name}`,
           value: tag.name // 实际存储的值
         }
       })
@@ -580,7 +574,7 @@ const goBack = () => {
   pointer-events: none;
 }
 .delete-btn {
-  position: absolute; top: 120rpx; right: 20rpx;
+  position: absolute; top: 120rpx; left: 20rpx;
   width: 48rpx; height: 48rpx; background: rgba(0,0,0,0.5);
   border-radius: 50%; color: white;
   display: flex; align-items: center; justify-content: center; pointer-events: auto;

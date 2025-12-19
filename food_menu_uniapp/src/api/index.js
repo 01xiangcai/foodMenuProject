@@ -647,7 +647,7 @@ export const getTodayMeals = () => {
  */
 export const reviewLateOrder = (orderId, action, dishIds) => {
     return request({
-        url: `/admin/daily-meal-order/review-late-order/${orderId}?action=${action}`,
+        url: `/uniapp/daily-meal-order/review-late-order/${orderId}?action=${action}`,
         method: 'POST',
         data: dishIds || []
     })
