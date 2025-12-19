@@ -2,6 +2,8 @@ package com.yao.food_menu.common.websocket;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yao.food_menu.common.context.FamilyContext;
+import com.yao.food_menu.common.util.ImageUrlUtil;
 import com.yao.food_menu.dto.ChatMessageDTO;
 import com.yao.food_menu.dto.SendMessageDTO;
 import com.yao.food_menu.entity.ChatMessage;
@@ -27,6 +29,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     private final WebSocketSessionManager sessionManager;
     private final ChatService chatService;
     private final ObjectMapper objectMapper;
+    private final ImageUrlUtil imageUrlUtil;
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
@@ -50,7 +53,14 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         String payload = message.getPayload();
         log.debug("收到WebSocket消息, userId: {}, payload: {}", userId, payload);
 
+        // 设置FamilyContext，确保后续的数据库查询能正确应用家庭过滤
+        Long familyId = getFamilyId(session);
         try {
+            if (familyId != null) {
+                FamilyContext.setFamilyId(familyId);
+                FamilyContext.setWxUserId(userId);
+            }
+
             JsonNode jsonNode = objectMapper.readTree(payload);
             String type = jsonNode.get("type").asText();
 
@@ -77,6 +87,9 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         } catch (Exception e) {
             log.error("处理WebSocket消息失败", e);
             sendMessage(session, WebSocketMessage.error("消息处理失败: " + e.getMessage()));
+        } finally {
+            // 清除FamilyContext，避免线程污染
+            FamilyContext.clear();
         }
     }
 
@@ -104,19 +117,32 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     private void handleSendMessage(Long senderId, JsonNode data) {
         try {
             SendMessageDTO dto = objectMapper.treeToValue(data, SendMessageDTO.class);
+            log.info("处理发送消息, senderId: {}, conversationId: {}, content: {}",
+                    senderId, dto.getConversationId(), dto.getContent());
 
             // 保存消息
             ChatMessage message = chatService.sendMessage(senderId, dto);
+            log.info("消息已保存, messageId: {}", message.getId());
 
             // 转换为DTO
             ChatMessageDTO messageDTO = chatService.convertToDTO(message, senderId);
+            // 处理头像URL
+            processMessageAvatar(messageDTO);
 
             // 推送给会话中的其他成员
             List<Long> otherMemberIds = chatService.getOtherMemberIds(dto.getConversationId(), senderId);
+            log.info("其他成员列表: {}, 在线状态: {}", otherMemberIds,
+                    otherMemberIds.stream().map(id -> id + ":" + sessionManager.isOnline(id)).toList());
+
             for (Long memberId : otherMemberIds) {
                 // 为每个接收者创建DTO（isSelf=false）
                 ChatMessageDTO receiverDTO = chatService.convertToDTO(message, memberId);
-                sessionManager.sendToUser(memberId, toJson(WebSocketMessage.newMessage(receiverDTO)));
+                // 处理头像URL
+                processMessageAvatar(receiverDTO);
+                String jsonMessage = toJson(WebSocketMessage.newMessage(receiverDTO));
+                log.info("向用户{}推送消息: {}", memberId, jsonMessage);
+                boolean sent = sessionManager.sendToUser(memberId, jsonMessage);
+                log.info("推送结果: {}", sent ? "成功" : "失败(用户不在线或发送失败)");
             }
 
             // 给发送者确认消息发送成功
@@ -169,6 +195,14 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     }
 
     /**
+     * 获取家庭ID
+     */
+    private Long getFamilyId(WebSocketSession session) {
+        Object familyId = session.getAttributes().get("familyId");
+        return familyId != null ? (Long) familyId : null;
+    }
+
+    /**
      * 发送消息到WebSocket会话
      */
     private void sendMessage(WebSocketSession session, WebSocketMessage message) {
@@ -190,6 +224,18 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         } catch (Exception e) {
             log.error("JSON序列化失败", e);
             return "{}";
+        }
+    }
+
+    /**
+     * 处理消息DTO中的头像URL
+     */
+    private void processMessageAvatar(ChatMessageDTO dto) {
+        if (dto != null) {
+            String originalAvatar = dto.getSenderAvatar();
+            String processedAvatar = imageUrlUtil.processAvatarUrl(originalAvatar);
+            log.info("处理头像URL: 原始={}, 处理后={}", originalAvatar, processedAvatar);
+            dto.setSenderAvatar(processedAvatar);
         }
     }
 }

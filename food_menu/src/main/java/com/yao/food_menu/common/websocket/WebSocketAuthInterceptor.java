@@ -37,16 +37,19 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
             }
 
             try {
-                // 验证token并获取用户ID
+                // 验证token并获取用户ID和家庭ID
                 Long userId = jwtUtil.getUserId(token);
+                Long familyId = jwtUtil.getFamilyId(token);
+
                 if (userId == null) {
                     log.warn("WebSocket连接失败: 无效的token");
                     return false;
                 }
 
-                // 将用户ID存入attributes，后续Handler可以获取
+                // 将用户ID和家庭ID存入attributes，后续Handler可以获取
                 attributes.put("userId", userId);
-                log.info("WebSocket连接认证成功, userId: {}", userId);
+                attributes.put("familyId", familyId);
+                log.info("WebSocket连接认证成功, userId: {}, familyId: {}", userId, familyId);
                 return true;
             } catch (Exception e) {
                 log.warn("WebSocket连接失败: token验证异常 - {}", e.getMessage());

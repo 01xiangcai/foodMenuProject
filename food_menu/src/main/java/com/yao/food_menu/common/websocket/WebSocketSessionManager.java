@@ -67,16 +67,21 @@ public class WebSocketSessionManager {
      * 向指定用户发送消息
      */
     public boolean sendToUser(Long userId, String message) {
+        log.info("尝试向用户{}发送消息, 当前在线用户: {}", userId, sessions.keySet());
         WebSocketSession session = sessions.get(userId);
         if (session != null && session.isOpen()) {
             try {
                 session.sendMessage(new TextMessage(message));
+                log.info("向用户{}发送消息成功", userId);
                 return true;
             } catch (IOException e) {
                 log.error("向用户{}发送消息失败", userId, e);
                 // 发送失败，移除该会话
                 removeSession(userId);
             }
+        } else {
+            log.warn("用户{}不在线或会话已关闭, session存在: {}, 会话打开: {}",
+                    userId, session != null, session != null && session.isOpen());
         }
         return false;
     }

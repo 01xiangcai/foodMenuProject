@@ -4,20 +4,38 @@
  */
 
 // 获取环境变量
-const ENV_API_URL = import.meta.env.VITE_API_URL
+const ENV_API_URL = import.meta.env.VITE_API_URL || ''
 
-// WebSocket地址
-let WS_BASE_URL = ''
+/**
+ * 构建WebSocket URL
+ * 使用运行时检测来区分不同平台
+ */
+function getWebSocketUrl() {
+    let wsBaseUrl = ''
 
-// #ifdef H5
-// H5环境使用相对路径，需要配置代理
-WS_BASE_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`
-// #endif
+    // 检测是否在H5环境（有window对象）
+    if (typeof window !== 'undefined' && window.location) {
+        // H5环境：基于当前页面协议和域名
+        wsBaseUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
+        console.log('[WebSocket] H5环境, baseUrl:', wsBaseUrl)
+    } else {
+        // 小程序环境：使用配置的API地址
+        if (ENV_API_URL) {
+            wsBaseUrl = ENV_API_URL.replace('http://', 'ws://').replace('https://', 'wss://')
+        } else {
+            // 默认地址（注意：小程序真机测试需要用局域网IP）
+            wsBaseUrl = 'ws://localhost:8080'
+        }
+        console.log('[WebSocket] 小程序环境, ENV_API_URL:', ENV_API_URL, 'baseUrl:', wsBaseUrl)
+    }
 
-// #ifdef MP-WEIXIN
-// 小程序环境使用配置的API地址
-WS_BASE_URL = ENV_API_URL.replace('http://', 'ws://').replace('https://', 'wss://')
-// #endif
+    // 去掉末尾的斜杠
+    if (wsBaseUrl.endsWith('/')) {
+        wsBaseUrl = wsBaseUrl.slice(0, -1)
+    }
+
+    return wsBaseUrl
+}
 
 /**
  * 消息类型常量
@@ -63,8 +81,10 @@ class ChatWebSocket {
         }
 
         this.isConnecting = true
-        const wsUrl = `${WS_BASE_URL}/chat?token=${token}`
-        console.log('WebSocket连接中...', wsUrl)
+        const wsBaseUrl = getWebSocketUrl()
+        // 完整的WebSocket路径：/ws/chat
+        const wsUrl = `${wsBaseUrl}/ws/chat?token=${token}`
+        console.log('[WebSocket] 连接URL:', wsUrl)
 
         this.socketTask = uni.connectSocket({
             url: wsUrl,

@@ -3,6 +3,7 @@ package com.yao.food_menu.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.yao.food_menu.common.context.FamilyContext;
 import com.yao.food_menu.common.Result;
+import com.yao.food_menu.common.util.ImageUrlUtil;
 import com.yao.food_menu.common.websocket.ChatWebSocketHandler;
 import com.yao.food_menu.dto.ChatConversationDTO;
 import com.yao.food_menu.dto.ChatMessageDTO;
@@ -37,6 +38,7 @@ public class UniappChatController {
     private final ChatWebSocketHandler webSocketHandler;
     private final WxUserMapper wxUserMapper;
     private final FamilyMapper familyMapper;
+    private final ImageUrlUtil imageUrlUtil;
 
     /**
      * 获取会话列表
@@ -46,6 +48,8 @@ public class UniappChatController {
     public Result<List<ChatConversationDTO>> getConversationList() {
         Long wxUserId = FamilyContext.getCurrentWxUserId();
         List<ChatConversationDTO> list = chatService.getConversationList(wxUserId);
+        // 处理头像URL
+        processConversationAvatars(list);
         return Result.success(list);
     }
 
@@ -106,6 +110,8 @@ public class UniappChatController {
     public Result<ChatConversationDTO> getConversationDetail(@PathVariable Long conversationId) {
         Long wxUserId = FamilyContext.getCurrentWxUserId();
         ChatConversationDTO detail = chatService.getConversationDetail(conversationId, wxUserId);
+        // 处理头像URL
+        detail.setAvatar(imageUrlUtil.processAvatarUrl(detail.getAvatar()));
         return Result.success(detail);
     }
 
@@ -120,6 +126,8 @@ public class UniappChatController {
             @RequestParam(defaultValue = "20") int size) {
         Long wxUserId = FamilyContext.getCurrentWxUserId();
         IPage<ChatMessageDTO> messages = chatService.getMessageHistory(conversationId, wxUserId, page, size);
+        // 处理消息中的头像URL
+        messages.getRecords().forEach(this::processMessageAvatars);
         return Result.success(messages);
     }
 
@@ -134,6 +142,8 @@ public class UniappChatController {
             @RequestParam(defaultValue = "20") int limit) {
         Long wxUserId = FamilyContext.getCurrentWxUserId();
         List<ChatMessageDTO> messages = chatService.getMessagesBeforeId(conversationId, beforeId, limit, wxUserId);
+        // 处理消息中的头像URL
+        messages.forEach(this::processMessageAvatars);
         return Result.success(messages);
     }
 
@@ -146,6 +156,8 @@ public class UniappChatController {
         Long wxUserId = FamilyContext.getCurrentWxUserId();
         ChatMessage message = chatService.sendMessage(wxUserId, dto);
         ChatMessageDTO messageDTO = chatService.convertToDTO(message, wxUserId);
+        // 处理头像URL
+        processMessageAvatars(messageDTO);
         return Result.success(messageDTO);
     }
 
@@ -208,12 +220,31 @@ public class UniappChatController {
                         .ne(WxUser::getId, wxUserId)
                         .eq(WxUser::getDeleted, 0));
 
-        // 清除敏感信息
+        // 清除敏感信息并处理头像URL
         members.forEach(m -> {
             m.setPassword(null);
             m.setOpenid(null);
+            m.setAvatar(imageUrlUtil.processAvatarUrl(m.getAvatar()));
         });
 
         return Result.success(members);
+    }
+
+    /**
+     * 处理会话列表中的头像URL
+     */
+    private void processConversationAvatars(List<ChatConversationDTO> list) {
+        for (ChatConversationDTO dto : list) {
+            dto.setAvatar(imageUrlUtil.processAvatarUrl(dto.getAvatar()));
+        }
+    }
+
+    /**
+     * 处理消息DTO中的头像URL
+     */
+    private void processMessageAvatars(ChatMessageDTO dto) {
+        if (dto != null) {
+            dto.setSenderAvatar(imageUrlUtil.processAvatarUrl(dto.getSenderAvatar()));
+        }
     }
 }

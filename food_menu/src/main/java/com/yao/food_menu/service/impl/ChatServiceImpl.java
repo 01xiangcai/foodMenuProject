@@ -243,8 +243,8 @@ public class ChatServiceImpl implements ChatService {
         dto.setCreateTime(message.getCreateTime());
         dto.setIsSelf(message.getSenderId().equals(currentUserId));
 
-        // 获取发送者信息
-        WxUser sender = wxUserMapper.selectById(message.getSenderId());
+        // 获取发送者信息（使用不带family_id过滤的查询，避免WebSocket场景下FamilyContext为空的问题）
+        WxUser sender = wxUserMapper.selectByIdWithoutFamilyFilter(message.getSenderId());
         if (sender != null) {
             dto.setSenderName(sender.getNickname());
             dto.setSenderAvatar(sender.getAvatar());

@@ -17,6 +17,13 @@ export default defineConfig(({ mode }) => {
                     changeOrigin: true,
                     secure: false,
                     rewrite: (path) => path.replace(/^\/api/, '')
+                },
+                // WebSocket代理
+                '/ws': {
+                    target: 'http://localhost:8080',
+                    changeOrigin: true,
+                    ws: true,  // 启用WebSocket代理
+                    secure: false
                 }
             }
         }

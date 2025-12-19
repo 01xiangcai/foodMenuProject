@@ -3,6 +3,7 @@ package com.yao.food_menu.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yao.food_menu.common.Result;
+import com.yao.food_menu.common.util.ImageUrlUtil;
 import com.yao.food_menu.common.util.JwtUtil;
 import com.yao.food_menu.dto.OrdersDto;
 import com.yao.food_menu.entity.OrderItem;
@@ -13,7 +14,6 @@ import com.yao.food_menu.entity.User;
 import com.yao.food_menu.service.DishService;
 import com.yao.food_menu.service.OrderItemService;
 import com.yao.food_menu.service.OrdersService;
-import com.yao.food_menu.service.OssService;
 import com.yao.food_menu.service.UserService;
 import com.yao.food_menu.service.WxUserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,8 +36,6 @@ import java.util.stream.Collectors;
 @Slf4j
 public class OrdersController {
 
-    private static final String DEFAULT_DISH_IMAGE = "https://dummyimage.com/800x600/0f172a/ffffff&text=family+dish";
-
     @Autowired
     private OrdersService ordersService;
 
@@ -51,19 +49,13 @@ public class OrdersController {
     private UserService userService;
 
     @Autowired
-    private OssService ossService;
-
-    @Autowired
     private DishService dishService;
 
     @Autowired
-    private com.yao.food_menu.common.config.FileStorageProperties fileStorageProperties;
-
-    @Autowired
-    private com.yao.food_menu.common.config.LocalStorageProperties localStorageProperties;
-
-    @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private ImageUrlUtil imageUrlUtil;
 
     /**
      * Submit order
@@ -222,18 +214,8 @@ public class OrdersController {
                 if (wxUser != null) {
                     dto.setUserNickname(wxUser.getNickname());
                     dto.setUserPhone(wxUser.getPhone());
-                    // Generate presigned URL for avatar
-                    if (StringUtils.hasText(wxUser.getAvatar())) {
-                        try {
-                            String presignedUrl = ossService.generatePresignedUrl(wxUser.getAvatar());
-                            dto.setUserAvatar(presignedUrl);
-                        } catch (Exception e) {
-                            log.warn("Failed to generate presigned URL for avatar: {}", wxUser.getAvatar(), e);
-                            dto.setUserAvatar(wxUser.getAvatar());
-                        }
-                    } else {
-                        dto.setUserAvatar(wxUser.getAvatar());
-                    }
+                    // 处理头像URL
+                    dto.setUserAvatar(imageUrlUtil.processAvatarUrl(wxUser.getAvatar()));
                 }
 
                 return dto;
@@ -302,18 +284,8 @@ public class OrdersController {
                 if (wxUser != null) {
                     dto.setUserNickname(wxUser.getNickname());
                     dto.setUserPhone(wxUser.getPhone());
-                    // Generate presigned URL for avatar
-                    if (StringUtils.hasText(wxUser.getAvatar())) {
-                        try {
-                            String presignedUrl = ossService.generatePresignedUrl(wxUser.getAvatar());
-                            dto.setUserAvatar(presignedUrl);
-                        } catch (Exception e) {
-                            log.warn("Failed to generate presigned URL for avatar: {}", wxUser.getAvatar(), e);
-                            dto.setUserAvatar(wxUser.getAvatar());
-                        }
-                    } else {
-                        dto.setUserAvatar(wxUser.getAvatar());
-                    }
+                    // 处理头像URL
+                    dto.setUserAvatar(imageUrlUtil.processAvatarUrl(wxUser.getAvatar()));
                 }
 
                 return dto;
@@ -424,18 +396,8 @@ public class OrdersController {
                 if (wxUser != null) {
                     dto.setUserNickname(wxUser.getNickname());
                     dto.setUserPhone(wxUser.getPhone());
-                    // Generate presigned URL for avatar
-                    if (StringUtils.hasText(wxUser.getAvatar())) {
-                        try {
-                            String presignedUrl = ossService.generatePresignedUrl(wxUser.getAvatar());
-                            dto.setUserAvatar(presignedUrl);
-                        } catch (Exception e) {
-                            log.warn("Failed to generate presigned URL for avatar: {}", wxUser.getAvatar(), e);
-                            dto.setUserAvatar(wxUser.getAvatar());
-                        }
-                    } else {
-                        dto.setUserAvatar(wxUser.getAvatar());
-                    }
+                    // 处理头像URL
+                    dto.setUserAvatar(imageUrlUtil.processAvatarUrl(wxUser.getAvatar()));
                 }
 
                 return dto;
@@ -649,19 +611,11 @@ public class OrdersController {
                     // 设置菜品状态：1-在售, 0-停售
                     item.setDishStatus(dish.getStatus() != null ? dish.getStatus() : 0);
 
-                    // 优先使用菜品表中的最新图片
-                    if (fileStorageProperties.isLocal()) {
-                        // 本地存储模式：优先使用 localImage
-                        if (StringUtils.hasText(dish.getLocalImage())) {
-                            imageToUse = dish.getLocalImage();
-                        } else if (StringUtils.hasText(dish.getImage())) {
-                            imageToUse = dish.getImage();
-                        }
-                    } else {
-                        // OSS存储模式：使用 image 字段
-                        if (StringUtils.hasText(dish.getImage())) {
-                            imageToUse = dish.getImage();
-                        }
+                    // 优先使用菜品表中的最新图片（先用localImage，再用image）
+                    if (StringUtils.hasText(dish.getLocalImage())) {
+                        imageToUse = dish.getLocalImage();
+                    } else if (StringUtils.hasText(dish.getImage())) {
+                        imageToUse = dish.getImage();
                     }
                 } else {
                     // 菜品不存在，标记为已下架
@@ -676,50 +630,9 @@ public class OrdersController {
                 imageToUse = item.getDishImage();
             }
 
-            // 如果还是没有图片，使用默认图片
-            if (!StringUtils.hasText(imageToUse)) {
-                item.setDishImage(DEFAULT_DISH_IMAGE);
-                continue;
-            }
-
-            // 处理图片URL：转换为完整URL或预签名URL
-            String finalImageUrl = processImageUrl(imageToUse);
+            // 处理图片URL（使用工具类）
+            String finalImageUrl = imageUrlUtil.processDishImageUrl(imageToUse);
             item.setDishImage(finalImageUrl);
-        }
-    }
-
-    /**
-     * 处理图片URL，根据存储方式转换为完整URL或预签名URL
-     * 与 DishController 中的逻辑保持一致
-     */
-    private String processImageUrl(String image) {
-        if (!StringUtils.hasText(image)) {
-            return DEFAULT_DISH_IMAGE;
-        }
-
-        // 如果已经是完整URL，直接返回
-        if (image.startsWith("http://") || image.startsWith("https://")) {
-            return image;
-        }
-
-        // 根据存储方式处理
-        if (fileStorageProperties.isLocal()) {
-            // 本地存储模式：拼接URL前缀
-            String urlPrefix = localStorageProperties.getUrlPrefix();
-            if (!urlPrefix.endsWith("/")) {
-                urlPrefix += "/";
-            }
-            // 移除image开头的斜杠
-            String localPath = image.startsWith("/") ? image.substring(1) : image;
-            return urlPrefix + localPath;
-        } else {
-            // OSS存储模式：转换为预签名URL
-            try {
-                return ossService.generatePresignedUrl(image);
-            } catch (Exception e) {
-                log.warn("Failed to generate presigned URL for order item image: {}", image, e);
-                return DEFAULT_DISH_IMAGE;
-            }
         }
     }
 }

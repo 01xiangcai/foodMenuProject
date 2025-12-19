@@ -37,7 +37,7 @@
                     <!-- 头像（非自己的消息显示在左边） -->
                     <image
                         v-if="!msg.isSelf"
-                        class="message-avatar"
+                        class="message-avatar avatar-left"
                         :src="msg.senderAvatar || defaultAvatar"
                         mode="aspectFill"
                     />
@@ -64,7 +64,7 @@
                     <!-- 头像（自己的消息显示在右边） -->
                     <image
                         v-if="msg.isSelf"
-                        class="message-avatar"
+                        class="message-avatar avatar-right"
                         :src="msg.senderAvatar || defaultAvatar"
                         mode="aspectFill"
                     />
@@ -302,6 +302,9 @@ onMounted(async () => {
         title: decodeURIComponent(props.name) || '聊天'
     })
     
+    // 确保WebSocket连接已建立
+    chatStore.initWebSocket()
+    
     // 设置当前会话
     chatStore.setCurrentConversation({
         id: Number(props.id),
@@ -386,7 +389,7 @@ onUnmounted(() => {
 
     &.message-self {
         .message-wrapper {
-            flex-direction: row-reverse;
+            justify-content: flex-end;
         }
 
         .message-body {

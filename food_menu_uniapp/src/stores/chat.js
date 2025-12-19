@@ -32,30 +32,38 @@ export const useChatStore = defineStore('chat', () => {
         return conversations.value.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0)
     })
 
+    // 是否已初始化WebSocket监听器
+    const wsInitialized = ref(false)
+
     /**
      * 初始化WebSocket连接
      */
     const initWebSocket = () => {
-        // 监听新消息
-        chatWebSocket.on('newMessage', (message) => {
-            handleNewMessage(message)
-        })
+        // 防止重复注册事件监听器
+        if (!wsInitialized.value) {
+            // 监听新消息
+            chatWebSocket.on('newMessage', (message) => {
+                handleNewMessage(message)
+            })
 
-        // 监听消息撤回
-        chatWebSocket.on('messageRevoked', (data) => {
-            handleMessageRevoked(data)
-        })
+            // 监听消息撤回
+            chatWebSocket.on('messageRevoked', (data) => {
+                handleMessageRevoked(data)
+            })
 
-        // 监听连接状态
-        chatWebSocket.on('connected', () => {
-            isConnected.value = true
-        })
+            // 监听连接状态
+            chatWebSocket.on('connected', () => {
+                isConnected.value = true
+            })
 
-        chatWebSocket.on('close', () => {
-            isConnected.value = false
-        })
+            chatWebSocket.on('close', () => {
+                isConnected.value = false
+            })
 
-        // 建立连接
+            wsInitialized.value = true
+        }
+
+        // 建立连接（如果已连接会直接返回）
         chatWebSocket.connect()
     }
 
@@ -63,16 +71,24 @@ export const useChatStore = defineStore('chat', () => {
      * 处理新消息
      */
     const handleNewMessage = (message) => {
+        console.log('[ChatStore] 收到新消息:', message)
+        console.log('[ChatStore] 当前会话:', currentConversation.value)
+
         // 如果是当前会话的消息，添加到消息列表
         if (currentConversation.value && message.conversationId === currentConversation.value.id) {
+            console.log('[ChatStore] 消息属于当前会话，添加到消息列表')
             // 检查是否已存在（避免重复）
             const exists = messages.value.some(m => m.id === message.id)
             if (!exists) {
                 messages.value.push(message)
+                console.log('[ChatStore] 消息已添加，当前消息数:', messages.value.length)
                 // 如果窗口在前台，自动标记已读
                 chatWebSocket.sendReadAck(message.conversationId, message.id)
+            } else {
+                console.log('[ChatStore] 消息已存在，跳过')
             }
         } else {
+            console.log('[ChatStore] 消息不属于当前会话，更新会话列表')
             // 不是当前会话，更新会话列表的未读数和最后消息
             updateConversationLastMessage(message)
         }
