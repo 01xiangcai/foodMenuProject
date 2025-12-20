@@ -89,6 +89,141 @@
           </div>
         </div>
       </div>
+
+      <!-- 消息撤回时限 -->
+      <div class="setting-card">
+        <div class="card-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+            <path d="M12 7v5l4 2"/>
+          </svg>
+        </div>
+        <div class="card-content">
+          <div class="card-header">
+            <h3>消息撤回时限</h3>
+            <span class="status-badge" :class="{ 'saving': savingStates.chatRevokeTimeLimit, 'changed': chatRevokeTimeLimitChanged }">
+              {{ savingStates.chatRevokeTimeLimit ? '保存中...' : (chatRevokeTimeLimitChanged ? '未保存' : '已保存') }}
+            </span>
+          </div>
+          <p class="card-description">设置聊天消息可撤回的时间限制</p>
+          <div class="card-control">
+            <div class="control-group">
+              <NInputNumber
+                v-model:value="settings.chatRevokeTimeLimit"
+                :min="1"
+                :max="60"
+                :show-button="true"
+                size="large"
+                @update:value="onChatRevokeTimeLimitChange"
+              >
+                <template #suffix>分钟</template>
+              </NInputNumber>
+              <NButton
+                type="primary"
+                size="large"
+                :loading="savingStates.chatRevokeTimeLimit"
+                :disabled="!chatRevokeTimeLimitChanged"
+                @click="saveChatRevokeTimeLimit"
+                class="confirm-btn"
+              >
+                {{ savingStates.chatRevokeTimeLimit ? '保存中' : '确认' }}
+              </NButton>
+            </div>
+            <span class="control-hint">范围: 1-60分钟</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 聊天消息保留天数 -->
+      <div class="setting-card">
+        <div class="card-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+        <div class="card-content">
+          <div class="card-header">
+            <h3>聊天消息保留天数</h3>
+            <span class="status-badge" :class="{ 'saving': savingStates.chatMessageRetention, 'changed': chatMessageRetentionChanged }">
+              {{ savingStates.chatMessageRetention ? '保存中...' : (chatMessageRetentionChanged ? '未保存' : '已保存') }}
+            </span>
+          </div>
+          <p class="card-description">设置聊天消息的保留时长，超期将自动清理</p>
+          <div class="card-control">
+            <div class="control-group">
+              <NInputNumber
+                v-model:value="settings.chatMessageRetention"
+                :min="1"
+                :max="365"
+                :show-button="true"
+                size="large"
+                @update:value="onChatMessageRetentionChange"
+              >
+                <template #suffix>天</template>
+              </NInputNumber>
+              <NButton
+                type="primary"
+                size="large"
+                :loading="savingStates.chatMessageRetention"
+                :disabled="!chatMessageRetentionChanged"
+                @click="saveChatMessageRetention"
+                class="confirm-btn"
+              >
+                {{ savingStates.chatMessageRetention ? '保存中' : '确认' }}
+              </NButton>
+            </div>
+            <span class="control-hint">范围: 1-365天</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 历史数据保留天数 -->
+      <div class="setting-card">
+        <div class="card-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+        </div>
+        <div class="card-content">
+          <div class="card-header">
+            <h3>历史数据保留天数</h3>
+            <span class="status-badge" :class="{ 'saving': savingStates.mealHistoryRetention, 'changed': mealHistoryRetentionChanged }">
+              {{ savingStates.mealHistoryRetention ? '保存中...' : (mealHistoryRetentionChanged ? '未保存' : '已保存') }}
+            </span>
+          </div>
+          <p class="card-description">设置历史记录的保留时长，超期将自动清理</p>
+          <div class="card-control">
+            <div class="control-group">
+              <NInputNumber
+                v-model:value="settings.mealHistoryRetention"
+                :min="1"
+                :max="365"
+                :show-button="true"
+                size="large"
+                @update:value="onMealHistoryRetentionChange"
+              >
+                <template #suffix>天</template>
+              </NInputNumber>
+              <NButton
+                type="primary"
+                size="large"
+                :loading="savingStates.mealHistoryRetention"
+                :disabled="!mealHistoryRetentionChanged"
+                @click="saveMealHistoryRetention"
+                class="confirm-btn"
+              >
+                {{ savingStates.mealHistoryRetention ? '保存中' : '确认' }}
+              </NButton>
+            </div>
+            <span class="control-hint">范围: 1-365天</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -104,21 +239,33 @@ const dialog = useDialog();
 // 设置数据
 const settings = reactive({
   dishImageLimit: 5,
-  userRegisterEnabled: true
+  userRegisterEnabled: true,
+  chatRevokeTimeLimit: 2,
+  chatMessageRetention: 30,
+  mealHistoryRetention: 30
 });
 
 // 原始值(用于检测变更)
 const originalValues = reactive({
-  dishImageLimit: 5
+  dishImageLimit: 5,
+  chatRevokeTimeLimit: 2,
+  chatMessageRetention: 30,
+  mealHistoryRetention: 30
 });
 
 // 变更状态
 const dishImageLimitChanged = ref(false);
+const chatRevokeTimeLimitChanged = ref(false);
+const chatMessageRetentionChanged = ref(false);
+const mealHistoryRetentionChanged = ref(false);
 
 // 保存状态
 const savingStates = reactive({
   dishImageLimit: false,
-  userRegisterEnabled: false
+  userRegisterEnabled: false,
+  chatRevokeTimeLimit: false,
+  chatMessageRetention: false,
+  mealHistoryRetention: false
 });
 
 // 加载设置
@@ -136,6 +283,30 @@ const loadSettings = async () => {
     const registerRes = await fetchSystemConfig('user_register_enabled');
     if (registerRes.data && registerRes.data.configValue) {
       settings.userRegisterEnabled = registerRes.data.configValue === 'true' || registerRes.data.configValue === '1';
+    }
+
+    // 加载消息撤回时限
+    const revokeRes = await fetchSystemConfig('chat_revoke_time_limit');
+    if (revokeRes.data && revokeRes.data.configValue) {
+      const value = Number(revokeRes.data.configValue) || 2;
+      settings.chatRevokeTimeLimit = value;
+      originalValues.chatRevokeTimeLimit = value;
+    }
+
+    // 加载聊天消息保留天数
+    const chatRetentionRes = await fetchSystemConfig('chat_message_retention_days');
+    if (chatRetentionRes.data && chatRetentionRes.data.configValue) {
+      const value = Number(chatRetentionRes.data.configValue) || 30;
+      settings.chatMessageRetention = value;
+      originalValues.chatMessageRetention = value;
+    }
+
+    // 加载历史数据保留天数
+    const mealRetentionRes = await fetchSystemConfig('meal.history.retention.days');
+    if (mealRetentionRes.data && mealRetentionRes.data.configValue) {
+      const value = Number(mealRetentionRes.data.configValue) || 30;
+      settings.mealHistoryRetention = value;
+      originalValues.mealHistoryRetention = value;
     }
   } catch (error) {
     console.error('加载设置失败:', error);
@@ -200,6 +371,84 @@ const handleUserRegisterChange = (newValue: boolean) => {
     }
     // 取消时不需要做任何事,因为:value还没有变,UI会自动保持原样
   });
+};
+
+// 消息撤回时限变更检测
+const onChatRevokeTimeLimitChange = (value: number | null) => {
+  if (value !== null) {
+    chatRevokeTimeLimitChanged.value = value !== originalValues.chatRevokeTimeLimit;
+  }
+};
+
+// 保存消息撤回时限
+const saveChatRevokeTimeLimit = async () => {
+  savingStates.chatRevokeTimeLimit = true;
+  try {
+    await updateSystemConfig({
+      configKey: 'chat_revoke_time_limit',
+      configValue: String(settings.chatRevokeTimeLimit)
+    });
+    originalValues.chatRevokeTimeLimit = settings.chatRevokeTimeLimit;
+    chatRevokeTimeLimitChanged.value = false;
+    message.success('消息撤回时限已更新');
+  } catch (error: any) {
+    console.error('保存失败:', error);
+    message.error(error.message || '保存失败');
+  } finally {
+    savingStates.chatRevokeTimeLimit = false;
+  }
+};
+
+// 聊天消息保留天数变更检测
+const onChatMessageRetentionChange = (value: number | null) => {
+  if (value !== null) {
+    chatMessageRetentionChanged.value = value !== originalValues.chatMessageRetention;
+  }
+};
+
+// 保存聊天消息保留天数
+const saveChatMessageRetention = async () => {
+  savingStates.chatMessageRetention = true;
+  try {
+    await updateSystemConfig({
+      configKey: 'chat_message_retention_days',
+      configValue: String(settings.chatMessageRetention)
+    });
+    originalValues.chatMessageRetention = settings.chatMessageRetention;
+    chatMessageRetentionChanged.value = false;
+    message.success('聊天消息保留天数已更新');
+  } catch (error: any) {
+    console.error('保存失败:', error);
+    message.error(error.message || '保存失败');
+  } finally {
+    savingStates.chatMessageRetention = false;
+  }
+};
+
+// 历史数据保留天数变更检测
+const onMealHistoryRetentionChange = (value: number | null) => {
+  if (value !== null) {
+    mealHistoryRetentionChanged.value = value !== originalValues.mealHistoryRetention;
+  }
+};
+
+// 保存历史数据保留天数
+const saveMealHistoryRetention = async () => {
+  savingStates.mealHistoryRetention = true;
+  try {
+    await updateSystemConfig({
+      configKey: 'meal.history.retention.days',
+      configValue: String(settings.mealHistoryRetention)
+    });
+    originalValues.mealHistoryRetention = settings.mealHistoryRetention;
+    mealHistoryRetentionChanged.value = false;
+    message.success('历史数据保留天数已更新');
+  } catch (error: any) {
+    console.error('保存失败:', error);
+    message.error(error.message || '保存失败');
+  } finally {
+    savingStates.mealHistoryRetention = false;
+  }
 };
 
 onMounted(() => {

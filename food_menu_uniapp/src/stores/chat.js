@@ -277,10 +277,12 @@ export const useChatStore = defineStore('chat', () => {
                 messages.value[index].status = 1
                 messages.value[index].content = '此消息已撤回'
             }
-            return true
+            return { success: true }
         } catch (e) {
             console.error('撤回消息失败', e)
-            return false
+            // 提取后端返回的错误信息
+            const errorMsg = e.response?.data?.msg || e.message || '撤回失败，请稍后重试'
+            return { success: false, errorMsg }
         }
     }
 

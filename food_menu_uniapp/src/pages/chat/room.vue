@@ -260,9 +260,9 @@ const onMessageLongPress = (msg) => {
                 })
             } else if (res.tapIndex === 1 && msg.isSelf) {
                 // 撤回
-                const success = await chatStore.revokeMessage(msg.id)
-                if (!success) {
-                    uni.showToast({ title: '撤回失败', icon: 'none' })
+                const result = await chatStore.revokeMessage(msg.id)
+                if (!result.success) {
+                    uni.showToast({ title: result.errorMsg || '撤回失败', icon: 'none', duration: 2500 })
                 }
             }
         }
