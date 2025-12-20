@@ -37,8 +37,11 @@
                         </view>
                     </view>
                     <view class="notification-content">
-                        <text class="notification-title">系统通知</text>
-                        <text class="notification-desc">查看餐次发布、菜品采纳等通知</text>
+                        <view class="notification-header">
+                            <text class="notification-title">系统通知</text>
+                            <text class="notification-time" v-if="latestNotification">{{ formatNotificationTime(latestNotification.createTime) }}</text>
+                        </view>
+                        <text class="notification-desc">{{ latestNotificationText }}</text>
                     </view>
                     <text class="notification-arrow">›</text>
                 </view>
@@ -137,13 +140,23 @@ import { onShow } from '@dcloudio/uni-app'
 import { useChatStore } from '../../stores/chat'
 import { useTheme } from '../../stores/theme'
 import { getFamilyMembers } from '../../api/chat'
-import { getUnreadCount } from '../../api/notification'
+import { getUnreadCount, getNotificationList } from '../../api/notification'
 
 const chatStore = useChatStore()
 const { currentTheme } = useTheme()
 
 // 系统通知未读数量
 const unreadNotificationCount = ref(0)
+// 最新通知
+const latestNotification = ref(null)
+
+// 最新通知文本
+const latestNotificationText = computed(() => {
+    if (latestNotification.value) {
+        return latestNotification.value.title || '查看餐次发布、菜品采纳等通知'
+    }
+    return '查看餐次发布、菜品采纳等通知'
+})
 
 // 自定义弹窗状态
 const showDropdown = ref(false)
@@ -169,16 +182,39 @@ onShow(() => {
     fetchUnreadNotifications()
 })
 
-// 获取系统通知未读数量
+// 获取系统通知未读数量和最新通知
 const fetchUnreadNotifications = async () => {
     try {
+        // 获取未读数量
         const res = await getUnreadCount()
         if (res.code === 1 && res.data) {
             unreadNotificationCount.value = res.data.count || 0
         }
+        // 获取最新通知
+        const listRes = await getNotificationList(1, 1)
+        if (listRes.code === 1 && listRes.data && listRes.data.records && listRes.data.records.length > 0) {
+            latestNotification.value = listRes.data.records[0]
+        }
     } catch (error) {
-        console.error('获取未读通知数量失败:', error)
+        console.error('获取通知信息失败:', error)
     }
+}
+
+// 格式化通知时间
+const formatNotificationTime = (time) => {
+    if (!time) return ''
+    const date = new Date(time.replace(/-/g, '/'))
+    const now = new Date()
+    const diff = now - date
+    const minutes = Math.floor(diff / 60000)
+    const hours = Math.floor(diff / 3600000)
+    const days = Math.floor(diff / 86400000)
+    
+    if (minutes < 1) return '刚刚'
+    if (minutes < 60) return `${minutes}分钟前`
+    if (hours < 24) return `${hours}小时前`
+    if (days < 7) return `${days}天前`
+    return `${date.getMonth() + 1}/${date.getDate()}`
 }
 
 // 跳转到系统通知页面
@@ -754,19 +790,33 @@ onUnmounted(() => {
 
 .notification-content {
     flex: 1;
+    min-width: 0;
+    
+    .notification-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8rpx;
+    }
     
     .notification-title {
-        display: block;
         font-size: 32rpx;
         font-weight: 600;
         color: #333;
-        margin-bottom: 8rpx;
+    }
+    
+    .notification-time {
+        font-size: 24rpx;
+        color: #999;
     }
     
     .notification-desc {
         display: block;
         font-size: 26rpx;
         color: #888;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 }
 

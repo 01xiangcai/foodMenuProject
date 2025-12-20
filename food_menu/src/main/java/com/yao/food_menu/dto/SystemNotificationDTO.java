@@ -57,4 +57,9 @@ public class SystemNotificationDTO {
      */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime readTime;
+
+    /**
+     * 额外数据（JSON格式，用于跳转等）
+     */
+    private String extra;
 }

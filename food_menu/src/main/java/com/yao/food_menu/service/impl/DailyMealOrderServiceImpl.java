@@ -497,6 +497,7 @@ public class DailyMealOrderServiceImpl extends ServiceImpl<DailyMealOrderMapper,
             Map<String, Object> acceptParams = new HashMap<>();
             acceptParams.put("dishName", dishNames);
             acceptParams.put("dishCount", dishes.size());
+            acceptParams.put("dailyMealOrderId", dailyMealOrder.getId()); // 用于跳转
             systemNotificationService.sendByType(userId, familyId,
                     com.yao.food_menu.entity.NotificationTypeConfig.CODE_DISH_ACCEPTED, acceptParams);
         }

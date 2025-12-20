@@ -163,6 +163,7 @@ public class UniappDailyMealOrderController {
             memberOrder.put("createTime", order.getCreateTime());
             memberOrder.put("isLateOrder", order.getIsLateOrder());
             memberOrder.put("lateOrderStatus", order.getLateOrderStatus());
+            memberOrder.put("remark", order.getRemark()); // 添加订单备注
 
             // 查询用户信息
             WxUser member = wxUserService.getById(order.getUserId());

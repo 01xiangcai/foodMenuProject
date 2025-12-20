@@ -16,7 +16,7 @@
       @refresherrefresh="onRefresh"
     >
       <view v-if="notifications.length === 0 && !loading" class="empty-state">
-        <image src="/static/empty.png" mode="aspectFit" class="empty-icon" />
+        <text class="empty-icon">📭</text>
         <text class="empty-text">暂无通知</text>
       </view>
 
@@ -77,7 +77,9 @@ const loadNotifications = async (refresh = false) => {
   
   loading.value = true
   try {
+    console.log('开始加载通知列表, pageNum:', pageNum.value, 'pageSize:', pageSize.value)
     const res = await getNotificationList(pageNum.value, pageSize.value)
+    console.log('通知列表响应:', res)
     if (res.code === 1 && res.data) {
       const records = res.data.records || []
       if (refresh) {
@@ -86,10 +88,16 @@ const loadNotifications = async (refresh = false) => {
         notifications.value = [...notifications.value, ...records]
       }
       total.value = res.data.total || 0
+    } else {
+      console.error('接口返回失败:', res)
+      if (res.msg) {
+        uni.showToast({ title: res.msg, icon: 'none' })
+      }
     }
   } catch (error) {
     console.error('加载通知失败:', error)
-    uni.showToast({ title: '加载失败', icon: 'none' })
+    const errMsg = error?.msg || error?.message || '加载失败'
+    uni.showToast({ title: errMsg, icon: 'none' })
   } finally {
     loading.value = false
     refreshing.value = false
@@ -111,6 +119,7 @@ const loadMore = () => {
 
 // 点击通知项
 const handleItemClick = async (item) => {
+  // 先标记已读
   if (!item.isRead) {
     try {
       await markAsRead(item.id)
@@ -119,6 +128,58 @@ const handleItemClick = async (item) => {
       console.error('标记已读失败:', error)
     }
   }
+  
+  // 根据通知类型跳转
+  navigateByNotificationType(item)
+}
+
+// 根据通知类型跳转到对应页面
+const navigateByNotificationType = (item) => {
+  const typeCode = item.typeCode
+  let extra = {}
+  
+  console.log('点击通知:', item)
+  console.log('typeCode:', typeCode)
+  console.log('extra原始值:', item.extra)
+  
+  // 解析extra字段
+  try {
+    if (item.extra) {
+      extra = typeof item.extra === 'string' ? JSON.parse(item.extra) : item.extra
+    }
+  } catch (e) {
+    console.error('解析extra失败:', e)
+  }
+  
+  console.log('解析后extra:', extra)
+  
+  // 餐次相关通知 -> 跳转到餐次订单详情
+  const mealRelatedTypes = ['MEAL_PUBLISHED', 'MEAL_UPDATED', 'DISH_ACCEPTED', 'LATE_ORDER_ACCEPTED', 'DISH_REJECTED', 'MEAL_SERVED']
+  if (mealRelatedTypes.includes(typeCode)) {
+    if (extra.dailyMealOrderId) {
+      // 有订单ID，跳转到订单详情
+      uni.navigateTo({
+        url: `/pages/order/daily-meal-order-detail?id=${extra.dailyMealOrderId}`
+      })
+    } else {
+      // 没有订单ID，跳转到今日菜单
+      uni.switchTab({
+        url: '/pages/menu/menu'
+      })
+    }
+    return
+  }
+  
+  // 退款通知 -> 跳转到钱包页面
+  if (typeCode === 'REFUND_SUCCESS') {
+    uni.navigateTo({
+      url: '/pages/wallet/index'
+    })
+    return
+  }
+  
+  // 其他通知不跳转
+  console.log('未知通知类型，不跳转')
 }
 
 // 全部已读
@@ -282,8 +343,7 @@ uni.$on('onPullDownRefresh', () => {
   padding: 120rpx 0;
   
   .empty-icon {
-    width: 240rpx;
-    height: 240rpx;
+    font-size: 120rpx;
     margin-bottom: 24rpx;
     opacity: 0.6;
   }

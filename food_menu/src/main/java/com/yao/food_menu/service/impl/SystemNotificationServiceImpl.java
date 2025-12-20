@@ -227,6 +227,7 @@ public class SystemNotificationServiceImpl extends ServiceImpl<SystemNotificatio
         dto.setIsRead(notification.getIsRead() == SystemNotification.READ_YES);
         dto.setCreateTime(notification.getCreateTime());
         dto.setReadTime(notification.getReadTime());
+        dto.setExtra(notification.getExtra()); // 添加extra字段用于跳转
 
         // 获取类型信息
         NotificationTypeConfig config = typeConfigService.getByCode(notification.getTypeCode());

@@ -142,6 +142,12 @@
               <text class="dish-subtotal">¥{{ item.subtotal }}</text>
             </view>
           </view>
+          
+          <!-- 订单备注 -->
+          <view class="order-remark" v-if="member.remark">
+            <text class="remark-label">📝 备注：</text>
+            <text class="remark-content">{{ member.remark }}</text>
+          </view>
         </view>
       </view>
     </view>
@@ -727,6 +733,30 @@ onMounted(() => {
   font-size: 32rpx;
   font-weight: 700;
   color: var(--accent-orange);
+}
+
+.order-remark {
+  background: rgba(255, 193, 7, 0.1);
+  border-left: 4rpx solid #ffc107;
+  padding: 16rpx 20rpx;
+  margin-top: 16rpx;
+  border-radius: 8rpx;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+}
+
+.remark-label {
+  font-size: 24rpx;
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+.remark-content {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  flex: 1;
+  word-break: break-all;
 }
 
 .dish-list {

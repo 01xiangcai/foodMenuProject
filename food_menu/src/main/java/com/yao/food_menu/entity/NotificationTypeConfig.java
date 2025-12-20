@@ -100,6 +100,7 @@ public class NotificationTypeConfig implements Serializable {
     // ========== 预置通知类型编码 ==========
 
     public static final String CODE_MEAL_PUBLISHED = "MEAL_PUBLISHED";
+    public static final String CODE_MEAL_UPDATED = "MEAL_UPDATED";
     public static final String CODE_DISH_ACCEPTED = "DISH_ACCEPTED";
     public static final String CODE_LATE_ORDER_ACCEPTED = "LATE_ORDER_ACCEPTED";
     public static final String CODE_DISH_REJECTED = "DISH_REJECTED";

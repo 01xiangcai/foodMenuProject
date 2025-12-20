@@ -515,13 +515,14 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
                         log.error("更新菜品热度统计失败", e);
                     }
 
-                    // 发送迟到订单采纳通知
+                    // 发送迟到订单采纳通知（给下单用户）
                     try {
                         List<String> dishNameList = publishItems.stream()
                                 .map(com.yao.food_menu.entity.DailyMealPublishItem::getDishName)
                                 .collect(Collectors.toList());
                         Map<String, Object> params = new HashMap<>();
                         params.put("dishName", String.join("、", dishNameList));
+                        params.put("dailyMealOrderId", order.getDailyMealOrderId()); // 用于跳转
                         systemNotificationService.sendByType(
                                 order.getUserId(),
                                 order.getFamilyId(),
@@ -530,6 +531,26 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
                         log.info("迟到订单采纳通知已发送: userId={}", order.getUserId());
                     } catch (Exception e) {
                         log.warn("发送迟到订单采纳通知失败: {}", e.getMessage());
+                    }
+
+                    // 发送餐次更新通知给全部家庭成员
+                    try {
+                        com.yao.food_menu.entity.DailyMealOrder dailyMealOrder = dailyMealOrderService
+                                .getById(order.getDailyMealOrderId());
+                        if (dailyMealOrder != null) {
+                            Map<String, Object> mealParams = new HashMap<>();
+                            String mealPeriodName = getMealPeriodName(dailyMealOrder.getMealPeriod());
+                            mealParams.put("mealPeriod", mealPeriodName);
+                            mealParams.put("dishCount", String.valueOf(publishItems.size()));
+                            mealParams.put("dailyMealOrderId", order.getDailyMealOrderId()); // 用于跳转
+                            systemNotificationService.sendToFamilyByType(
+                                    order.getFamilyId(),
+                                    com.yao.food_menu.entity.NotificationTypeConfig.CODE_MEAL_UPDATED,
+                                    mealParams);
+                            log.info("餐次更新通知已发送给家庭: familyId={}", order.getFamilyId());
+                        }
+                    } catch (Exception e) {
+                        log.warn("发送餐次更新通知失败: {}", e.getMessage());
                     }
                 }
 
@@ -549,6 +570,9 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
                 order.setStatus(Orders.STATUS_CANCELLED);
                 this.updateById(order);
                 handleOrderCancelRefund(order);
+
+                // 发送迟到订单拒绝通知
+                sendLateOrderRejectedNotification(order, allItems);
             }
 
             // 更新大订单统计
@@ -556,15 +580,64 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
                 dailyMealOrderService.updateStatistics(order.getDailyMealOrderId());
             }
         } else if (action == Orders.LATE_STATUS_REJECTED) {
+            // 获取订单菜品用于通知
+            LambdaQueryWrapper<OrderItem> rejectItemWrapper = new LambdaQueryWrapper<>();
+            rejectItemWrapper.eq(OrderItem::getOrderId, order.getId());
+            List<OrderItem> rejectItems = orderItemService.list(rejectItemWrapper);
+
             order.setLateOrderStatus(Orders.LATE_STATUS_REJECTED);
             order.setStatus(Orders.STATUS_CANCELLED);
             this.updateById(order);
             handleOrderCancelRefund(order);
+
+            // 发送迟到订单拒绝通知
+            sendLateOrderRejectedNotification(order, rejectItems);
+
             if (order.getDailyMealOrderId() != null) {
                 dailyMealOrderService.updateStatistics(order.getDailyMealOrderId());
             }
         } else {
             throw new RuntimeException("无效的审核动作");
+        }
+    }
+
+    /**
+     * 发送迟到订单拒绝通知
+     */
+    private void sendLateOrderRejectedNotification(Orders order, List<OrderItem> items) {
+        try {
+            List<String> dishNameList = items.stream()
+                    .map(OrderItem::getDishName)
+                    .collect(Collectors.toList());
+            Map<String, Object> params = new HashMap<>();
+            params.put("dishName", String.join("、", dishNameList));
+            params.put("dailyMealOrderId", order.getDailyMealOrderId()); // 用于跳转
+            systemNotificationService.sendByType(
+                    order.getUserId(),
+                    order.getFamilyId(),
+                    com.yao.food_menu.entity.NotificationTypeConfig.CODE_DISH_REJECTED,
+                    params);
+            log.info("迟到订单拒绝通知已发送: userId={}", order.getUserId());
+        } catch (Exception e) {
+            log.warn("发送迟到订单拒绝通知失败: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 获取餐次名称
+     */
+    private String getMealPeriodName(String mealPeriod) {
+        if (mealPeriod == null)
+            return "";
+        switch (mealPeriod) {
+            case "BREAKFAST":
+                return "早餐";
+            case "LUNCH":
+                return "午餐";
+            case "DINNER":
+                return "晚餐";
+            default:
+                return mealPeriod;
         }
     }
 }
