@@ -70,9 +70,8 @@ export const useChatStore = defineStore('chat', () => {
     /**
      * 处理新消息
      */
-    const handleNewMessage = (message) => {
+    const handleNewMessage = async (message) => {
         console.log('[ChatStore] 收到新消息:', message)
-        console.log('[ChatStore] 当前会话:', currentConversation.value)
 
         // 如果是当前会话的消息，添加到消息列表
         if (currentConversation.value && message.conversationId === currentConversation.value.id) {
@@ -81,16 +80,29 @@ export const useChatStore = defineStore('chat', () => {
             const exists = messages.value.some(m => m.id === message.id)
             if (!exists) {
                 messages.value.push(message)
-                console.log('[ChatStore] 消息已添加，当前消息数:', messages.value.length)
                 // 如果窗口在前台，自动标记已读
                 chatWebSocket.sendReadAck(message.conversationId, message.id)
-            } else {
-                console.log('[ChatStore] 消息已存在，跳过')
+                // 更新会话列表预览
+                updateConversationLastMessage(message, true)
             }
         } else {
             console.log('[ChatStore] 消息不属于当前会话，更新会话列表')
-            // 不是当前会话，更新会话列表的未读数和最后消息
-            updateConversationLastMessage(message)
+            // 检查会话是否存在于列表中
+            const exists = conversations.value.find(c => c.id === message.conversationId)
+            if (exists) {
+                updateConversationLastMessage(message, false)
+            } else {
+                // 会话不存在（可能是被删除了，或者新会话），重新拉取会话详情
+                console.log('[ChatStore] 会话列表不存在该会话，正在拉取详情...')
+                try {
+                    const res = await chatApi.getConversationDetail(message.conversationId)
+                    if (res.data) {
+                        conversations.value.unshift(res.data)
+                    }
+                } catch (e) {
+                    console.error('[ChatStore] 拉取会话详情失败', e)
+                }
+            }
         }
     }
 
@@ -110,13 +122,20 @@ export const useChatStore = defineStore('chat', () => {
     /**
      * 更新会话最后消息
      */
-    const updateConversationLastMessage = (message) => {
+    const updateConversationLastMessage = (message, isCurrent = false) => {
         const conv = conversations.value.find(c => c.id === message.conversationId)
         if (conv) {
-            conv.lastMessageContent = message.content
+            let content = message.content
+            // 如果是群聊且有发送者昵称，显示昵称
+            if (conv.type === 2 && message.senderName) {
+                content = `${message.senderName}: ${content}`
+            }
+            conv.lastMessageContent = content
             conv.lastMessageTime = message.createTime
             conv.lastMessageTimeFormatted = '刚刚'
-            conv.unreadCount = (conv.unreadCount || 0) + 1
+            if (!isCurrent) {
+                conv.unreadCount = (conv.unreadCount || 0) + 1
+            }
 
             // 将该会话移到列表顶部
             const index = conversations.value.indexOf(conv)
@@ -234,6 +253,7 @@ export const useChatStore = defineStore('chat', () => {
                 })
                 if (res.data) {
                     messages.value.push(res.data)
+                    updateConversationLastMessage(res.data, true)
                 }
                 return true
             } catch (e) {
@@ -284,7 +304,19 @@ export const useChatStore = defineStore('chat', () => {
     const openPrivateChat = async (targetUserId) => {
         try {
             const res = await chatApi.getOrCreatePrivateConversation(targetUserId)
-            return res.data
+            const conv = res.data
+            if (conv) {
+                // 乐观更新：如果在列表中不存在，手动添加
+                const exists = conversations.value.find(c => c.id === conv.id)
+                if (!exists) {
+                    // 初始化一些用于显示的字段
+                    conv.unreadCount = 0
+                    conv.lastMessageContent = ''
+                    conv.lastMessageTimeFormatted = ''
+                    conversations.value.unshift(conv)
+                }
+            }
+            return conv
         } catch (e) {
             console.error('创建私聊会话失败', e)
             return null
@@ -301,6 +333,26 @@ export const useChatStore = defineStore('chat', () => {
         } catch (e) {
             console.error('获取家庭群聊失败', e)
             return null
+        }
+    }
+
+    /**
+     * 删除会话
+     */
+    const deleteConversation = async (conversationId) => {
+        try {
+            await chatApi.deleteConversation(conversationId)
+            // 移除本地列表中的会话
+            const index = conversations.value.findIndex(c => c.id === conversationId)
+            if (index > -1) {
+                conversations.value.splice(index, 1)
+                // 更新总未读数
+                totalUnreadCount.value = computedUnreadCount.value
+            }
+            return true
+        } catch (e) {
+            console.error('删除会话失败', e)
+            return false
         }
     }
 
@@ -333,6 +385,7 @@ export const useChatStore = defineStore('chat', () => {
         setCurrentConversation,
         openPrivateChat,
         openFamilyChat,
+        deleteConversation,
         disconnect
     }
 })

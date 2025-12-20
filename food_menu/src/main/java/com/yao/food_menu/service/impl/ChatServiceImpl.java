@@ -2,6 +2,7 @@ package com.yao.food_menu.service.impl;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.yao.food_menu.common.context.FamilyContext;
 import com.yao.food_menu.common.exception.BusinessException;
 import com.yao.food_menu.dto.ChatConversationDTO;
 import com.yao.food_menu.dto.ChatMessageDTO;
@@ -67,6 +68,8 @@ public class ChatServiceImpl implements ChatService {
         // 检查是否已存在私聊会话
         ChatConversation existing = conversationMapper.findPrivateConversation(currentUserId, targetUserId);
         if (existing != null) {
+            // 确保当前用户是未删除状态（实现会话复活）
+            memberMapper.restoreMember(existing.getId(), currentUserId);
             return existing;
         }
 
@@ -87,9 +90,20 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ChatConversation getOrCreateFamilyConversation(Long familyId, String familyName) {
+        Long currentUserId = FamilyContext.getCurrentWxUserId();
+
         // 检查是否已存在家庭群聊
         ChatConversation existing = conversationMapper.findFamilyConversation(familyId);
         if (existing != null) {
+            // 尝试复活成员身份（如果之前被逻辑删除了）
+            memberMapper.restoreMember(existing.getId(), currentUserId);
+
+            // 检查此时是否已经是活跃成员
+            ChatConversationMember member = memberMapper.selectByConversationAndUser(existing.getId(), currentUserId);
+            if (member == null) {
+                // 如果还不是成员（说明以前没加过），添加为成员
+                addMember(existing.getId(), currentUserId, ChatConversationMember.ROLE_MEMBER);
+            }
             return existing;
         }
 
@@ -101,6 +115,9 @@ public class ChatServiceImpl implements ChatService {
         conversation.setCreateTime(LocalDateTime.now());
         conversation.setUpdateTime(LocalDateTime.now());
         conversationMapper.insert(conversation);
+
+        // 创建时讲当前用户设为管理员
+        addMember(conversation.getId(), currentUserId, ChatConversationMember.ROLE_ADMIN);
 
         return conversation;
     }
@@ -145,6 +162,16 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public void deleteConversation(Long conversationId, Long wxUserId) {
+        ChatConversationMember member = memberMapper.selectByConversationAndUser(conversationId, wxUserId);
+        if (member != null) {
+            // 逻辑删除成员关系，实现"删除会话"（隐藏会话）
+            memberMapper.deleteById(member.getId());
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public ChatMessage sendMessage(Long wxUserId, SendMessageDTO dto) {
         if (!isMember(dto.getConversationId(), wxUserId)) {
             throw new BusinessException("您不是该会话的成员");
@@ -164,10 +191,21 @@ public class ChatServiceImpl implements ChatService {
         messageMapper.insert(message);
 
         // 更新会话最后消息信息
+        // 更新会话最后消息信息
         ChatConversation conversation = conversationMapper.selectById(dto.getConversationId());
         conversation.setLastMessageId(message.getId());
         conversation.setLastMessageTime(message.getCreateTime());
-        conversation.setLastMessageContent(truncateContent(dto.getContent()));
+
+        String lastContent = truncateContent(dto.getContent());
+        // 如果是群聊，在消息列表中显示发送者昵称
+        if (conversation.getType() == ChatConversation.TYPE_FAMILY) {
+            WxUser sender = wxUserMapper.selectById(wxUserId);
+            if (sender != null) {
+                lastContent = sender.getNickname() + ": " + lastContent;
+            }
+        }
+        conversation.setLastMessageContent(lastContent);
+
         conversation.setUpdateTime(LocalDateTime.now());
         conversationMapper.updateById(conversation);
 
@@ -296,6 +334,10 @@ public class ChatServiceImpl implements ChatService {
             // 群聊：使用会话名称和头像
             dto.setName(conversation.getName());
             dto.setAvatar(conversation.getAvatar());
+            // 如果头像为空，加载成员头像用于前端生成九宫格
+            if (conversation.getAvatar() == null || conversation.getAvatar().isEmpty()) {
+                dto.setMemberAvatars(memberMapper.selectMemberAvatars(conversation.getId()));
+            }
         }
 
         return dto;

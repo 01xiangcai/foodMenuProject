@@ -126,3 +126,13 @@ export const getFamilyMembers = () => {
         method: 'GET'
     })
 }
+
+/**
+ * 删除会话
+ */
+export const deleteConversation = (conversationId) => {
+    return request({
+        url: `/uniapp/chat/conversation/${conversationId}`,
+        method: 'DELETE'
+    })
+}

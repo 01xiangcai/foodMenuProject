@@ -65,6 +65,17 @@ public class UniappChatController {
     }
 
     /**
+     * 删除会话
+     */
+    @DeleteMapping("/conversation/{conversationId}")
+    @Operation(summary = "删除会话")
+    public Result<Void> deleteConversation(@PathVariable Long conversationId) {
+        Long wxUserId = FamilyContext.getCurrentWxUserId();
+        chatService.deleteConversation(conversationId, wxUserId);
+        return Result.success();
+    }
+
+    /**
      * 获取或创建私聊会话
      */
     @GetMapping("/conversation/private/{targetUserId}")
@@ -236,6 +247,15 @@ public class UniappChatController {
     private void processConversationAvatars(List<ChatConversationDTO> list) {
         for (ChatConversationDTO dto : list) {
             dto.setAvatar(imageUrlUtil.processAvatarUrl(dto.getAvatar()));
+
+            // 处理群聊成员头像列表
+            if (dto.getMemberAvatars() != null && !dto.getMemberAvatars().isEmpty()) {
+                java.util.List<String> processed = new java.util.ArrayList<>();
+                for (String url : dto.getMemberAvatars()) {
+                    processed.add(imageUrlUtil.processAvatarUrl(url));
+                }
+                dto.setMemberAvatars(processed);
+            }
         }
     }
 

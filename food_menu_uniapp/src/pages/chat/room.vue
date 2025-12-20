@@ -5,7 +5,7 @@
             scroll-y
             class="message-list"
             :scroll-top="scrollTop"
-            :scroll-with-animation="true"
+            :scroll-with-animation="scrollWithAnimation"
             @scrolltoupper="onLoadMore"
             :refresher-enabled="true"
             :refresher-triggered="isRefreshing"
@@ -137,6 +137,10 @@ const props = defineProps({
     name: {
         type: String,
         default: ''
+    },
+    type: {
+        type: [String, Number],
+        default: 1
     }
 })
 
@@ -220,8 +224,8 @@ const sendMessage = async () => {
     // 发送消息
     await chatStore.sendMessage(content, 1)
     
-    // 滚动到底部
-    scrollToBottom()
+    // 滚动到底部（带动画）
+    scrollToBottom(true)
 }
 
 // 加载更多消息
@@ -280,10 +284,23 @@ const onKeyDown = (e) => {
     // 可以处理Enter发送等
 }
 
+// 滚动动画开关
+const scrollWithAnimation = ref(false)
+
 // 滚动到底部
-const scrollToBottom = () => {
+const scrollToBottom = (animated = false) => {
+    // 设置是否动画：首次加载不设动画，发送/接收消息时设动画
+    scrollWithAnimation.value = animated
+    
+    // 设置个稍微小点的值先触发变更（可选）
+    scrollTop.value = scrollTop.value - 1
+    
     nextTick(() => {
-        scrollTop.value = 99999
+        // 增加延时，确保视图渲染完成
+        setTimeout(() => {
+            // 设置一个足够大的值以滚动到底部
+            scrollTop.value = 9999999
+        }, 100)
     })
 }
 
@@ -291,7 +308,8 @@ const scrollToBottom = () => {
 watch(
     () => chatStore.messages.length,
     () => {
-        scrollToBottom()
+        // 消息列表变化时滚动到底部（带动画）
+        scrollToBottom(true)
     }
 )
 
@@ -308,7 +326,8 @@ onMounted(async () => {
     // 设置当前会话
     chatStore.setCurrentConversation({
         id: Number(props.id),
-        name: decodeURIComponent(props.name)
+        name: decodeURIComponent(props.name),
+        type: Number(props.type)
     })
     
     // 加载消息
@@ -324,12 +343,24 @@ onUnmounted(() => {
 })
 </script>
 
+// 非scoped样式设置page背景，防止橡皮筋效果露底
+<style lang="scss">
+page {
+    background-color: #ededed;
+    
+    &.dark-mode {
+        background-color: #1a1a1a;
+    }
+}
+</style>
+
 <style lang="scss" scoped>
 .chat-room-page {
     display: flex;
     flex-direction: column;
     height: 100vh;
     background-color: var(--bg-color, #ededed);
+    overflow: hidden; // 防止整体页面滚动
 
     &.dark-mode {
         --bg-color: #1a1a1a;
@@ -345,6 +376,9 @@ onUnmounted(() => {
 .message-list {
     flex: 1;
     padding: 20rpx;
+    background-color: var(--bg-color, #ededed); // 显式设置背景色
+    box-sizing: border-box;
+    overflow-y: hidden; // 让scroll-view处理滚动
 }
 
 .loading-more, .no-more {
@@ -399,11 +433,23 @@ onUnmounted(() => {
         .message-bubble {
             background-color: var(--bubble-self, #07c160);
             color: #fff;
-
+            
+            /* 右侧气泡箭头 */
             &::after {
-                border-color: transparent transparent transparent var(--bubble-self, #07c160);
-                right: -16rpx;
-                left: auto;
+                content: '';
+                position: absolute;
+                top: 20rpx;
+                right: -14rpx;
+                width: 0;
+                height: 0;
+                border-top: 12rpx solid transparent;
+                border-bottom: 12rpx solid transparent;
+                border-left: 16rpx solid var(--bubble-self, #07c160);
+            }
+            
+            /* 移除可能存在的左侧箭头配置（如果有的话） */
+            &::before {
+                display: none;
             }
         }
     }
@@ -440,6 +486,19 @@ onUnmounted(() => {
     background-color: var(--bubble-other, #fff);
     border-radius: 16rpx;
     word-break: break-all;
+    
+    /* 左侧气泡箭头 */
+    &::before {
+        content: '';
+        position: absolute;
+        top: 20rpx;
+        left: -14rpx;
+        width: 0;
+        height: 0;
+        border-top: 12rpx solid transparent;
+        border-bottom: 12rpx solid transparent;
+        border-right: 16rpx solid var(--bubble-other, #fff);
+    }
 
     &.revoked {
         background-color: transparent;

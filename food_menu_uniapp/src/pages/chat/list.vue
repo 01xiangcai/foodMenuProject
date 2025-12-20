@@ -36,15 +36,35 @@
                     @longpress="onLongPress(conv)"
                 >
                     <!-- 头像 -->
+                    <!-- 头像 -->
                     <view class="avatar-wrapper">
+                        <!-- 群聊九宫格头像 -->
+                        <view
+                            v-if="(!conv.avatar || conv.avatar.includes('default-avatar')) && conv.memberAvatars && conv.memberAvatars.length > 0"
+                            class="avatar avatar-grid"
+                        >
+                            <image
+                                v-for="(url, index) in conv.memberAvatars.slice(0, 9)"
+                                :key="index"
+                                :src="url"
+                                mode="aspectFill"
+                                class="grid-item"
+                                :class="getGridClass(conv.memberAvatars.length)"
+                            />
+                        </view>
+                        <!-- 单个头像 -->
                         <image
-                            v-if="conv.avatar"
+                            v-else-if="conv.avatar"
                             class="avatar"
                             :src="conv.avatar"
                             mode="aspectFill"
                         />
+                        <!-- 默认文字头像 -->
+                        <view v-else-if="conv.type === 2" class="avatar avatar-default">
+                            👨‍👩‍👧‍👦
+                        </view>
                         <view v-else class="avatar avatar-default">
-                            {{ conv.type === 2 ? '👨‍👩‍👧‍👦' : getInitial(conv.name) }}
+                             {{ getInitial(conv.name) }}
                         </view>
                         <!-- 未读角标 -->
                         <view v-if="conv.unreadCount > 0" class="unread-badge">
@@ -71,12 +91,29 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { useChatStore } from '../../stores/chat'
 import { useTheme } from '../../stores/theme'
 import { getFamilyMembers } from '../../api/chat'
 
 const chatStore = useChatStore()
 const { currentTheme } = useTheme()
+
+// ... (省略中间代码)
+
+// 页面加载
+onMounted(() => {
+    // 初始化WebSocket
+    chatStore.initWebSocket()
+})
+
+// 页面显示
+onShow(() => {
+    // 每次显示页面时刷新会话列表，确保数据最新
+    chatStore.fetchConversations()
+    // 清除当前会话状态（防止从聊天页返回后状态未清除）
+    chatStore.setCurrentConversation(null)
+})
 
 // 搜索关键词
 const searchKeyword = ref('')
@@ -96,23 +133,55 @@ const filteredConversations = computed(() => {
 
 // 获取名称首字母
 const getInitial = (name) => {
-    return name ? name.charAt(0).toUpperCase() : '?'
+    return name ? name.substring(0, 1) : '#'
 }
+
+const getGridClass = (len) => {
+    // 5人以上用3x3(9宫格)，否则用2x2(4宫格)
+    return len >= 5 ? 'grid-item-9' : 'grid-item-4'
+}
+
+
 
 // 进入聊天页面
 const enterChat = (conv) => {
     chatStore.setCurrentConversation(conv)
     uni.navigateTo({
-        url: `/pages/chat/room?id=${conv.id}&name=${encodeURIComponent(conv.name || '')}`
+        url: `/pages/chat/room?id=${conv.id}&name=${encodeURIComponent(conv.name || '')}&type=${conv.type}`
     })
 }
 
 // 长按操作
 const onLongPress = (conv) => {
     uni.showActionSheet({
-        itemList: ['标记已读', '删除会话', '免打扰'],
+        itemList: ['标记已读', '删除会话'], // 暂时移除免打扰，先实现核心的
         success: (res) => {
-            console.log('选择了:', res.tapIndex)
+            if (res.tapIndex === 0) {
+                // 标记已读 (如果还有未读)
+                if (conv.unreadCount > 0) {
+                    // TODO: 调用标记会话已读接口
+                    // 这里可以作为后续优化，先简单提示
+                    uni.showToast({ title: '功能开发中', icon: 'none' })
+                }
+            } else if (res.tapIndex === 1) {
+                // 删除会话
+                uni.showModal({
+                    title: '提示',
+                    content: '确定要删除该会话吗？',
+                    success: async (modalRes) => {
+                        if (modalRes.confirm) {
+                            uni.showLoading({ title: '删除中' })
+                            const success = await chatStore.deleteConversation(conv.id)
+                            uni.hideLoading()
+                            if (success) {
+                                uni.showToast({ title: '已删除', icon: 'success' })
+                            } else {
+                                uni.showToast({ title: '删除失败', icon: 'none' })
+                            }
+                        }
+                    }
+                })
+            }
         }
     })
 }
@@ -169,13 +238,7 @@ const onScrollToLower = () => {
     // 可实现加载更多会话
 }
 
-// 页面加载
-onMounted(() => {
-    // 初始化WebSocket
-    chatStore.initWebSocket()
-    // 获取会话列表
-    chatStore.fetchConversations()
-})
+
 
 // 页面卸载
 onUnmounted(() => {
@@ -322,9 +385,36 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #07c160, #0ec26b);
-    font-size: 36rpx;
+    background: #f0ad4e;
     color: #fff;
+    font-size: 40rpx;
+    font-weight: bold;
+}
+
+.avatar-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    background: #dddee0;
+    overflow: hidden;
+    padding: 2rpx;
+    box-sizing: border-box;
+}
+
+.grid-item {
+    margin: 1rpx;
+    background: #f2f2f2;
+}
+
+.grid-item-9 {
+    width: 31%;
+    height: 31%;
+}
+
+.grid-item-4 {
+    width: 47%;
+    height: 47%;
 }
 
 .unread-badge {

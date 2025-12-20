@@ -71,4 +71,9 @@ public class ChatConversationDTO {
      * 是否免打扰
      */
     private Boolean muted;
+
+    /**
+     * 群成员头像列表（用于生成九宫格头像，最多9个）
+     */
+    private java.util.List<String> memberAvatars;
 }

@@ -51,6 +51,14 @@ public interface ChatService {
     ChatConversation getOrCreateFamilyConversation(Long familyId, String familyName);
 
     /**
+     * 删除会话（对当前用户隐藏）
+     * 
+     * @param conversationId 会话ID
+     * @param wxUserId       用户ID
+     */
+    void deleteConversation(Long conversationId, Long wxUserId);
+
+    /**
      * 获取会话详情
      * 
      * @param conversationId 会话ID
