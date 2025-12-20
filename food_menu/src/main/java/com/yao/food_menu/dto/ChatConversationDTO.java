@@ -39,7 +39,15 @@ public class ChatConversationDTO {
     /**
      * 最后消息内容
      */
+    /**
+     * 最后消息内容
+     */
     private String lastMessageContent;
+
+    /**
+     * 最后消息ID
+     */
+    private Long lastMessageId;
 
     /**
      * 最后消息时间

@@ -6,7 +6,7 @@
                 <text class="search-icon">🔍</text>
                 <input class="search-input" placeholder="搜索" v-model="searchKeyword" />
             </view>
-            <view class="add-btn" @click="showActionSheet">
+            <view class="add-btn" @click="onAddClick">
                 <text class="add-icon">+</text>
             </view>
         </view>
@@ -33,9 +33,8 @@
                     :key="conv.id"
                     class="conversation-item"
                     @click="enterChat(conv)"
-                    @longpress="onLongPress(conv)"
+                    @longpress="onLongPress(conv, $event)"
                 >
-                    <!-- 头像 -->
                     <!-- 头像 -->
                     <view class="avatar-wrapper">
                         <!-- 群聊九宫格头像 -->
@@ -58,6 +57,7 @@
                             class="avatar"
                             :src="conv.avatar"
                             mode="aspectFill"
+                            @error="onAvatarError(conv)"
                         />
                         <!-- 默认文字头像 -->
                         <view v-else-if="conv.type === 2" class="avatar avatar-default">
@@ -86,6 +86,34 @@
                 </view>
             </view>
         </scroll-view>
+
+        <!-- 自定义遮罩和弹窗 -->
+        <!-- 右上角菜单 -->
+        <view class="mask" v-if="showDropdown" @click="showDropdown = false" @touchmove.stop.prevent></view>
+        <view class="dropdown-menu" v-if="showDropdown">
+            <view class="menu-arrow"></view>
+            <view class="menu-item" @click="handleMenuClick(0)">
+                <text class="menu-icon">💬</text>
+                <text class="menu-text">发起私聊</text>
+            </view>
+            <view class="menu-divider"></view>
+            <view class="menu-item" @click="handleMenuClick(1)">
+                <text class="menu-icon">👥</text>
+                <text class="menu-text">家庭群聊</text>
+            </view>
+        </view>
+
+        <!-- 长按跟随菜单 -->
+        <view class="mask" v-if="showActionMenu" @click="closeActionMenu" @touchmove.stop.prevent></view>
+        <view class="context-menu" v-if="showActionMenu" :style="{ top: menuTop + 'px' }">
+            <view class="menu-item" @click="handleActionClick(0)">
+                <text class="menu-text">标记已读</text>
+            </view>
+            <view class="menu-divider"></view>
+            <view class="menu-item" @click="handleActionClick(1)">
+                <text class="menu-text" style="color: #fa5151;">删除会话</text>
+            </view>
+        </view>
     </view>
 </template>
 
@@ -98,6 +126,12 @@ import { getFamilyMembers } from '../../api/chat'
 
 const chatStore = useChatStore()
 const { currentTheme } = useTheme()
+
+// 自定义弹窗状态
+const showDropdown = ref(false)
+const showActionMenu = ref(false)
+const currentConv = ref(null)
+const menuTop = ref(0)
 
 // ... (省略中间代码)
 
@@ -151,86 +185,102 @@ const enterChat = (conv) => {
     })
 }
 
-// 长按操作
-const onLongPress = (conv) => {
-    uni.showActionSheet({
-        itemList: ['标记已读', '删除会话'], // 暂时移除免打扰，先实现核心的
-        success: (res) => {
-            if (res.tapIndex === 0) {
-                // 标记已读 (如果还有未读)
-                if (conv.unreadCount > 0) {
-                    // TODO: 调用标记会话已读接口
-                    // 这里可以作为后续优化，先简单提示
-                    uni.showToast({ title: '功能开发中', icon: 'none' })
-                }
-            } else if (res.tapIndex === 1) {
-                // 删除会话
-                uni.showModal({
-                    title: '提示',
-                    content: '确定要删除该会话吗？',
-                    success: async (modalRes) => {
-                        if (modalRes.confirm) {
-                            uni.showLoading({ title: '删除中' })
-                            const success = await chatStore.deleteConversation(conv.id)
-                            uni.hideLoading()
-                            if (success) {
-                                uni.showToast({ title: '已删除', icon: 'success' })
-                            } else {
-                                uni.showToast({ title: '删除失败', icon: 'none' })
-                            }
-                        }
-                    }
-                })
-            }
+// 长按会话
+const onLongPress = (conv, event) => {
+    currentConv.value = conv
+    let clientY = 0
+    // 兼容不同平台的事件对象结构
+    if (event.touches && event.touches[0]) {
+        clientY = event.touches[0].clientY
+    } else if (event.detail && event.detail.y) {
+        clientY = event.detail.y
+    }
+    
+    // 设置位置
+    menuTop.value = clientY + 10
+    
+    // 简单边界处理
+    try {
+        const sys = uni.getSystemInfoSync()
+        if (menuTop.value > sys.windowHeight - 150) {
+            menuTop.value = clientY - 120
         }
-    })
+    } catch (e) {}
+    
+    showActionMenu.value = true
 }
 
-// 显示操作菜单
-const showActionSheet = async () => {
-    uni.showActionSheet({
-        itemList: ['发起私聊', '家庭群聊'],
-        success: async (res) => {
-            if (res.tapIndex === 0) {
-                // 发起私聊 - 选择家庭成员
-                try {
-                    const result = await getFamilyMembers()
-                    const members = result.data || []
-                    if (members.length === 0) {
-                        uni.showToast({ title: '暂无其他家庭成员', icon: 'none' })
-                        return
+// 处理底部菜单点击
+const handleActionClick = async (index) => {
+    if (!currentConv.value) return
+    const conv = currentConv.value
+    showActionMenu.value = false
+    
+    if (index === 0) {
+        // 标记已读
+        if (conv.unreadCount > 0) {
+            const success = await chatStore.markConversationAsRead(conv)
+            if (success) {
+                uni.showToast({ title: '已标记', icon: 'success' })
+            }
+        } else {
+            uni.showToast({ title: '暂无未读消息', icon: 'none' })
+        }
+    } else if (index === 1) {
+        // 删除会话
+        uni.showModal({
+            title: '提示',
+            content: '确定要删除该会话吗？',
+            success: async (modalRes) => {
+                if (modalRes.confirm) {
+                    uni.showLoading({ title: '删除中' })
+                    const success = await chatStore.deleteConversation(conv.id)
+                    uni.hideLoading()
+                    if (success) {
+                        uni.showToast({ title: '已删除', icon: 'success' })
+                    } else {
+                        uni.showToast({ title: '删除失败', icon: 'none' })
                     }
-                    // 显示成员选择
-                    uni.showActionSheet({
-                        itemList: members.map(m => m.nickname || m.username || '未知用户'),
-                        success: async (memberRes) => {
-                            const targetUser = members[memberRes.tapIndex]
-                            const conv = await chatStore.openPrivateChat(targetUser.id)
-                            if (conv) {
-                                enterChat({
-                                    id: conv.id,
-                                    name: targetUser.nickname || targetUser.username,
-                                    type: 1
-                                })
-                            }
-                        }
-                    })
-                } catch (e) {
-                    console.error('获取家庭成员失败', e)
-                }
-            } else if (res.tapIndex === 1) {
-                // 家庭群聊
-                const conv = await chatStore.openFamilyChat()
-                if (conv) {
-                    enterChat({
-                        id: conv.id,
-                        name: conv.name || '家庭群聊',
-                        type: 2
-                    })
                 }
             }
+        })
+    }
+}
+
+// 关闭底部菜单
+const closeActionMenu = () => {
+    showActionMenu.value = false
+}
+
+// 点击右上角加号
+const onAddClick = () => {
+    showDropdown.value = !showDropdown.value
+}
+
+// 处理右上角菜单点击
+const handleMenuClick = async (index) => {
+    showDropdown.value = false
+    if (index === 0) {
+        // 发起私聊 - 跳转选择联系人页面
+        uni.navigateTo({
+            url: '/pages/chat/member-select'
+        })
+    } else if (index === 1) {
+        // 家庭群聊
+        const conv = await chatStore.openFamilyChat()
+        if (conv) {
+            enterChat({
+                id: conv.id,
+                name: conv.name || '家庭群聊',
+                type: 2
+            })
         }
-    })
+    }
+}
+
+// 头像加载失败
+const onAvatarError = (conv) => {
+    conv.avatar = null
 }
 
 // 滚动到底部
@@ -475,5 +525,144 @@ onUnmounted(() => {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* UI Components for Menus */
+.mask {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: transparent;
+    z-index: 998;
+}
+
+/* Dropdown Menu (Top Right) */
+.dropdown-menu {
+    position: fixed;
+    top: 100rpx;
+    right: 20rpx;
+    background-color: #4c4c4c;
+    border-radius: 12rpx;
+    padding: 0;
+    z-index: 999;
+    box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.2);
+    min-width: 260rpx;
+}
+
+.menu-arrow {
+    position: absolute;
+    top: -12rpx;
+    right: 20rpx;
+    width: 0;
+    height: 0;
+    border-left: 12rpx solid transparent;
+    border-right: 12rpx solid transparent;
+    border-bottom: 12rpx solid #4c4c4c;
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    padding: 24rpx 30rpx;
+}
+
+.menu-item:active {
+    background-color: #5d5d5d;
+    border-radius: 12rpx;
+}
+
+.menu-icon {
+    font-size: 34rpx;
+    margin-right: 24rpx;
+    color: #fff;
+}
+
+.menu-text {
+    font-size: 30rpx;
+    color: #fff;
+    font-weight: 400;
+}
+
+.menu-divider {
+    height: 1rpx;
+    background-color: #5f5f5f;
+    margin: 0 20rpx;
+}
+
+/* Action Sheet (Bottom) */
+.action-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #f7f7f7;
+    border-top-left-radius: 24rpx;
+    border-top-right-radius: 24rpx;
+    z-index: 999;
+    transform: translateY(100%);
+    transition: transform 0.3s;
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+.action-sheet.show {
+    transform: translateY(0);
+}
+
+.action-item, .action-cancel {
+    background-color: #fff;
+    padding: 32rpx 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 34rpx;
+    color: #000;
+}
+
+.action-item:active, .action-cancel:active {
+    background-color: #f2f2f2;
+}
+
+.action-item.destructive {
+    color: #fa5151;
+}
+
+.action-divider {
+    height: 1rpx;
+    background-color: #e5e5e5;
+}
+
+.action-cancel {
+    margin-top: 16rpx;
+}
+
+/* Context Menu (Floating) */
+.context-menu {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 300rpx;
+    background-color: #fff;
+    border-radius: 12rpx;
+    box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.2);
+    z-index: 999;
+    padding: 0;
+}
+
+.context-menu .menu-item:active {
+    background-color: #f5f5f5;
+}
+
+.context-menu .menu-text {
+    color: #333;
+}
+
+.context-menu .menu-icon {
+    color: #333;
+}
+
+.context-menu .menu-divider {
+    background-color: #eee;
 }
 </style>

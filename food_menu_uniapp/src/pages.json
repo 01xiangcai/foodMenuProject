@@ -32,6 +32,12 @@
             }
         },
         {
+            "path": "pages/chat/member-select",
+            "style": {
+                "navigationBarTitleText": "选择联系人"
+            }
+        },
+        {
             "path": "pages/menu/add-dish",
             "style": {
                 "navigationBarTitleText": "添加菜品",

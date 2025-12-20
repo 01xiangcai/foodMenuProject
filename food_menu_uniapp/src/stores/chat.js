@@ -285,6 +285,29 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     /**
+     * 标记会话已读
+     */
+    const markConversationAsRead = async (conversation) => {
+        if (!conversation || !conversation.lastMessageId) return
+
+        try {
+            await chatApi.markAsRead(conversation.id, conversation.lastMessageId)
+
+            // 更新本地状态
+            const conv = conversations.value.find(c => c.id === conversation.id)
+            if (conv) {
+                const oldCount = conv.unreadCount || 0
+                conv.unreadCount = 0
+                totalUnreadCount.value = Math.max(0, totalUnreadCount.value - oldCount)
+            }
+            return true
+        } catch (e) {
+            console.error('标记已读失败', e)
+            return false
+        }
+    }
+
+    /**
      * 设置当前会话
      */
     const setCurrentConversation = (conversation) => {
@@ -382,6 +405,7 @@ export const useChatStore = defineStore('chat', () => {
         loadMoreMessages,
         sendMessage,
         revokeMessage,
+        markConversationAsRead,
         setCurrentConversation,
         openPrivateChat,
         openFamilyChat,

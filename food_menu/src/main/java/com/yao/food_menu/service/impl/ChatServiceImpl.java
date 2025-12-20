@@ -308,6 +308,7 @@ public class ChatServiceImpl implements ChatService {
         dto.setType(conversation.getType());
         dto.setFamilyId(conversation.getFamilyId());
         dto.setLastMessageContent(conversation.getLastMessageContent());
+        dto.setLastMessageId(conversation.getLastMessageId());
         dto.setLastMessageTime(conversation.getLastMessageTime());
         dto.setLastMessageTimeFormatted(formatMessageTime(conversation.getLastMessageTime()));
 
