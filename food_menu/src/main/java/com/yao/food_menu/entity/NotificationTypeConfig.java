@@ -104,6 +104,7 @@ public class NotificationTypeConfig implements Serializable {
     public static final String CODE_DISH_ACCEPTED = "DISH_ACCEPTED";
     public static final String CODE_LATE_ORDER_ACCEPTED = "LATE_ORDER_ACCEPTED";
     public static final String CODE_DISH_REJECTED = "DISH_REJECTED";
+    public static final String CODE_PAYMENT_SUCCESS = "PAYMENT_SUCCESS";
     public static final String CODE_REFUND_SUCCESS = "REFUND_SUCCESS";
     public static final String CODE_MEAL_SERVED = "MEAL_SERVED";
     public static final String CODE_SYSTEM_ANNOUNCE = "SYSTEM_ANNOUNCE";

@@ -145,7 +145,7 @@
           
           <!-- 订单备注 -->
           <view class="order-remark" v-if="member.remark">
-            <text class="remark-label">📝 备注：</text>
+            <text class="remark-label">备注</text>
             <text class="remark-content">{{ member.remark }}</text>
           </view>
         </view>
@@ -736,27 +736,32 @@ onMounted(() => {
 }
 
 .order-remark {
-  background: rgba(255, 193, 7, 0.1);
-  border-left: 4rpx solid #ffc107;
-  padding: 16rpx 20rpx;
-  margin-top: 16rpx;
-  border-radius: 8rpx;
+  background: var(--bg-input);
+  padding: 20rpx;
+  margin-top: 20rpx;
+  border-radius: 16rpx;
   display: flex;
-  flex-wrap: wrap;
-  gap: 8rpx;
+  align-items: flex-start;
+  gap: 16rpx;
 }
 
 .remark-label {
-  font-size: 24rpx;
-  color: #f59e0b;
+  font-size: 22rpx;
+  color: var(--accent-orange);
+  background: rgba(255, 159, 67, 0.15);
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
   font-weight: 600;
+  flex-shrink: 0;
+  margin-top: 4rpx;
 }
 
 .remark-content {
-  font-size: 24rpx;
+  font-size: 26rpx;
   color: var(--text-secondary);
   flex: 1;
   word-break: break-all;
+  line-height: 1.5;
 }
 
 .dish-list {

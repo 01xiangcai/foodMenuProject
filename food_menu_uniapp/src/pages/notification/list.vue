@@ -170,8 +170,8 @@ const navigateByNotificationType = (item) => {
     return
   }
   
-  // 退款通知 -> 跳转到钱包页面
-  if (typeCode === 'REFUND_SUCCESS') {
+  // 退款/消费通知 -> 跳转到钱包页面
+  if (typeCode === 'REFUND_SUCCESS' || typeCode === 'PAYMENT_SUCCESS') {
     uni.navigateTo({
       url: '/pages/wallet/index'
     })

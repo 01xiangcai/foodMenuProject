@@ -27,8 +27,9 @@ INSERT INTO `notification_type_config` (`code`, `name`, `title_template`, `conte
 ('DISH_ACCEPTED', '菜品采纳', '您的菜品已被采纳', '您点的{dishName}已被采纳，即将为您准备', 1, 3),
 ('LATE_ORDER_ACCEPTED', '迟到订单采纳', '您的迟到订单已被接受', '您的迟到订单菜品「{dishName}」已被采纳', 1, 4),
 ('DISH_REJECTED', '菜品拒绝', '菜品未被采纳', '很抱歉，您点的{dishName}本次未被采纳', 1, 5),
-('REFUND_SUCCESS', '退款成功', '退款到账通知', '{amount}元已退回您的钱包', 1, 6),
-('MEAL_SERVED', '开饭通知', '开饭啦！', '今日{mealPeriod}已出餐，快来享用吧！', 1, 7),
+('PAYMENT_SUCCESS', '消费成功', '消费成功通知', '您已成功消费{amount}元，余额{balance}元', 1, 6),
+('REFUND_SUCCESS', '退款成功', '退款到账通知', '{amount}元已退回您的钱包', 1, 7),
+('MEAL_SERVED', '开饭通知', '开饭啦！', '今日{mealPeriod}已出餐，快来享用吧！', 1, 8),
 ('SYSTEM_ANNOUNCE', '系统公告', '{title}', '{content}', 1, 99)
 ON DUPLICATE KEY UPDATE `update_time` = NOW();
 

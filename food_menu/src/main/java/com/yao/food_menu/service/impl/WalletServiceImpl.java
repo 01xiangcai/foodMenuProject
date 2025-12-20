@@ -22,6 +22,8 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 钱包服务实现类
@@ -216,6 +218,18 @@ public class WalletServiceImpl extends ServiceImpl<UserWalletMapper, UserWallet>
         transaction.setFamilyId(wallet.getFamilyId()); // 设置家庭ID
 
         transactionMapper.insert(transaction);
+
+        // 发送消费成功通知
+        try {
+            Long userId = Long.parseLong(wxUserId);
+            Map<String, Object> params = new HashMap<>();
+            params.put("amount", amount.setScale(2, java.math.RoundingMode.HALF_UP));
+            params.put("balance", newBalance.setScale(2, java.math.RoundingMode.HALF_UP));
+            systemNotificationService.sendByType(userId, wallet.getFamilyId(),
+                    com.yao.food_menu.entity.NotificationTypeConfig.CODE_PAYMENT_SUCCESS, params);
+        } catch (Exception e) {
+            log.error("发送消费成功通知失败", e);
+        }
 
         return true;
     }
