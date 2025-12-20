@@ -55,7 +55,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, defineEmits, defineProps, watch } from 'vue'
+import { ref, onMounted, defineEmits, defineProps, watch, nextTick } from 'vue'
 import { useTheme } from '@/stores/theme'
 import { request } from '@/utils/request'
 
@@ -170,6 +170,8 @@ const selectPeriod = (period) => {
     return
   }
   selectedPeriod.value = period
+  // 保存到本地存储
+  uni.setStorageSync('selected_meal_period', period)
   emit('update:modelValue', period)
   emit('change', period)
   // 选择后自动折叠
@@ -190,11 +192,23 @@ const loadMealStatus = async () => {
       })
       mealStatus.value = statusMap
       
-      // 检查当前选中的餐次是否已出餐，如果是则自动切换到第一个可用餐次
-      if (selectedPeriod.value && statusMap[selectedPeriod.value] === 3) {
-        const availablePeriods = ['BREAKFAST', 'LUNCH', 'DINNER']
-        const firstAvailable = availablePeriods.find(p => statusMap[p] !== 3)
+      const availablePeriods = ['BREAKFAST', 'LUNCH', 'DINNER']
+      const firstAvailable = availablePeriods.find(p => statusMap[p] !== 3)
+      
+      // 场景1：没有选中餐次时，选择第一个可用餐次
+      if (!selectedPeriod.value) {
         if (firstAvailable) {
+          selectedPeriod.value = firstAvailable
+          emit('update:modelValue', firstAvailable)
+          emit('change', firstAvailable)
+        }
+        return
+      }
+      
+      // 场景2：已有选中餐次，但该餐次已出餐，需要切换
+      if (statusMap[selectedPeriod.value] === 3) {
+        if (firstAvailable) {
+          await nextTick()
           selectedPeriod.value = firstAvailable
           emit('update:modelValue', firstAvailable)
           emit('change', firstAvailable)
@@ -231,18 +245,28 @@ const isServed = (period) => {
   return mealStatus.value[period] === 3
 }
 
-onMounted(() => {
+onMounted(async () => {
   updateTime()
   setInterval(updateTime, 60000) // 每分钟更新一次时间
   loadConfig()
-  loadMealStatus() // 加载餐次状态
   
-  if (!props.modelValue) {
-    // 没有传入值,先设置默认值,然后尝试获取当前餐次
-    setDefaultPeriod()
-    getCurrentPeriod()
-  } else {
+  // 1. 优先读取本地存储的用户选择
+  const savedPeriod = uni.getStorageSync('selected_meal_period')
+  if (savedPeriod) {
+    selectedPeriod.value = savedPeriod
+    emit('update:modelValue', savedPeriod)
+    emit('change', savedPeriod)
+  } else if (props.modelValue) {
+    // 其次使用外部传入值
     selectedPeriod.value = props.modelValue
+  }
+  
+  // 2. 加载餐次状态，如果当前选中餐次已出餐会自动切换
+  await loadMealStatus()
+  
+  // 3. 如果还是没有选中餐次，从后端获取推荐餐次
+  if (!selectedPeriod.value) {
+    await getCurrentPeriod()
   }
 })
 </script>
