@@ -16,6 +16,7 @@ import MarketingView from '@/views/marketing/MarketingView.vue';
 import ProfileView from '@/views/profile/ProfileView.vue';
 import MealConfigView from '@/views/meal/MealConfigView.vue';
 import DailyMealOrderStatistics from '@/views/meal/DailyMealOrderStatistics.vue';
+import NotificationTypesView from '@/views/notifications/NotificationTypesView.vue';
 
 
 const routes: RouteRecordRaw[] = [
@@ -121,6 +122,12 @@ const routes: RouteRecordRaw[] = [
         name: 'daily-meal-orders',
         component: DailyMealOrderStatistics,
         meta: { title: '今日菜单统计' }
+      },
+      {
+        path: 'notification-types',
+        name: 'notification-types',
+        component: NotificationTypesView,
+        meta: { title: '通知管理' }
       }
     ]
   }

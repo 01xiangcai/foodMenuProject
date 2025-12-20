@@ -58,6 +58,10 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
     @Autowired
     private com.yao.food_menu.service.DailyMealPublishItemService dailyMealPublishItemService;
 
+    @Autowired
+    @org.springframework.context.annotation.Lazy
+    private com.yao.food_menu.service.SystemNotificationService systemNotificationService;
+
     private static final AtomicLong orderCounter = new AtomicLong(1);
 
     @Override
@@ -509,6 +513,23 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
                         }
                     } catch (Exception e) {
                         log.error("更新菜品热度统计失败", e);
+                    }
+
+                    // 发送迟到订单采纳通知
+                    try {
+                        List<String> dishNameList = publishItems.stream()
+                                .map(com.yao.food_menu.entity.DailyMealPublishItem::getDishName)
+                                .collect(Collectors.toList());
+                        Map<String, Object> params = new HashMap<>();
+                        params.put("dishName", String.join("、", dishNameList));
+                        systemNotificationService.sendByType(
+                                order.getUserId(),
+                                order.getFamilyId(),
+                                com.yao.food_menu.entity.NotificationTypeConfig.CODE_LATE_ORDER_ACCEPTED,
+                                params);
+                        log.info("迟到订单采纳通知已发送: userId={}", order.getUserId());
+                    } catch (Exception e) {
+                        log.warn("发送迟到订单采纳通知失败: {}", e.getMessage());
                     }
                 }
 

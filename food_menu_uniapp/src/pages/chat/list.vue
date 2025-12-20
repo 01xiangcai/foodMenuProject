@@ -28,6 +28,20 @@
 
             <!-- 会话列表 -->
             <view v-else>
+                <!-- 系统通知入口 -->
+                <view class="notification-entry" @click="goToNotifications">
+                    <view class="notification-icon">
+                        <text class="icon-emoji">🔔</text>
+                        <view v-if="unreadNotificationCount > 0" class="notification-badge">
+                            {{ unreadNotificationCount > 99 ? '99+' : unreadNotificationCount }}
+                        </view>
+                    </view>
+                    <view class="notification-content">
+                        <text class="notification-title">系统通知</text>
+                        <text class="notification-desc">查看餐次发布、菜品采纳等通知</text>
+                    </view>
+                    <text class="notification-arrow">›</text>
+                </view>
                 <view
                     v-for="conv in filteredConversations"
                     :key="conv.id"
@@ -123,9 +137,13 @@ import { onShow } from '@dcloudio/uni-app'
 import { useChatStore } from '../../stores/chat'
 import { useTheme } from '../../stores/theme'
 import { getFamilyMembers } from '../../api/chat'
+import { getUnreadCount } from '../../api/notification'
 
 const chatStore = useChatStore()
 const { currentTheme } = useTheme()
+
+// 系统通知未读数量
+const unreadNotificationCount = ref(0)
 
 // 自定义弹窗状态
 const showDropdown = ref(false)
@@ -147,7 +165,28 @@ onShow(() => {
     chatStore.fetchConversations()
     // 清除当前会话状态（防止从聊天页返回后状态未清除）
     chatStore.setCurrentConversation(null)
+    // 获取系统通知未读数量
+    fetchUnreadNotifications()
 })
+
+// 获取系统通知未读数量
+const fetchUnreadNotifications = async () => {
+    try {
+        const res = await getUnreadCount()
+        if (res.code === 1 && res.data) {
+            unreadNotificationCount.value = res.data.count || 0
+        }
+    } catch (error) {
+        console.error('获取未读通知数量失败:', error)
+    }
+}
+
+// 跳转到系统通知页面
+const goToNotifications = () => {
+    uni.navigateTo({
+        url: '/pages/notification/list'
+    })
+}
 
 // 搜索关键词
 const searchKeyword = ref('')
@@ -664,5 +703,95 @@ onUnmounted(() => {
 
 .context-menu .menu-divider {
     background-color: #eee;
+}
+
+/* 系统通知入口样式 */
+.notification-entry {
+    display: flex;
+    align-items: center;
+    padding: 28rpx 30rpx;
+    background: linear-gradient(135deg, #fff9f5, #fff5ed);
+    border-bottom: 1rpx solid #f0e6df;
+    margin-bottom: 16rpx;
+    
+    &:active {
+        background: linear-gradient(135deg, #fff3ec, #ffebe0);
+    }
+}
+
+.notification-icon {
+    position: relative;
+    width: 96rpx;
+    height: 96rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #FF7D58, #FF9A6C);
+    border-radius: 20rpx;
+    margin-right: 24rpx;
+    box-shadow: 0 4rpx 12rpx rgba(255, 125, 88, 0.3);
+    
+    .icon-emoji {
+        font-size: 48rpx;
+    }
+    
+    .notification-badge {
+        position: absolute;
+        top: -10rpx;
+        right: -10rpx;
+        min-width: 36rpx;
+        height: 36rpx;
+        line-height: 36rpx;
+        text-align: center;
+        font-size: 22rpx;
+        color: #fff;
+        background-color: #f44336;
+        border-radius: 18rpx;
+        padding: 0 8rpx;
+        border: 2rpx solid #fff;
+    }
+}
+
+.notification-content {
+    flex: 1;
+    
+    .notification-title {
+        display: block;
+        font-size: 32rpx;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 8rpx;
+    }
+    
+    .notification-desc {
+        display: block;
+        font-size: 26rpx;
+        color: #888;
+    }
+}
+
+.notification-arrow {
+    font-size: 40rpx;
+    color: #ccc;
+    font-weight: 300;
+}
+
+.dark-mode {
+    .notification-entry {
+        background: linear-gradient(135deg, #2d2520, #352a22);
+        border-bottom-color: #3d3530;
+    }
+    
+    .notification-content .notification-title {
+        color: #e0e0e0;
+    }
+    
+    .notification-content .notification-desc {
+        color: #888;
+    }
+    
+    .notification-arrow {
+        color: #666;
+    }
 }
 </style>

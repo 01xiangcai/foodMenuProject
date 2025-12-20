@@ -407,3 +407,31 @@ export const addActivityPrize = (activityId: number, data: PrizeConfigPayload) =
 export const updateActivityPrize = (prizeId: number, data: PrizeConfigPayload) =>
   http.put(`/admin/marketing/activity/prize/${prizeId}`, data);
 export const deleteActivityPrize = (prizeId: number) => http.delete(`/admin/marketing/activity/prize/${prizeId}`);
+
+// 通知类型配置
+export type NotificationTypeConfig = {
+  id?: number;
+  code: string;
+  name: string;
+  titleTemplate: string;
+  contentTemplate: string;
+  icon?: string;
+  isEnabled?: number;
+  isSystem?: number;
+  sortOrder?: number;
+};
+
+export const fetchNotificationTypes = () => http.get('/admin/notification-type/list');
+export const createNotificationType = (data: NotificationTypeConfig) => http.post('/admin/notification-type', data);
+export const updateNotificationType = (id: number, data: NotificationTypeConfig) => http.put(`/admin/notification-type/${id}`, data);
+export const toggleNotificationType = (id: number) => http.put(`/admin/notification-type/${id}/toggle`);
+export const deleteNotificationType = (id: number) => http.delete(`/admin/notification-type/${id}`);
+
+// 系统公告
+export type BroadcastPayload = {
+  title: string;
+  content: string;
+  familyId?: number | null;
+};
+
+export const sendBroadcast = (data: BroadcastPayload) => http.post('/admin/notification/broadcast', data);

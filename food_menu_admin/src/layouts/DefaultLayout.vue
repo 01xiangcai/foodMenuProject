@@ -136,6 +136,7 @@ const menuOptions: MenuOption[] = [
   { label: renderLabel('标签管理', '/tags'), key: 'tags', icon: renderIcon('i-tabler-tags') },
   { label: renderLabel('钱包管理', '/wallet'), key: 'wallet', icon: renderIcon('i-tabler-wallet') },
   { label: renderLabel('营销活动', '/marketing'), key: 'marketing', icon: renderIcon('i-tabler-gift') },
+  { label: renderLabel('通知管理', '/notification-types'), key: 'notification-types', icon: renderIcon('i-tabler-bell') },
   { label: renderLabel('操作日志', '/operationLogs'), key: 'operationLogs', icon: renderIcon('i-tabler-file-text') },
   // { label: renderLabel('图片迁移', '/migration'), key: 'migration', icon: renderIcon('i-tabler-cloud-upload') },
   { label: renderLabel('系统设置', '/settings'), key: 'settings', icon: renderIcon('i-tabler-settings') }

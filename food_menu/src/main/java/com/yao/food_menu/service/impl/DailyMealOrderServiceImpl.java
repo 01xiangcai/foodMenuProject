@@ -18,8 +18,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -51,6 +53,9 @@ public class DailyMealOrderServiceImpl extends ServiceImpl<DailyMealOrderMapper,
 
     @Autowired
     private com.yao.food_menu.service.DishStatisticsService dishStatisticsService;
+
+    @Autowired
+    private com.yao.food_menu.service.SystemNotificationService systemNotificationService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -182,6 +187,9 @@ public class DailyMealOrderServiceImpl extends ServiceImpl<DailyMealOrderMapper,
         }
 
         // 如果最终确定的菜品ID列表不为空, 则执行发布逻辑
+        // 准备发布记录列表（移到if块外以便后续发送通知使用）
+        List<com.yao.food_menu.entity.DailyMealPublishItem> publishItems = new ArrayList<>();
+
         if (!dishIds.isEmpty()) {
             // 获取该大订单下的所有小订单
             LambdaQueryWrapper<Orders> ordersWrapper = new LambdaQueryWrapper<>();
@@ -189,9 +197,6 @@ public class DailyMealOrderServiceImpl extends ServiceImpl<DailyMealOrderMapper,
             // 只处理正常订单(非迟到订单)
             ordersWrapper.eq(Orders::getIsLateOrder, Orders.LATE_ORDER_NO);
             List<Orders> ordersList = ordersMapper.selectList(ordersWrapper);
-
-            // 准备发布记录列表
-            List<com.yao.food_menu.entity.DailyMealPublishItem> publishItems = new ArrayList<>();
 
             // 遍历每个小订单,查找选中的菜品
             for (Orders order : ordersList) {
@@ -303,6 +308,13 @@ public class DailyMealOrderServiceImpl extends ServiceImpl<DailyMealOrderMapper,
 
         // 最后统一更新一次统计数据
         updateStatistics(dailyMealOrderId);
+
+        // ========== 发送系统通知 ==========
+        try {
+            sendConfirmNotifications(dailyMealOrder, publishItems);
+        } catch (Exception e) {
+            log.error("发送确认通知失败", e);
+        }
     }
 
     @Override
@@ -392,6 +404,13 @@ public class DailyMealOrderServiceImpl extends ServiceImpl<DailyMealOrderMapper,
         }
 
         log.info("餐次订单 {} 已标记为已出餐，共更新 {} 个个人订单状态为已完成", dailyMealOrderId, updatedCount);
+
+        // ========== 发送开饭通知 ==========
+        try {
+            sendServeNotification(dailyMealOrder);
+        } catch (Exception e) {
+            log.error("发送开饭通知失败", e);
+        }
     }
 
     @Override
@@ -442,5 +461,82 @@ public class DailyMealOrderServiceImpl extends ServiceImpl<DailyMealOrderMapper,
         stats.put("pendingCount", collecting);
 
         return stats;
+    }
+
+    // ========== 通知辅助方法 ==========
+
+    /**
+     * 发送确认发布相关通知
+     */
+    private void sendConfirmNotifications(DailyMealOrder dailyMealOrder,
+            List<com.yao.food_menu.entity.DailyMealPublishItem> publishItems) {
+        Long familyId = dailyMealOrder.getFamilyId();
+        String mealPeriodName = getMealPeriodName(dailyMealOrder.getMealPeriod());
+
+        // 1. 发送餐次发布通知（通知家庭所有用户）
+        Map<String, Object> publishParams = new HashMap<>();
+        publishParams.put("mealPeriod", mealPeriodName);
+        publishParams.put("dishCount", publishItems.size());
+        publishParams.put("dailyMealOrderId", dailyMealOrder.getId());
+        systemNotificationService.sendToFamilyByType(familyId,
+                com.yao.food_menu.entity.NotificationTypeConfig.CODE_MEAL_PUBLISHED, publishParams);
+
+        // 2. 按用户分组已采纳的菜品
+        Map<Long, List<String>> userAcceptedDishes = new HashMap<>();
+        for (com.yao.food_menu.entity.DailyMealPublishItem item : publishItems) {
+            userAcceptedDishes.computeIfAbsent(item.getUserId(), k -> new ArrayList<>())
+                    .add(item.getDishName());
+        }
+
+        // 3. 发送菜品采纳通知
+        for (Map.Entry<Long, List<String>> entry : userAcceptedDishes.entrySet()) {
+            Long userId = entry.getKey();
+            List<String> dishes = entry.getValue();
+            String dishNames = String.join("、", dishes);
+
+            Map<String, Object> acceptParams = new HashMap<>();
+            acceptParams.put("dishName", dishNames);
+            acceptParams.put("dishCount", dishes.size());
+            systemNotificationService.sendByType(userId, familyId,
+                    com.yao.food_menu.entity.NotificationTypeConfig.CODE_DISH_ACCEPTED, acceptParams);
+        }
+
+        log.info("发送确认通知完成: familyId={}, publishItemCount={}", familyId, publishItems.size());
+    }
+
+    /**
+     * 发送开饭通知
+     */
+    private void sendServeNotification(DailyMealOrder dailyMealOrder) {
+        Long familyId = dailyMealOrder.getFamilyId();
+        String mealPeriodName = getMealPeriodName(dailyMealOrder.getMealPeriod());
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("mealPeriod", mealPeriodName);
+        params.put("dailyMealOrderId", dailyMealOrder.getId());
+
+        systemNotificationService.sendToFamilyByType(familyId,
+                com.yao.food_menu.entity.NotificationTypeConfig.CODE_MEAL_SERVED, params);
+
+        log.info("发送开饭通知完成: familyId={}, mealPeriod={}", familyId, mealPeriodName);
+    }
+
+    /**
+     * 获取餐次名称
+     */
+    private String getMealPeriodName(String mealPeriod) {
+        if (mealPeriod == null) {
+            return "餐次";
+        }
+        switch (mealPeriod.toUpperCase()) {
+            case "BREAKFAST":
+                return "早餐";
+            case "LUNCH":
+                return "午餐";
+            case "DINNER":
+                return "晚餐";
+            default:
+                return mealPeriod;
+        }
     }
 }

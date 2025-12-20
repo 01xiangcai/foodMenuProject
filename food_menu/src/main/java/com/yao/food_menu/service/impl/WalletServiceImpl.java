@@ -37,6 +37,10 @@ public class WalletServiceImpl extends ServiceImpl<UserWalletMapper, UserWallet>
     @Autowired
     private WxUserMapper wxUserMapper;
 
+    @Autowired
+    @org.springframework.context.annotation.Lazy
+    private com.yao.food_menu.service.SystemNotificationService systemNotificationService;
+
     @Override
     public Page<UserWallet> pageWallets(WalletQueryDto queryDto) {
         Page<UserWallet> page = new Page<>(queryDto.getPage(), queryDto.getPageSize());
@@ -359,6 +363,21 @@ public class WalletServiceImpl extends ServiceImpl<UserWalletMapper, UserWallet>
         transaction.setFamilyId(wallet.getFamilyId()); // 设置家庭ID
 
         transactionMapper.insert(transaction);
+
+        // 发送退款成功通知
+        try {
+            java.util.Map<String, Object> params = new java.util.HashMap<>();
+            params.put("amount", amount.toString());
+            params.put("orderNo", orderNo);
+            systemNotificationService.sendByType(
+                    Long.parseLong(wxUserId),
+                    wallet.getFamilyId(),
+                    com.yao.food_menu.entity.NotificationTypeConfig.CODE_REFUND_SUCCESS,
+                    params);
+        } catch (Exception e) {
+            // 通知发送失败不影响退款主流程
+            org.slf4j.LoggerFactory.getLogger(WalletServiceImpl.class).warn("退款通知发送失败: {}", e.getMessage());
+        }
     }
 
     @Override

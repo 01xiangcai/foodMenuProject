@@ -29,6 +29,7 @@ public class WebSocketMessage {
     public static final String TYPE_READ_ACK = "READ_ACK"; // 已读确认
     public static final String TYPE_ERROR = "ERROR"; // 错误消息
     public static final String TYPE_CONNECTED = "CONNECTED"; // 连接成功
+    public static final String TYPE_SYSTEM_NOTIFICATION = "SYSTEM_NOTIFICATION"; // 系统通知
 
     public WebSocketMessage() {
     }
