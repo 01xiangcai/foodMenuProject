@@ -12,6 +12,13 @@ http.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  // 添加用户ID到请求头
+  const userId = localStorage.getItem('user_id');
+  if (userId) {
+    config.headers['user-id'] = userId;
+  }
+
   return config;
 });
 

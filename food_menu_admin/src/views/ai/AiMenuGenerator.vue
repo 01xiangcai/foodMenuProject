@@ -118,7 +118,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { NButton, NForm, NFormItem, NInput, NTag, useMessage } from 'naive-ui';
-import { request } from '@/utils/request';
+import http from '@/api/http';
 
 const message = useMessage();
 
@@ -148,23 +148,19 @@ const weekDays = [
 const generateMenu = async () => {
   generating.value = true;
   try {
-    const res = await request({
-      url: '/admin/ai/generate-weekly-menu',
-      method: 'POST',
-      data: {
-        preferences: formData.value.preferences
-      }
+    const res = await http.post('/admin/ai/generate-weekly-menu', {
+      preferences: formData.value.preferences
     });
 
-    if (res.code === 1 && res.data) {
+    if (res.data) {
       menuData.value = res.data;
       message.success('菜单生成成功!');
     } else {
-      message.error(res.msg || '生成失败');
+      message.error('生成失败');
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('生成菜单失败:', error);
-    message.error('生成失败,请稍后重试');
+    message.error(error.message || '生成失败,请稍后重试');
   } finally {
     generating.value = false;
   }

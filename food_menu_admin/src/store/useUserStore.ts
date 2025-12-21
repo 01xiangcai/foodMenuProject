@@ -37,8 +37,21 @@ export const useUserStore = defineStore('user', () => {
     loading.value = true;
     try {
       const result = await login({ username, password, type: 1 });
-      token.value = result.data;
-      localStorage.setItem('fm_token', result.data);
+
+      // 兼容新旧格式
+      if (typeof result.data === 'object' && result.data.token) {
+        // 新格式: { token, userId }
+        token.value = result.data.token;
+        localStorage.setItem('fm_token', result.data.token);
+        if (result.data.userId) {
+          localStorage.setItem('user_id', result.data.userId.toString());
+        }
+      } else if (typeof result.data === 'string') {
+        // 旧格式: 只有token字符串
+        token.value = result.data;
+        localStorage.setItem('fm_token', result.data);
+      }
+
       await loadProfile();
       return result;
     } finally {
@@ -49,6 +62,7 @@ export const useUserStore = defineStore('user', () => {
   const logout = () => {
     token.value = null;
     localStorage.removeItem('fm_token');
+    localStorage.removeItem('user_id');
     profile.value = null;
   };
 

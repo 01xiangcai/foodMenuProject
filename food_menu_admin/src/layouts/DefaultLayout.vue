@@ -130,6 +130,7 @@ const menuOptions: MenuOption[] = [
   { label: renderLabel('订单记录', '/orders'), key: 'orders', icon: renderIcon('i-tabler-activity-heartbeat') },
   { label: renderLabel('餐次订单管理', '/daily-meal-orders'), key: 'daily-meal-orders', icon: renderIcon('i-tabler-clipboard-list') },
   { label: renderLabel('餐次配置', '/meal-config'), key: 'meal-config', icon: renderIcon('i-tabler-clock-hour-3') },
+  { label: renderLabel('AI菜单生成', '/ai-menu'), key: 'ai-menu', icon: renderIcon('i-tabler-robot') },
   { label: renderLabel('轮播图管理', '/banners'), key: 'banners', icon: renderIcon('i-tabler-photo') },
   { label: renderLabel('用户管理', '/users'), key: 'users', icon: renderIcon('i-tabler-users') },
   { label: renderLabel('家庭管理', '/families'), key: 'families', icon: renderIcon('i-tabler-home-2') },

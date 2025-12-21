@@ -17,6 +17,7 @@ import ProfileView from '@/views/profile/ProfileView.vue';
 import MealConfigView from '@/views/meal/MealConfigView.vue';
 import DailyMealOrderStatistics from '@/views/meal/DailyMealOrderStatistics.vue';
 import NotificationTypesView from '@/views/notifications/NotificationTypesView.vue';
+import AiMenuGenerator from '@/views/ai/AiMenuGenerator.vue';
 
 
 const routes: RouteRecordRaw[] = [
@@ -128,6 +129,12 @@ const routes: RouteRecordRaw[] = [
         name: 'notification-types',
         component: NotificationTypesView,
         meta: { title: '通知管理' }
+      },
+      {
+        path: 'ai-menu',
+        name: 'ai-menu',
+        component: AiMenuGenerator,
+        meta: { title: 'AI菜单生成' }
       }
     ]
   }

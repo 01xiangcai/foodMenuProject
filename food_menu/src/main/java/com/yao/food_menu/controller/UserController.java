@@ -52,7 +52,7 @@ public class UserController {
     @com.yao.food_menu.common.annotation.RateLimiter(qps = 5, timeout = 500, message = "登录请求过于频繁，请稍后再试", limitType = com.yao.food_menu.common.annotation.RateLimiter.LimitType.IP)
     @com.yao.food_menu.common.annotation.OperationLog(operationType = com.yao.food_menu.common.annotation.OperationLog.OperationType.LOGIN, operationModule = "用户", operationDesc = "管理员登录", recordParams = true, recordResult = false)
     @PostMapping("/login")
-    public Result<String> login(@RequestBody LoginDto loginDto) {
+    public Result<com.yao.food_menu.dto.LoginResponse> login(@RequestBody LoginDto loginDto) {
         // 日志中不输出密码等敏感信息，只输出登录类型和用户标识
         log.info("用户登录请求: 登录类型={}, 用户名={}, 手机号={}",
                 loginDto.getType(), loginDto.getUsername(),
@@ -60,8 +60,14 @@ public class UserController {
 
         try {
             String token = userService.login(loginDto);
-            log.info("用户登录成功: 用户名={}", loginDto.getUsername());
-            return Result.success(token);
+
+            // 从token中解析用户ID
+            Long userId = jwtUtil.getUserId(token);
+
+            // 返回token和userId
+            com.yao.food_menu.dto.LoginResponse response = new com.yao.food_menu.dto.LoginResponse(token, userId);
+            log.info("用户登录成功: 用户名={}, userId={}", loginDto.getUsername(), userId);
+            return Result.success(response);
         } catch (Exception e) {
             log.warn("用户登录失败: 用户名={}, 原因={}", loginDto.getUsername(), e.getMessage());
             return Result.error(e.getMessage());
