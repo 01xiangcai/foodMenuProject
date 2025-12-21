@@ -116,9 +116,9 @@
           <view class="quick-content">
              <!-- 模拟图标 -->
             <view class="quick-icon-placeholder">
-               <text v-if="index===0">👆</text>
-               <text v-if="index===1">📋</text>
-               <text v-if="index===2">📣</text>
+               <text v-if="index===0">🤖</text>
+               <text v-if="index===1">👆</text>
+               <text v-if="index===2"></text>
             </view>
             <text class="action-label">{{ item.label }}</text>
             <!-- <text class="action-desc">{{ item.desc }}</text> -->
@@ -174,8 +174,8 @@ const { currentTheme, loadTheme, applyCurrentTheme } = useTheme()
 const currentTime = ref('')
 const banners = ref([])
 const quickActions = ref([
+  { label: 'AI助手', desc: '智能推荐菜品', link: '/pages/ai/ai-assistant' },
   { label: '一键叫饭', desc: '告诉家人开饭啦', link: '/pages/order/list' },
-  { label: '今日菜单', desc: '挑选 3 道拿手菜', link: '/pages/menu/menu' },
   { label: '营销活动', desc: '参与抽奖赢好礼', link: '/pages/marketing/activity-list' }
 ])
 const featuredDishes = ref([])
@@ -712,13 +712,13 @@ onShow(() => {
         }
         
         /* 每个按钮使用不同的淡彩背景 */
-        &.quick-card-0 { /* 一键叫饭 - 蓝/紫 */
+        &.quick-card-0 { /* AI助手 - 紫/粉 */
+             background: linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%);
+             .quick-icon-placeholder { background: linear-gradient(135deg, #a855f7, #ec4899); }
+        }
+        &.quick-card-1 { /* 一键叫饭 - 蓝/紫 */
              background: linear-gradient(135deg, rgba(20, 184, 255, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%);
              .quick-icon-placeholder { background: linear-gradient(135deg, #14b8ff, #a855f7); }
-        }
-        &.quick-card-1 { /* 今日菜单 - 橙/红 */
-            background: linear-gradient(135deg, rgba(255, 159, 67, 0.1) 0%, rgba(255, 125, 88, 0.1) 100%);
-             .quick-icon-placeholder { background: linear-gradient(135deg, #ff9f43, #ff7d58); }
         }
         &.quick-card-2 { /* 营销活动 - 绿/青 */
              background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(52, 211, 153, 0.1) 100%);

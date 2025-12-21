@@ -162,6 +162,12 @@
                 "navigationBarTitleText": "系统通知",
                 "enablePullDownRefresh": true
             }
+        },
+        {
+            "path": "pages/ai/ai-assistant",
+            "style": {
+                "navigationBarTitleText": "AI美食助手"
+            }
         }
     ],
     "globalStyle": {

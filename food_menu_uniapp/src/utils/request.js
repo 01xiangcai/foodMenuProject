@@ -22,6 +22,9 @@ export const request = (options = {}) => {
     // 获取 token
     const token = uni.getStorageSync('fm_token')
 
+    // 获取微信用户ID
+    const wxUserId = uni.getStorageSync('wx_user_id')
+
     // 合并请求头
     const finalHeader = {
         'content-type': 'application/json',
@@ -30,6 +33,11 @@ export const request = (options = {}) => {
 
     if (token) {
         finalHeader.Authorization = `Bearer ${token}`
+    }
+
+    // 添加微信用户ID到请求头
+    if (wxUserId) {
+        finalHeader['wx-user-id'] = wxUserId
     }
 
     return new Promise((resolve, reject) => {

@@ -150,12 +150,15 @@ const handleLogin = async () => {
 
     // 兼容多种响应格式
     let token = null
+    let userId = null
+    
     if (res && res.data) {
-      // 格式1: { data: { token: 'xxx' } }
-      if (res.data.token) {
+      // 新格式: { data: { token: 'xxx', userId: 123 } }
+      if (typeof res.data === 'object' && res.data.token) {
         token = res.data.token
+        userId = res.data.userId
       }
-      // 格式2: { data: 'token_string' }
+      // 旧格式: { data: 'token_string' }
       else if (typeof res.data === 'string') {
         token = res.data
       }
@@ -165,6 +168,12 @@ const handleLogin = async () => {
       // 存储token
       uni.setStorageSync('fm_token', token)
       console.log('Token已存储:', token.substring(0, 20) + '...')
+      
+      // 存储用户ID
+      if (userId) {
+        uni.setStorageSync('wx_user_id', userId)
+        console.log('用户ID已存储:', userId)
+      }
       
       // 验证token是否存储成功
       const storedToken = uni.getStorageSync('fm_token')

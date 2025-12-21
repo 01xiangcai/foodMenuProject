@@ -67,12 +67,18 @@ public class WxUserController {
     @Operation(summary = "用户登录", description = "支持用户名/密码登录(type=1)和手机号/验证码登录(type=2)")
     @com.yao.food_menu.common.annotation.RateLimiter(qps = 5, timeout = 500, message = "登录请求过于频繁，请稍后再试", limitType = com.yao.food_menu.common.annotation.RateLimiter.LimitType.IP)
     @PostMapping("/login")
-    public Result<String> login(@RequestBody LoginDto loginDto) {
+    public Result<com.yao.food_menu.dto.LoginResponse> login(@RequestBody LoginDto loginDto) {
         log.info("微信用户登录: {}", loginDto);
 
         try {
             String token = wxUserService.login(loginDto);
-            return Result.success(token);
+
+            // 从token中解析用户ID
+            Long userId = jwtUtil.getUserId(token);
+
+            // 返回token和userId
+            com.yao.food_menu.dto.LoginResponse response = new com.yao.food_menu.dto.LoginResponse(token, userId);
+            return Result.success(response);
         } catch (Exception e) {
             log.error("登录失败: {}", e.getMessage());
             return Result.error(e.getMessage());
