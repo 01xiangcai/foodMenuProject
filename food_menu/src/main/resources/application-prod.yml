@@ -127,3 +127,29 @@ logging:
   pattern:
     # 文件输出格式
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"
+
+
+# AI服务配置
+ai:
+  # 当前使用的AI服务提供商: silicon_flow, qwen, ollama
+  provider: silicon_flow
+  
+  # 硅基流动配置
+  silicon-flow:
+    api-key: ${AI_SILICON_FLOW_API_KEY:sk-cwdjbdkgrdmctlfbukcacxdgwyfcfoqitlwnfjhsdkcggpni}
+    base-url: https://api.siliconflow.cn/v1
+    model: Qwen/Qwen2.5-7B-Instruct
+    max-tokens: 2000
+    temperature: 0.7
+    timeout: 30000
+  
+  # 通义千问配置(预留)
+  qwen:
+    api-key: ${AI_QWEN_API_KEY:}
+    base-url: https://dashscope.aliyuncs.com/api/v1
+    model: qwen-turbo
+  
+  # Ollama配置(预留)
+  ollama:
+    base-url: http://localhost:11434
+    model: qwen2.5:7b
