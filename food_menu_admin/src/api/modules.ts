@@ -204,6 +204,7 @@ export type DishTagQuery = {
   page: number;
   pageSize: number;
   name?: string;
+  familyId?: number | null; // 家庭ID（超级管理员可以筛选特定家庭）
 };
 
 export type DishTagPayload = {
@@ -211,6 +212,7 @@ export type DishTagPayload = {
   name: string;
   icon: string;
   sort?: number;
+  familyId?: number; // 家庭ID（超级管理员可以设置）
 };
 
 export const fetchDishTags = (params: DishTagQuery) => http.get('/dish-tag/page', { params });

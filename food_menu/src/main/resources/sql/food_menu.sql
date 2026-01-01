@@ -332,7 +332,7 @@ CREATE TABLE `dish_tag`  (
   `family_id` bigint NULL DEFAULT NULL COMMENT '家庭ID',
   `deleted` int NULL DEFAULT 0 COMMENT '逻辑删除 0:未删除 1:已删除',
   PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `uk_name`(`name` ASC) USING BTREE COMMENT '标签名称唯一索引',
+  UNIQUE INDEX `uk_name_family`(`name` ASC, `family_id` ASC) USING BTREE COMMENT '标签名称+家庭唯一索引',
   INDEX `idx_type`(`type` ASC) USING BTREE COMMENT '类型索引',
   INDEX `idx_status`(`status` ASC) USING BTREE COMMENT '状态索引',
   INDEX `idx_family_id`(`family_id` ASC) USING BTREE

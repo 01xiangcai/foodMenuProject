@@ -7,6 +7,15 @@
           <p>管理菜品标签和图标配置</p>
         </div>
         <div class="table-actions">
+          <NSelect
+            v-if="isSuperAdmin"
+            v-model:value="selectedFamilyId"
+            :options="familyFilterOptions"
+            placeholder="选择家庭"
+            clearable
+            style="width: 180px"
+            @update:value="handleFamilyChange"
+          />
           <NInput
             v-model:value="searchName"
             clearable
@@ -35,6 +44,14 @@
       <NForm :model="tagModal.form" label-placement="left" label-width="80" @submit.prevent>
         <NFormItem label="标签名称" required>
           <NInput v-model:value="tagModal.form.name" placeholder="例如：川菜、辣、下饭" />
+        </NFormItem>
+        <NFormItem v-if="isSuperAdmin" label="所属家庭" required>
+          <NSelect
+            v-model:value="tagModal.form.familyId"
+            :options="familyOptions"
+            placeholder="请选择家庭"
+            clearable
+          />
         </NFormItem>
         <NFormItem label="标签图标" required>
           <div class="icon-selector">
@@ -76,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { h, onMounted, reactive, ref } from 'vue';
+import { h, onMounted, reactive, ref, computed } from 'vue';
 import {
   NButton,
   NDataTable,
@@ -85,27 +102,60 @@ import {
   NInput,
   NInputNumber,
   NModal,
+  NSelect,
   NSpace,
   NTag,
   useMessage,
   type DataTableColumns,
   type PaginationProps
 } from 'naive-ui';
-import { fetchDishTags, createDishTag, updateDishTag, removeDishTag, type DishTagPayload } from '@/api/modules';
+import { fetchDishTags, createDishTag, updateDishTag, removeDishTag, fetchAllFamilies, fetchProfile, type DishTagPayload } from '@/api/modules';
 
 interface Tag {
   id?: number;
   name: string;
   icon: string;
   sort: number;
+  familyId?: number;
+  familyName?: string;
   createTime?: string;
   updateTime?: string;
+}
+
+interface Family {
+  id: number;
+  name: string;
 }
 
 const message = useMessage();
 const tags = ref<Tag[]>([]);
 const loading = ref(false);
 const searchName = ref('');
+
+// 家庭相关
+const families = ref<Family[]>([]);
+const currentUserRole = ref<number | null>(null);
+const selectedFamilyId = ref<number | null>(null);
+const isSuperAdmin = computed(() => currentUserRole.value === 2);
+
+// 家庭选项（用于添加/编辑标签）
+const familyOptions = computed(() => {
+  return families.value.map(f => ({
+    label: f.name,
+    value: f.id
+  }));
+});
+
+// 家庭筛选选项（用于筛选标签列表）
+const familyFilterOptions = computed(() => {
+  return [
+    { label: '全部家庭', value: null },
+    ...families.value.map(f => ({
+      label: f.name,
+      value: f.id
+    }))
+  ];
+});
 
 const pagination = reactive<PaginationProps>({
   page: 1,
@@ -133,7 +183,8 @@ const tagModal = reactive({
     id: undefined as number | undefined,
     name: '',
     icon: '',
-    sort: 0
+    sort: 0,
+    familyId: null as number | null
   }
 });
 
@@ -145,80 +196,122 @@ const commonEmojis = [
   '👶', '😋', '🫖', '🍵', '🔸', '🥕', '🍅'
 ];
 
-const columns: DataTableColumns<Tag> = [
-  {
-    title: 'ID',
-    key: 'id',
-    width: 80,
-    align: 'center'
-  },
-  {
-    title: '标签名称',
-    key: 'name',
-    width: 150,
-    render: (row) => {
-      return h(NTag, { type: 'info', size: 'medium' }, { default: () => row.name });
+// 动态生成列配置
+const columns = computed<DataTableColumns<Tag>>(() => {
+  const baseColumns: DataTableColumns<Tag> = [
+    {
+      title: 'ID',
+      key: 'id',
+      width: 80,
+      align: 'center'
+    },
+    {
+      title: '标签名称',
+      key: 'name',
+      width: 150,
+      render: (row) => {
+        return h(NTag, { type: 'info', size: 'medium' }, { default: () => row.name });
+      }
+    },
+    {
+      title: '图标',
+      key: 'icon',
+      width: 100,
+      align: 'center',
+      render: (row) => {
+        return h('span', { style: 'font-size: 28px' }, row.icon);
+      }
+    },
+    {
+      title: '排序',
+      key: 'sort',
+      width: 100,
+      align: 'center'
     }
-  },
-  {
-    title: '图标',
-    key: 'icon',
-    width: 100,
-    align: 'center',
-    render: (row) => {
-      return h('span', { style: 'font-size: 28px' }, row.icon);
-    }
-  },
-  {
-    title: '排序',
-    key: 'sort',
-    width: 100,
-    align: 'center'
-  },
-  {
-    title: '创建时间',
-    key: 'createTime',
-    width: 180,
-    render: (row) => {
-      return row.createTime ? new Date(row.createTime).toLocaleString('zh-CN') : '-';
-    }
-  },
-  {
-    title: '操作',
-    key: 'actions',
-    width: 180,
-    align: 'center',
-    render: (row) => {
-      return h(
-        NSpace,
-        { justify: 'center' },
-        {
-          default: () => [
-            h(
-              NButton,
-              {
-                size: 'small',
-                secondary: true,
-                onClick: () => openTagModal(row)
-              },
-              { default: () => '编辑' }
-            ),
-            h(
-              NButton,
-              {
-                size: 'small',
-                type: 'error',
-                secondary: true,
-                onClick: () => handleDelete(row)
-              },
-              { default: () => '删除' }
-            )
-          ]
-        }
-      );
-    }
+  ];
+
+  // 超级管理员显示家庭列
+  if (isSuperAdmin.value) {
+    baseColumns.push({
+      title: '所属家庭',
+      key: 'familyName',
+      width: 150,
+      render: (row) => row.familyName || '—'
+    });
   }
-];
+
+  baseColumns.push(
+    {
+      title: '创建时间',
+      key: 'createTime',
+      width: 180,
+      render: (row) => {
+        return row.createTime ? new Date(row.createTime).toLocaleString('zh-CN') : '-';
+      }
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 180,
+      align: 'center',
+      render: (row) => {
+        return h(
+          NSpace,
+          { justify: 'center' },
+          {
+            default: () => [
+              h(
+                NButton,
+                {
+                  size: 'small',
+                  secondary: true,
+                  onClick: () => openTagModal(row)
+                },
+                { default: () => '编辑' }
+              ),
+              h(
+                NButton,
+                {
+                  size: 'small',
+                  type: 'error',
+                  secondary: true,
+                  onClick: () => handleDelete(row)
+                },
+                { default: () => '删除' }
+              )
+            ]
+          }
+        );
+      }
+    }
+  );
+
+  return baseColumns;
+});
+
+// 加载家庭列表
+const loadFamilies = async () => {
+  try {
+    const res = await fetchAllFamilies();
+    if (res.data) {
+      families.value = res.data || [];
+    }
+  } catch (error) {
+    console.error('加载家庭列表失败:', error);
+  }
+};
+
+// 加载当前用户信息
+const loadCurrentUser = async () => {
+  try {
+    const res = await fetchProfile();
+    if (res.data) {
+      currentUserRole.value = res.data.role ?? null;
+    }
+  } catch (error) {
+    console.error('加载用户信息失败:', error);
+  }
+};
 
 const loadTags = async () => {
   loading.value = true;
@@ -230,10 +323,22 @@ const loadTags = async () => {
     if (searchName.value) {
       params.name = searchName.value;
     }
+    // 超级管理员可以按家庭筛选
+    if (isSuperAdmin.value && selectedFamilyId.value) {
+      params.familyId = selectedFamilyId.value;
+    }
 
     const res = await fetchDishTags(params);
     if (res.data) {
-      tags.value = res.data.records || [];
+      const records = res.data.records || [];
+      // 为每条记录添加家庭名称
+      tags.value = records.map((tag: any) => {
+        const family = families.value.find(f => f.id === tag.familyId);
+        return {
+          ...tag,
+          familyName: family?.name || '—'
+        };
+      });
       pagination.itemCount = res.data.total || 0;
     }
   } catch (error: any) {
@@ -253,6 +358,11 @@ const handleSearch = () => {
   }, 500);
 };
 
+const handleFamilyChange = () => {
+  pagination.page = 1;
+  loadTags();
+};
+
 const openTagModal = (tag?: Tag) => {
   if (tag) {
     // 编辑
@@ -260,12 +370,15 @@ const openTagModal = (tag?: Tag) => {
     tagModal.form.name = tag.name;
     tagModal.form.icon = tag.icon;
     tagModal.form.sort = tag.sort;
+    tagModal.form.familyId = tag.familyId ?? null;
   } else {
     // 新增
     tagModal.form.id = undefined;
     tagModal.form.name = '';
     tagModal.form.icon = '';
     tagModal.form.sort = 0;
+    // 新增时，如果当前有筛选的家庭，则默认选中该家庭
+    tagModal.form.familyId = selectedFamilyId.value;
   }
   tagModal.show = true;
 };
@@ -285,7 +398,8 @@ const saveTag = async () => {
     const payload: DishTagPayload = {
       name: tagModal.form.name,
       icon: tagModal.form.icon,
-      sort: tagModal.form.sort || 0
+      sort: tagModal.form.sort || 0,
+      familyId: tagModal.form.familyId ?? undefined
     };
 
     if (tagModal.form.id) {
@@ -323,7 +437,11 @@ const handleDelete = async (tag: Tag) => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
+  await loadCurrentUser();
+  if (isSuperAdmin.value) {
+    await loadFamilies();
+  }
   loadTags();
 });
 </script>
@@ -479,7 +597,3 @@ onMounted(() => {
   }
 }
 </style>
-
-
-
-

@@ -36,21 +36,23 @@ public class DishTagController {
             @RequestParam(defaultValue = "10") int pageSize,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) Integer type,
-            @RequestParam(required = false) Integer status) {
-        
-        log.info("分页查询标签: page={}, pageSize={}, name={}, type={}, status={}", 
-                page, pageSize, name, type, status);
-        
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) Long familyId) {
+
+        log.info("分页查询标签: page={}, pageSize={}, name={}, type={}, status={}, familyId={}",
+                page, pageSize, name, type, status, familyId);
+
         Page<DishTag> pageInfo = new Page<>(page, pageSize);
         LambdaQueryWrapper<DishTag> queryWrapper = new LambdaQueryWrapper<>();
-        
+
         // 条件查询
         queryWrapper.like(name != null && !name.isEmpty(), DishTag::getName, name)
                 .eq(type != null, DishTag::getType, type)
                 .eq(status != null, DishTag::getStatus, status)
+                .eq(familyId != null, DishTag::getFamilyId, familyId)
                 .orderByAsc(DishTag::getType)
                 .orderByAsc(DishTag::getSort);
-        
+
         dishTagService.page(pageInfo, queryWrapper);
         return Result.success(pageInfo);
     }
@@ -103,14 +105,15 @@ public class DishTagController {
     @PostMapping
     public Result<String> save(@RequestBody DishTag dishTag) {
         log.info("新增标签: {}", dishTag);
-        
-        // 检查标签名称是否已存在
+
+        // 检查同一家庭内标签名称是否已存在
         LambdaQueryWrapper<DishTag> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(DishTag::getName, dishTag.getName());
+        queryWrapper.eq(DishTag::getName, dishTag.getName())
+                .eq(dishTag.getFamilyId() != null, DishTag::getFamilyId, dishTag.getFamilyId());
         if (dishTagService.count(queryWrapper) > 0) {
-            return Result.error("标签名称已存在");
+            return Result.error("该家庭下标签名称已存在");
         }
-        
+
         // 设置默认值
         if (dishTag.getStatus() == null) {
             dishTag.setStatus(1);
@@ -121,7 +124,7 @@ public class DishTagController {
         if (dishTag.getType() == null) {
             dishTag.setType(5); // 默认为其他类型
         }
-        
+
         dishTagService.save(dishTag);
         return Result.success("添加成功");
     }
@@ -133,19 +136,20 @@ public class DishTagController {
     @PutMapping
     public Result<String> update(@RequestBody DishTag dishTag) {
         log.info("更新标签: {}", dishTag);
-        
+
         if (dishTag.getId() == null) {
             return Result.error("标签ID不能为空");
         }
-        
-        // 检查标签名称是否与其他标签重复
+
+        // 检查同一家庭内标签名称是否与其他标签重复
         LambdaQueryWrapper<DishTag> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(DishTag::getName, dishTag.getName())
-                .ne(DishTag::getId, dishTag.getId());
+                .ne(DishTag::getId, dishTag.getId())
+                .eq(dishTag.getFamilyId() != null, DishTag::getFamilyId, dishTag.getFamilyId());
         if (dishTagService.count(queryWrapper) > 0) {
-            return Result.error("标签名称已存在");
+            return Result.error("该家庭下标签名称已存在");
         }
-        
+
         dishTagService.updateById(dishTag);
         return Result.success("更新成功");
     }
@@ -179,15 +183,14 @@ public class DishTagController {
     @PutMapping("/status/{id}")
     public Result<String> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         log.info("更新标签状态: id={}, status={}", id, status);
-        
+
         DishTag tag = dishTagService.getById(id);
         if (tag == null) {
             return Result.error("标签不存在");
         }
-        
+
         tag.setStatus(status);
         dishTagService.updateById(tag);
         return Result.success("更新成功");
     }
 }
-
