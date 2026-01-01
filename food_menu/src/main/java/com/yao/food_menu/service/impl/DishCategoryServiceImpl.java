@@ -54,11 +54,10 @@ public class DishCategoryServiceImpl extends ServiceImpl<DishCategoryMapper, Dis
             return;
         }
 
-        // 删除旧的分类关联
-        LambdaQueryWrapper<DishCategory> deleteWrapper = new LambdaQueryWrapper<>();
-        deleteWrapper.eq(DishCategory::getDishId, dishId);
-        this.remove(deleteWrapper);
-        log.info("删除菜品旧的分类关联 - 菜品ID: {}", dishId);
+        // 使用物理删除（避免逻辑删除与唯一索引冲突）
+        // 因为关联表使用逻辑删除会导致唯一索引问题，使用自定义物理删除SQL
+        baseMapper.physicalDeleteByDishId(dishId);
+        log.info("物理删除菜品旧的分类关联 - 菜品ID: {}", dishId);
 
         // 保存新的分类关联
         if (categoryIds != null && !categoryIds.isEmpty()) {
@@ -88,10 +87,9 @@ public class DishCategoryServiceImpl extends ServiceImpl<DishCategoryMapper, Dis
             return;
         }
 
-        LambdaQueryWrapper<DishCategory> deleteWrapper = new LambdaQueryWrapper<>();
-        deleteWrapper.in(DishCategory::getDishId, dishIds);
-        this.remove(deleteWrapper);
-        log.info("批量删除菜品分类关联 - 菜品数量: {}", dishIds.size());
+        // 使用物理删除
+        baseMapper.physicalDeleteBatchByDishIds(dishIds);
+        log.info("物理批量删除菜品分类关联 - 菜品数量: {}", dishIds.size());
     }
 
     @Override
