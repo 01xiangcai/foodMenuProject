@@ -156,7 +156,7 @@
           <div class="logo-icon">
             <i class="i-tabler-chef-hat"></i>
           </div>
-          <h2 class="gradient-text">家宴菜单</h2>
+          <h2 class="gradient-text">onetwo后台</h2>
           <p class="subtitle">一起准备下一顿饭</p>
         </div>
         
@@ -202,6 +202,13 @@
             <span>{{ userStore.loading ? '登录中...' : '进入家庭工作台' }}</span>
           </button>
         </form>
+        
+        <!-- ICP 备案信息 -->
+        <div class="icp-footer">
+          <a href="https://beian.miit.gov.cn" target="_blank" rel="noopener noreferrer" class="icp-link">
+            粤ICP备2025499819号-2
+          </a>
+        </div>
       </div>
     </div>
   </div>
@@ -817,5 +824,26 @@ input:focus {
     width: 100%;
     padding: 32px 24px;
   }
+}
+
+/* ICP 备案信息样式 */
+.icp-footer {
+  margin-top: 32px;
+  padding-top: 24px;
+  text-align: center;
+  border-top: 1px solid var(--border-secondary);
+}
+
+.icp-link {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-decoration: none;
+  transition: all 0.3s ease;
+  display: inline-block;
+}
+
+.icp-link:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
 }
 </style>

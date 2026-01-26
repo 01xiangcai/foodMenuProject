@@ -17,7 +17,7 @@
           <div class="flex items-center gap-3 transition-all duration-300" :class="{ 'scale-0 opacity-0': themeStore.sidebarCollapsed }">
             <img src="/assets/logo.png" alt="Logo" class="w-10 h-10 rounded-xl shadow-lg object-cover" />
             <span class="font-bold text-xl tracking-wide text-gray-900 dark:text-white">
-              家宴菜单
+              onetwo后台
             </span>
           </div>
           <!-- Collapsed Logo -->
@@ -93,6 +93,13 @@
             <component :is="Component" />
           </transition>
         </router-view>
+        
+        <!-- ICP 备案信息 -->
+        <div class="icp-footer">
+          <a href="https://beian.miit.gov.cn" target="_blank" rel="noopener noreferrer" class="icp-link">
+            粤ICP备2025499819号-2
+          </a>
+        </div>
       </n-layout-content>
     </n-layout>
   </n-layout>
@@ -144,7 +151,7 @@ const menuOptions: MenuOption[] = [
 ];
 
 const activeKey = computed(() => (route.name as string) || 'dashboard');
-const currentRouteTitle = computed(() => (route.meta.title as string) || '未来食堂');
+const currentRouteTitle = computed(() => (route.meta.title as string) || 'onetwo后台');
 
 // User Info
 const userName = computed(() => profile.value?.name || profile.value?.username || '家人');
@@ -223,5 +230,39 @@ onBeforeUnmount(() => {
 
 :deep(.n-menu .n-menu-item-content--selected .n-menu-item-content__icon) {
   color: white !important;
+}
+
+/* ICP 备案信息样式 */
+.icp-footer {
+  margin-top: auto;
+  padding: 24px 0;
+  text-align: center;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.icp-link {
+  font-size: 13px;
+  color: #666;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  display: inline-block;
+}
+
+.icp-link:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+/* 深色主题适配 */
+:deep(.dark) .icp-footer {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+:deep(.dark) .icp-link {
+  color: #999;
+}
+
+:deep(.dark) .icp-link:hover {
+  color: var(--primary-color);
 }
 </style>
