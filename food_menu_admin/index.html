@@ -11,6 +11,24 @@
 <body>
   <div id="app"></div>
   <script type="module" src="/src/main.ts"></script>
+  <!-- AI 客服组件 -->
+  <script>
+    (function () {
+      var script = document.createElement('script');
+      script.src = 'http://localhost:9900/widget/ai-cs-widget.js';
+      script.onload = function () {
+        AiCS.init({
+          appKey: 'ak_LDG0En1pIm8TLZQy1D3LRY5l',
+          serverUrl: 'http://localhost:9900',
+          title: '小一二',
+        });
+      };
+      script.onerror = function () {
+        console.warn('[AI客服] 客服组件脚本加载失败，请检查服务是否启动');
+      };
+      document.body.appendChild(script);
+    })();
+  </script>
 </body>
 
 </html>
