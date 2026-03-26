@@ -168,6 +168,12 @@
             "style": {
                 "navigationBarTitleText": "AI美食助手"
             }
+        },
+        {
+            "path": "pages/ai/cs",
+            "style": {
+                "navigationBarTitleText": "AI 客服"
+            }
         }
     ],
     "globalStyle": {

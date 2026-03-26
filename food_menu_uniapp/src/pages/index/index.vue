@@ -156,16 +156,176 @@
         </view>
       </view>
     </view>
+    <!-- AI 客服悬浮球 -->
+    <movable-area v-if="!csOpen" class="cs-movable-area">
+      <movable-view 
+        class="cs-float-ball" 
+        direction="all" 
+        :x="csPosX" 
+        :y="csPosY" 
+        @change="onCsMove"
+        @touchstart="resetCsActive"
+      >
+        <view :class="['cs-ball-inner', !csActive ? 'is-inactive' : '', csSnapDirection ? 'snap-' + csSnapDirection : '']">
+          <!-- 侧边提示气泡 -->
+          <view class="cs-prompt" :class="{ 'fade-out': !csActive }" @tap="handleOpenCs">AI专属客服</view>
+          <!-- 本体 -->
+          <text class="cs-ball-icon" @tap="handleOpenCs">💬</text>
+          <view v-if="csActive" class="cs-ball-ping"></view>
+        </view>
+      </movable-view>
+    </movable-area>
+
+    <!-- 耸天层蒙层 -->
+    <view v-if="csOpen" class="cs-mask" @tap.self="closeCs"></view>
+
+    <!-- 聊天弹窗 -->
+    <view v-if="csOpen" class="cs-window">
+      <view class="cs-header">
+        <view class="cs-header-left">
+          <text class="cs-bot-emoji">🤖</text>
+          <view>
+            <text class="cs-bot-name">{{ csAppName }}</text>
+            <view class="cs-status-row">
+              <view class="cs-status-dot"></view>
+              <text class="cs-status-text">在线</text>
+            </view>
+          </view>
+        </view>
+        <view class="cs-header-right">
+          <text class="cs-btn" @tap.stop="resetCs">🔄</text>
+          <text class="cs-btn" @tap.stop="closeCs">✕</text>
+        </view>
+      </view>
+
+      <scroll-view class="cs-body" scroll-y :scroll-into-view="csScrollId" scroll-with-animation>
+        <view class="cs-msg-list">
+          <view
+            v-for="(msg, idx) in csMessages"
+            :key="idx"
+            :id="'cs-msg-' + idx"
+            class="cs-msg-row"
+            :class="msg.role"
+          >
+            <text class="cs-avatar">{{ msg.role === 'assistant' ? '🤖' : '🧑' }}</text>
+            <view class="cs-bubble" :style="msg.role === 'user' ? { backgroundColor: csTheme } : {}">
+              <text class="cs-bubble-text" :style="msg.role === 'user' ? { color: '#fff' } : {}">{{ msg.content }}</text>
+            </view>
+          </view>
+          <view v-if="csTyping" id="cs-typing" class="cs-msg-row assistant">
+            <text class="cs-avatar">🤖</text>
+            <view class="cs-bubble cs-typing">
+              <view class="cs-dot"></view>
+              <view class="cs-dot"></view>
+              <view class="cs-dot"></view>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+
+      <view class="cs-footer">
+        <textarea
+          v-model="csInput"
+          class="cs-input"
+          placeholder="说点什么..."
+          :auto-height="true"
+          :maxlength="500"
+          :cursor-spacing="20"
+          :show-confirm-bar="false"
+        />
+        <view
+          class="cs-send"
+          :style="{ backgroundColor: csInput.trim() && !csTyping ? csTheme : '#cbd5e1' }"
+          @tap="csSend"
+        >
+          <text class="cs-send-text">发送</text>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { getBannerList, getTopDishes } from '@/api/index'
 import { useTheme } from '@/stores/theme'
 import { getDishImage } from '@/utils/image'
 import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { request } from '@/utils/request'
+import { useAiChat } from '@/composables/useAiChat'
+
+// 保存悬浮球位置，防止刷新后重置
+const csPosX = ref(0)
+const csPosY = ref(0)
+// 悬浮球闲置半隐藏效果
+const csActive = ref(true)
+const csSnapDirection = ref('') // 'left' 或 'right'
+let csActiveTimer = null
+let csCurrentX = 0
+let winWidth = 0
+let ballRadius = 25 // 默认 55px 的一半
+
+const resetCsActive = () => {
+  csActive.value = true
+  csSnapDirection.value = ''
+  if (csActiveTimer) clearTimeout(csActiveTimer)
+  
+  // 唤醒时：如果在贴边边缘附近，把它稍微拽出来一点
+  if (winWidth > 0) {
+    if (csCurrentX <= 10) {
+      csPosX.value = 10
+    } else if (csCurrentX >= winWidth - ballRadius * 2 - 10) {
+      csPosX.value = winWidth - ballRadius * 2 - 10
+    }
+  }
+
+  csActiveTimer = setTimeout(() => {
+    csActive.value = false
+    // 闲置时：因为 movable-view 不允许跑出区域，所以用内部的 translateX 类来实现半隐藏
+    if (winWidth > 0) {
+      if (csCurrentX < winWidth / 2) {
+        csPosX.value = 0
+        csSnapDirection.value = 'left'
+      } else {
+        csPosX.value = winWidth - ballRadius * 2
+        csSnapDirection.value = 'right'
+      }
+    }
+  }, 3000)
+}
+
+const handleOpenCs = () => {
+  resetCsActive()
+  openCs()
+}
+
+onMounted(() => {
+  const sysInfo = uni.getSystemInfoSync()
+  winWidth = sysInfo.windowWidth
+  const ballSize = winWidth / 750 * 110
+  ballRadius = ballSize / 2
+  
+  const defaultX = uni.getStorageSync('cs_pos_x')
+  const defaultY = uni.getStorageSync('cs_pos_y')
+  if (defaultX === '' || defaultY === '') {
+    csPosX.value = winWidth - ballSize - 16
+    csPosY.value = sysInfo.windowHeight - ballSize - 90
+  } else {
+    csPosX.value = Number(defaultX)
+    csPosY.value = Number(defaultY)
+  }
+  csCurrentX = csPosX.value
+  resetCsActive()
+})
+
+const onCsMove = (e) => {
+  csCurrentX = e.detail.x
+  if (e.detail.source === 'touch') {
+    resetCsActive()
+    uni.setStorageSync('cs_pos_x', e.detail.x)
+    uni.setStorageSync('cs_pos_y', e.detail.y)
+  }
+}
 
 // 使用主题
 const { currentTheme, loadTheme, applyCurrentTheme } = useTheme()
@@ -174,7 +334,7 @@ const { currentTheme, loadTheme, applyCurrentTheme } = useTheme()
 const currentTime = ref('')
 const banners = ref([])
 const quickActions = ref([
-  { label: 'AI助手', desc: '智能推荐菜品', link: '/pages/ai/ai-assistant' },
+  // { label: 'AI助手', desc: '智能推荐菜品', link: '/pages/ai/ai-assistant' },
   { label: '一键叫饭', desc: '告诉家人开饭啦', link: '/pages/order/list' },
   { label: '营销活动', desc: '参与抽奖赢好礼', link: '/pages/marketing/activity-list' }
 ])
@@ -417,6 +577,13 @@ onShow(() => {
   // 刷新今日菜单数据,确保下单后数据及时更新
   loadTodayMeals()
 })
+// ====== AI 客服悬浮球（一行接入）======
+const {
+  csOpen, csAppName, csTheme,
+  csMessages, csInput, csTyping, csScrollId,
+  openCs, closeCs, resetCs, csSend
+} = useAiChat('http://127.0.0.1:9900', 'ak_LDG0En1pIm8TLZQy1D3LRY5l')
+// ==============================
 </script>
 
 <style lang="scss" scoped>
@@ -431,6 +598,9 @@ onShow(() => {
 }
 
 /* 通用部分样式 */
+.page {
+  position: relative;
+}
 .section {
     margin-bottom: 32rpx; /* 模块间距 */
 }
@@ -973,4 +1143,205 @@ onShow(() => {
     transform: translateY(0);
   }
 }
+/* ====== AI 客服悬浮球样式 ====== */
+/* === 拖拽区域 ===
+   占满全屏，但 pointer-events: none 不会拦截底层点击和滚动
+*/
+.cs-movable-area {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* 悬浮球 (现在由 movable-view 控制位置，去除 fixed) */
+.cs-float-ball {
+  width: 110rpx;
+  height: 110rpx;
+  overflow: visible;
+  /* 非常关键：恢复子元素的交互事件，让悬浮球本身能够被拖拽和点击 */
+  pointer-events: auto;
+}
+
+/* 小球内置容器：做形变、半缩进用 */
+.cs-ball-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7C3AED, #4e4376);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 32rpx rgba(124, 58, 237, 0.45);
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.5s ease;
+  position: relative;
+}
+.cs-ball-inner.is-inactive {
+  opacity: 0.5;
+}
+.cs-ball-inner.snap-left {
+  transform: translateX(-40rpx);
+}
+.cs-ball-inner.snap-right {
+  transform: translateX(40rpx);
+}
+
+/* 提示气泡 */
+.cs-prompt {
+  position: absolute;
+  right: 124rpx; /* 在悬浮球左侧 */
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(124, 58, 237, 0.9);
+  color: #fff;
+  font-size: 24rpx;
+  padding: 8rpx 20rpx;
+  border-radius: 30rpx 4rpx 30rpx 30rpx;
+  white-space: nowrap;
+  box-shadow: 0 4rpx 12rpx rgba(124, 58, 237, 0.3);
+  animation: promptBreathe 3s infinite ease-in-out;
+  pointer-events: auto;
+  transition: opacity 0.5s ease;
+}
+.cs-prompt.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+@keyframes promptBreathe {
+  0%, 100% { transform: translateY(-50%) scale(1); }
+  50% { transform: translateY(-50%) scale(1.05); }
+}
+
+.cs-ball-icon { font-size: 52rpx; z-index: 1; }
+
+.cs-ball-ping {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 3rpx solid #7C3AED;
+  opacity: 0;
+  animation: csPing 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes csPing {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+/* 聊天窗口 */
+.cs-window {
+  position: fixed;
+  right: 30rpx;
+  bottom: 200rpx;
+  width: 640rpx;
+  height: 860rpx;
+  background: #f8f9fb;
+  border-radius: 32rpx;
+  box-shadow: 0 20rpx 80rpx rgba(0,0,0,0.18);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 1001;
+  animation: csWindowIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: right bottom;
+}
+@keyframes csWindowIn {
+  from { transform: scale(0.1); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* 蒙层 */
+.cs-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+}
+
+/* 头部 */
+.cs-header {
+  background: linear-gradient(135deg, #7C3AED, #4e4376);
+  padding: 28rpx 30rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+.cs-header-left { display: flex; align-items: center; gap: 16rpx; }
+.cs-bot-emoji { font-size: 50rpx; }
+.cs-bot-name { color: #fff; font-size: 30rpx; font-weight: 700; display: block; }
+.cs-status-row { display: flex; align-items: center; gap: 8rpx; margin-top: 4rpx; }
+.cs-status-dot { width: 12rpx; height: 12rpx; border-radius: 50%; background: #4ade80; }
+.cs-status-text { font-size: 22rpx; color: rgba(255,255,255,0.8); }
+.cs-header-right { display: flex; gap: 16rpx; }
+.cs-btn { font-size: 30rpx; color: rgba(255,255,255,0.9); padding: 10rpx; }
+
+/* 消息列表 */
+.cs-body { flex: 1; overflow: hidden; }
+.cs-msg-list { padding: 24rpx 20rpx; }
+.cs-msg-row {
+  display: flex;
+  align-items: flex-end;
+  margin-bottom: 28rpx;
+  gap: 14rpx;
+}
+.cs-msg-row.user { flex-direction: row-reverse; }
+.cs-avatar { font-size: 38rpx; flex-shrink: 0; }
+.cs-bubble {
+  max-width: 78%;
+  padding: 18rpx 24rpx;
+  border-radius: 20rpx;
+  background: #fff;
+  box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.04);
+}
+.cs-msg-row.assistant .cs-bubble { border-bottom-left-radius: 4rpx; }
+.cs-msg-row.user .cs-bubble { border-bottom-right-radius: 4rpx; }
+.cs-bubble-text { font-size: 28rpx; line-height: 1.6; color: #334155; }
+
+/* 打字动画 */
+.cs-typing { display: flex; align-items: center; gap: 8rpx; padding: 22rpx 28rpx; }
+.cs-dot {
+  width: 10rpx; height: 10rpx;
+  background: #94a3b8; border-radius: 50%;
+  animation: csDot 1.4s infinite;
+}
+.cs-dot:nth-child(2) { animation-delay: 0.2s; }
+.cs-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes csDot {
+  0%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-10rpx); }
+}
+
+/* 输入区 */
+.cs-footer {
+  padding: 16rpx 20rpx;
+  background: #fff;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  align-items: flex-end;
+  gap: 16rpx;
+  flex-shrink: 0;
+}
+.cs-input {
+  flex: 1;
+  background: #f1f5f9;
+  border-radius: 24rpx;
+  padding: 16rpx 24rpx;
+  font-size: 28rpx;
+  max-height: 160rpx;
+  min-height: 72rpx;
+}
+.cs-send {
+  width: 120rpx;
+  height: 72rpx;
+  border-radius: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.cs-send-text { font-size: 26rpx; font-weight: 600; color: #fff; }
+/* ====== AI 客服结束 ====== */
 </style>
