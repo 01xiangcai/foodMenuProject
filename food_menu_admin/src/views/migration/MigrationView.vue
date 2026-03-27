@@ -6,7 +6,7 @@
       <p class="text-gray-500 mt-2">将阿里云OSS上的图片迁移到本地存储，支持双重备份与快速访问</p>
     </div>
 
-    <n-grid :x-gap="24" :y-gap="24" cols="1 m:2" responsive="screen">
+    <n-grid :x-gap="24" :y-gap="24" cols="1 m:2 l:3" responsive="screen">
       <!-- 菜品迁移卡片 -->
       <n-grid-item>
         <div class="glass-card hover-rise p-6 h-full flex flex-col">
@@ -202,6 +202,7 @@ const dialog = useDialog()
 
 const dishMigrating = ref(false)
 const avatarMigrating = ref(false)
+const thumbnailProcessing = ref(false)
 const isRefreshing = ref(false)
 
 const dishStatus = ref<MigrationStatus>({
@@ -226,7 +227,7 @@ const avatarStatus = ref<MigrationStatus>({
   message: '等待开始...'
 })
 
-const isAnyMigrating = computed(() => dishMigrating.value || avatarMigrating.value)
+const isAnyMigrating = computed(() => dishMigrating.value || avatarMigrating.value || thumbnailProcessing.value)
 
 let statusInterval: number | null = null
 
@@ -289,6 +290,28 @@ const startAvatarMigration = () => {
       } catch (error: any) {
         message.error(error.message || '启动迁移失败')
         avatarMigrating.value = false
+      }
+    }
+  })
+}
+
+// 批量生成缩略图
+const startThumbnailBatch = () => {
+  dialog.info({
+    title: '确认生成',
+    content: '确定要开始批量生成缩略图吗？该操作将扫描本地存储并补齐缺失的缩略图文件。',
+    positiveText: '立即生成',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        thumbnailProcessing.value = true
+        const res = await http.post('/admin/migration/thumbnails/batch')
+        message.success(res.data || '处理完成')
+        // 缩略图生成是同步执行的，完成后刷新状态即可
+      } catch (error: any) {
+        message.error(error.message || '生成失败')
+      } finally {
+        thumbnailProcessing.value = false
       }
     }
   })

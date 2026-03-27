@@ -22,7 +22,7 @@
           @tap="goToDetail(dish.id)"
         >
           <view class="card-cover">
-            <image class="dish-image" :src="getDishImage(dish)" mode="aspectFill" />
+            <image class="dish-image" :src="getDishImage(dish, true)" mode="aspectFill" lazy-load />
             <view class="cover-tag">{{ dish.categoryNames ? dish.categoryNames.join(', ') : (dish.categoryName || '精选菜品') }}</view>
           </view>
           <view class="card-body">

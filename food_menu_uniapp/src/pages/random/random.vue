@@ -109,7 +109,7 @@
     <!-- 结果展示区 -->
     <view class="result-area" v-if="currentDish && !animating">
       <view class="dish-card">
-        <image class="dish-image" :src="getDishImage(currentDish)" mode="aspectFill" />
+        <image class="dish-image" :src="getDishImage(currentDish, true)" mode="aspectFill" lazy-load />
         <view class="dish-info">
           <text class="dish-name">{{ currentDish.name }}</text>
           <view class="dish-tags" v-if="currentDish.tags">

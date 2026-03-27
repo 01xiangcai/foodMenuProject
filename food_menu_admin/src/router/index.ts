@@ -9,6 +9,7 @@ import UsersView from '@/views/users/UsersView.vue';
 import MigrationView from '@/views/migration/MigrationView.vue';
 import TagsView from '@/views/tags/TagsView.vue';
 import SettingsView from '@/views/settings/SettingsView.vue';
+import ThumbnailView from '@/views/settings/ThumbnailView.vue';
 import FamiliesView from '@/views/families/FamiliesView.vue';
 import OperationLogsView from '@/views/operationLogs/OperationLogsView.vue';
 import WalletListView from '@/views/finance/WalletListView.vue';
@@ -87,6 +88,12 @@ const routes: RouteRecordRaw[] = [
         name: 'settings',
         component: SettingsView,
         meta: { title: '系统设置' }
+      },
+      {
+        path: 'thumbnails',
+        name: 'thumbnails',
+        component: ThumbnailView,
+        meta: { title: '缩略图管理' }
       },
       {
         path: 'operationLogs',

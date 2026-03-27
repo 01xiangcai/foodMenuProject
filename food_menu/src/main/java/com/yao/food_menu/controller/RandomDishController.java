@@ -24,6 +24,15 @@ public class RandomDishController {
     @Autowired
     private RandomDishService randomDishService;
 
+    @Autowired
+    private com.yao.food_menu.common.config.FileStorageProperties fileStorageProperties;
+
+    @Autowired
+    private com.yao.food_menu.common.config.LocalStorageProperties localStorageProperties;
+
+    @Autowired
+    private com.yao.food_menu.service.OssService ossService;
+
     @Operation(summary = "快速随机推荐", description = "一键随机推荐一道菜品")
     @GetMapping("/quick")
     public Result<DishDto> getRandomDish() {
@@ -36,6 +45,7 @@ public class RandomDishController {
                 return Result.error("暂无可推荐的菜品");
             }
 
+            processDishImage(dish);
             return Result.success(dish);
         } catch (Exception e) {
             log.error("快速随机推荐失败", e);
@@ -55,6 +65,7 @@ public class RandomDishController {
                 return Result.error("没有符合条件的菜品,请调整筛选条件");
             }
 
+            processDishImage(dish);
             return Result.success(dish);
         } catch (Exception e) {
             log.error("条件筛选随机推荐失败", e);
@@ -73,6 +84,19 @@ public class RandomDishController {
         } catch (Exception e) {
             log.error("获取筛选选项失败", e);
             return Result.error("获取筛选选项失败: " + e.getMessage());
+        }
+    }
+
+    private void processDishImage(DishDto dish) {
+        String urlPrefix = localStorageProperties.getUrlPrefix();
+        if (fileStorageProperties.isLocal()) {
+            dish.setImage(com.yao.food_menu.common.util.ImageUtils.processImageUrl(dish.getLocalImage(), urlPrefix));
+        } else if (org.springframework.util.StringUtils.hasText(dish.getImage()) && !dish.getImage().startsWith("http")) {
+            try {
+                dish.setImage(ossService.generatePresignedUrl(dish.getImage()));
+            } catch (Exception e) {
+                log.warn("转换随机菜单图片URL失败: {}", dish.getImage());
+            }
         }
     }
 }

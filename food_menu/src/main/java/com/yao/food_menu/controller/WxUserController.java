@@ -261,18 +261,14 @@ public class WxUserController {
                 // 不返回密码
                 user.setPassword(null);
 
+                String urlPrefix = localStorageProperties.getUrlPrefix();
                 // 1. 优先使用本地头像
-                if (StringUtils.hasText(user.getLocalAvatar())) {
-                    String urlPrefix = localStorageProperties.getUrlPrefix();
-                    if (!urlPrefix.endsWith("/")) {
-                        urlPrefix += "/";
-                    }
-                    user.setAvatar(urlPrefix + user.getLocalAvatar());
+                if (fileStorageProperties.isLocal()) {
+                    user.setAvatar(com.yao.food_menu.common.util.ImageUtils.processImageUrl(user.getLocalAvatar(), urlPrefix));
                 }
-                // 2. 如果存在头像,将objectKey转换为预签名URL
-                else if (StringUtils.hasText(user.getAvatar())) {
-                    String presignedUrl = ossService.generatePresignedUrl(user.getAvatar());
-                    user.setAvatar(presignedUrl);
+                // 2. OSS 逻辑
+                else if (StringUtils.hasText(user.getAvatar()) && !user.getAvatar().startsWith("http")) {
+                    user.setAvatar(ossService.generatePresignedUrl(user.getAvatar()));
                 }
 
                 return Result.success(user);
@@ -317,17 +313,12 @@ public class WxUserController {
             user.setNickname("家庭成员");
         }
 
-        // 处理头像
-        if (StringUtils.hasText(user.getLocalAvatar())) {
-            String urlPrefix = localStorageProperties.getUrlPrefix();
-            if (!urlPrefix.endsWith("/")) {
-                urlPrefix += "/";
-            }
-            user.setAvatar(urlPrefix + user.getLocalAvatar());
-        } else if (StringUtils.hasText(user.getAvatar())) {
+        String urlPrefix = localStorageProperties.getUrlPrefix();
+        if (fileStorageProperties.isLocal()) {
+            user.setAvatar(com.yao.food_menu.common.util.ImageUtils.processImageUrl(user.getLocalAvatar(), urlPrefix));
+        } else if (StringUtils.hasText(user.getAvatar()) && !user.getAvatar().startsWith("http")) {
             try {
-                String presignedUrl = ossService.generatePresignedUrl(user.getAvatar());
-                user.setAvatar(presignedUrl);
+                user.setAvatar(ossService.generatePresignedUrl(user.getAvatar()));
             } catch (Exception e) {
                 // ignore
             }
@@ -453,36 +444,15 @@ public class WxUserController {
             page.getRecords().forEach(user -> {
                 user.setPassword(null);
 
-                // 1. 优先使用本地头像
-                if (StringUtils.hasText(user.getLocalAvatar())) {
-                    String urlPrefix = localStorageProperties.getUrlPrefix();
-                    if (!urlPrefix.endsWith("/")) {
-                        urlPrefix += "/";
-                    }
-                    user.setAvatar(urlPrefix + user.getLocalAvatar());
-                }
-                // 2. 如果存在头像,将objectKey转换为预签名URL
-                else if (StringUtils.hasText(user.getAvatar())) {
+                String urlPrefix = localStorageProperties.getUrlPrefix();
+                if (fileStorageProperties.isLocal()) {
+                    user.setAvatar(com.yao.food_menu.common.util.ImageUtils.processImageUrl(user.getLocalAvatar(), urlPrefix));
+                } else if (StringUtils.hasText(user.getAvatar()) && !user.getAvatar().startsWith("http")) {
                     try {
-                        log.debug("为头像生成预签名URL: {}", user.getAvatar());
-                        String presignedUrl = ossService.generatePresignedUrl(user.getAvatar());
-                        user.setAvatar(presignedUrl);
-                        log.debug("已生成预签名URL: {}", presignedUrl);
+                        user.setAvatar(ossService.generatePresignedUrl(user.getAvatar()));
                     } catch (Exception e) {
-                        log.error("为头像生成预签名URL失败: {}, 错误: {}",
-                                user.getAvatar(), e.getMessage(), e);
-                        // 降级方案:构造公共OSS URL
-                        try {
-                            String publicUrl = constructPublicOssUrl(user.getAvatar());
-                            user.setAvatar(publicUrl);
-                            log.info("使用公共URL降级方案: {}", publicUrl);
-                        } catch (Exception ex) {
-                            log.error("构造公共URL失败: {}", ex.getMessage());
-                            // 如果全部失败,保留原始头像值
-                        }
+                        user.setAvatar(constructPublicOssUrl(user.getAvatar()));
                     }
-                } else {
-                    log.debug("用户 {} 没有头像", user.getId());
                 }
             });
             return Result.success(page);
@@ -528,14 +498,29 @@ public class WxUserController {
      */
     private void handleAvatarFields(WxUser wxUser) {
         String avatar = wxUser.getAvatar();
-        if (!StringUtils.hasText(avatar)) {
+        if (!org.springframework.util.StringUtils.hasText(avatar)) {
             return;
         }
 
-        // 如果使用本地存储，且avatar字段是相对路径（不是完整URL），则同时保存到localAvatar
-        if (fileStorageProperties.isLocal() && !avatar.startsWith("http://") && !avatar.startsWith("https://")) {
-            wxUser.setLocalAvatar(avatar);
-            log.debug("设置本地头像路径: {}", avatar);
+        // 如果使用本地存储，处理头像路径
+        if (fileStorageProperties.isLocal()) {
+            String urlPrefix = localStorageProperties.getUrlPrefix();
+            if (!urlPrefix.endsWith("/")) {
+                urlPrefix += "/";
+            }
+
+            // 如果是完整 URL 且包含前缀，则剥离前缀得到相对路径
+            if (avatar.startsWith(urlPrefix)) {
+                String relativePath = avatar.substring(urlPrefix.length());
+                wxUser.setLocalAvatar(relativePath);
+                wxUser.setAvatar(relativePath); // 统一存储相对路径
+                log.debug("从完整 URL 剥离头像相对路径: {}", relativePath);
+            } 
+            // 如果是相对路径（不以 http 开头），则直接设置
+            else if (!avatar.startsWith("http://") && !avatar.startsWith("https://")) {
+                wxUser.setLocalAvatar(avatar);
+                log.debug("设置本地头像路径: {}", avatar);
+            }
         }
     }
 

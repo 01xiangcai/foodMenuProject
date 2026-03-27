@@ -21,7 +21,7 @@
       <scroll-view class="popup-scroll" scroll-y>
         <view class="popup-list">
           <view class="popup-item" v-for="item in cartStore.cartList" :key="item.id">
-            <image class="item-img" :src="getDishImage(item)" mode="aspectFill" />
+            <image class="item-img" :src="getDishImage(item, true)" mode="aspectFill" lazy-load />
             <view class="item-info">
               <text class="item-name">{{ item.name }}</text>
               <view class="item-price-box">

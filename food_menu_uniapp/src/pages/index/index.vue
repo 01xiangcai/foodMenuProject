@@ -40,7 +40,7 @@
             <image 
               class="banner-image" 
               mode="aspectFill" 
-              :src="item.image"
+              :src="getImageUrl(item.image)"
               @error="onBannerImageError(index)"
             />
             <view class="banner-overlay" v-if="item.title || item.description">
@@ -135,7 +135,7 @@
       </view>
       <view class="dish-list">
         <view class="dish-card glass-panel" v-for="item in featuredDishes" :key="item.id" @tap="navigateToDishDetail(item.id)">
-          <image class="dish-image" :src="item.image" mode="aspectFill" />
+          <image class="dish-image" :src="getDishImage(item, true)" mode="aspectFill" lazy-load />
           <view class="dish-info">
             <view class="dish-main">
                 <text class="dish-title">{{ item.title }}</text>
@@ -249,7 +249,7 @@
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { getBannerList, getTopDishes } from '@/api/index'
 import { useTheme } from '@/stores/theme'
-import { getDishImage } from '@/utils/image'
+import { getDishImage, getImageUrl } from '@/utils/image'
 import { onShareAppMessage, onShow } from '@dcloudio/uni-app'
 import { request } from '@/utils/request'
 import { useAiChat } from '@/composables/useAiChat'

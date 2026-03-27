@@ -64,6 +64,25 @@ public class LocalStorageStrategy implements FileStorageStrategy {
             // 9. 保存文件
             file.transferTo(fullPath.toFile());
 
+            // 10. 自动生成缩略图 (Thumbnailator)
+            try {
+                String extension = FileValidationUtil.getFileExtension(fileName);
+                String nameWithoutExt = fileName.substring(0, fileName.length() - extension.length() - (extension.isEmpty() ? 0 : 1));
+                String thumbFileName = nameWithoutExt + "_thumb." + (extension.isEmpty() ? "jpg" : extension);
+                
+                Path thumbPath = fullPath.getParent().resolve(thumbFileName);
+                
+                // 使用 Thumbnailator 生成高质量且体积较小的缩略图
+                net.coobird.thumbnailator.Thumbnails.of(fullPath.toFile())
+                        .size(400, 400)
+                        .outputQuality(0.8)
+                        .toFile(thumbPath.toFile());
+                        
+                log.info("缩略图自动生成并落盘成功: {}", thumbPath);
+            } catch (Exception e) {
+                log.warn("缩略图生成异常, 继续返回原图路径 - 错误: {}", e.getMessage());
+            }
+
             log.info("文件上传成功 - 类型: {}, 大小: {}KB, 路径: {}",
                     FileValidationUtil.getFileExtension(safeFilename),
                     file.getSize() / 1024,

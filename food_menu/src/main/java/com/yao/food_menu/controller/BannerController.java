@@ -119,10 +119,25 @@ public class BannerController {
             return;
         }
 
-        // 如果使用本地存储，且image字段是相对路径（不是完整URL），则同时保存到localImage
-        if (fileStorageProperties.isLocal() && !image.startsWith("http://") && !image.startsWith("https://")) {
-            banner.setLocalImage(image);
-            log.debug("设置本地图片路径: {}", image);
+        // 如果使用本地存储，处理图片路径
+        if (fileStorageProperties.isLocal()) {
+            String urlPrefix = localStorageProperties.getUrlPrefix();
+            if (!urlPrefix.endsWith("/")) {
+                urlPrefix += "/";
+            }
+
+            // 如果是完整 URL 且包含前缀，则剥离前缀得到相对路径
+            if (image.startsWith(urlPrefix)) {
+                String relativePath = image.substring(urlPrefix.length());
+                banner.setLocalImage(relativePath);
+                banner.setImage(relativePath); // 统一存储相对路径
+                log.debug("从完整 URL 剥离相对路径: {}", relativePath);
+            } 
+            // 如果是相对路径（不以 http 开头），则直接设置
+            else if (!image.startsWith("http://") && !image.startsWith("https://")) {
+                banner.setLocalImage(image);
+                log.debug("设置本地图片路径: {}", image);
+            }
         }
     }
 
@@ -137,29 +152,18 @@ public class BannerController {
             return;
         }
 
+        String urlPrefix = localStorageProperties.getUrlPrefix();
         // 1. 优先使用本地图片
-        if (StringUtils.hasText(banner.getLocalImage())) {
-            String urlPrefix = localStorageProperties.getUrlPrefix();
-            if (!urlPrefix.endsWith("/")) {
-                urlPrefix += "/";
-            }
-            banner.setImage(urlPrefix + banner.getLocalImage());
-            return;
-        }
-
-        if (!StringUtils.hasText(banner.getImage())) {
-            return;
-        }
-        String image = banner.getImage();
-        // If image is not a full URL (doesn't start with http:// or https://),
-        // treat it as OSS object key and convert to presigned URL
-        if (!image.startsWith("http://") && !image.startsWith("https://")) {
-            try {
-                String presignedUrl = ossService.generatePresignedUrl(image);
-                banner.setImage(presignedUrl);
-            } catch (Exception e) {
-                log.warn("Failed to generate presigned URL for object key: {}, using default image", image, e);
-                banner.setImage(DEFAULT_IMAGE);
+        if (fileStorageProperties.isLocal()) {
+            banner.setImage(com.yao.food_menu.common.util.ImageUtils.processImageUrl(banner.getLocalImage(), urlPrefix));
+        } else {
+            // OSS 逻辑
+            if (StringUtils.hasText(banner.getImage()) && !banner.getImage().startsWith("http")) {
+                try {
+                    banner.setImage(ossService.generatePresignedUrl(banner.getImage()));
+                } catch (Exception e) {
+                    banner.setImage(DEFAULT_IMAGE);
+                }
             }
         }
     }

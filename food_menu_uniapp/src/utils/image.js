@@ -13,31 +13,39 @@ const DEFAULT_DISH_IMAGE = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZW
  * 优先级：localImage > image > 默认图片
  * 
  * @param {Object} dish - 菜品对象
- * @param {string} dish.localImage - 本地图片路径（驼峰命名）
- * @param {string} dish.local_image - 本地图片路径（下划线命名）
- * @param {string} dish.image - OSS图片路径
+ * @param {boolean} useThumb - 是否使用缩略图
  * @returns {string} 图片URL
  */
-export function getDishImage(dish) {
+export function getDishImage(dish, useThumb = false) {
   if (!dish) {
     return DEFAULT_DISH_IMAGE;
   }
 
   // 支持驼峰和下划线两种命名方式
-  const localImage = dish.localImage || dish.local_image;
+  let imagePath = dish.localImage || dish.local_image || dish.image;
 
-  // 优先使用 localImage
-  if (localImage && localImage.trim() !== '') {
-    return localImage;
+  // 都不存在则返回默认图片
+  if (!imagePath || imagePath.trim() === '') {
+    return DEFAULT_DISH_IMAGE;
   }
 
-  // 其次使用 image
-  if (dish.image && dish.image.trim() !== '') {
-    return dish.image;
+  // 如果需要缩略图，且不是 Base64，且路径中还不包含 _thumb
+  // 且必须是本地路径或本站路径，外部域名路径不尝试转缩略图（因为外部服务如 dummyimage 不支持此后缀）
+  const isRemote = imagePath.startsWith('http') && !imagePath.includes('/uploads/');
+  
+  if (useThumb && imagePath && !imagePath.startsWith('data:') && !imagePath.includes('_thumb.') && !isRemote) {
+    const lastDotIndex = imagePath.lastIndexOf('.');
+    // 确保点是在路径的最后一部分（文件名部分）
+    const lastSlashIndex = imagePath.lastIndexOf('/');
+    if (lastDotIndex !== -1 && lastDotIndex > lastSlashIndex) {
+      imagePath = imagePath.substring(0, lastDotIndex) + '_thumb' + imagePath.substring(lastDotIndex);
+    }
   }
 
-  // 都没有则返回默认图片
-  return DEFAULT_DISH_IMAGE;
+  // 处理可能的中文路径问题（对非完整URL进行处理或对非Base64且包含中文的URL进行编码提示）
+  // 注意：这里建议在后端 processImageUrl 处理好编码，前端仅做兜底
+  // 确保返回完整URL
+  return getImageUrl(imagePath);
 }
 
 /**
@@ -97,6 +105,19 @@ export function getImageUrl(path) {
   }
 
   // 拼接完整URL
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  // 核心逻辑: 本项目的本地上传路径在数据库中是相对的(不带/uploads),需要补齐
+  let cleanPath = path;
+  if (!path.startsWith('/')) {
+    // 如果是 food-menu/ banners/ avatars/ 等目录开头的相对路径，补齐 /uploads/
+    if (path.startsWith('food-menu') || path.startsWith('banners') || path.startsWith('avatars')) {
+      cleanPath = `/uploads/${path}`;
+    } else {
+      cleanPath = `/${path}`;
+    }
+  } else if (!path.startsWith('/uploads/')) {
+     // 如果是以 / 开头但不是 /uploads/ 开头，补齐 /uploads/
+     cleanPath = `/uploads${path}`;
+  }
+  
   return `${BASE_URL}${cleanPath}`;
 }

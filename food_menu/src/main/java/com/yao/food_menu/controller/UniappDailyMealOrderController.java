@@ -48,6 +48,12 @@ public class UniappDailyMealOrderController {
     private JwtUtil jwtUtil;
 
     @Autowired
+    private com.yao.food_menu.common.config.FileStorageProperties fileStorageProperties;
+
+    @Autowired
+    private com.yao.food_menu.service.OssService ossService;
+
+    @Autowired
     private com.yao.food_menu.common.config.LocalStorageProperties localStorageProperties;
 
     @Autowired
@@ -171,15 +177,18 @@ public class UniappDailyMealOrderController {
                 memberOrder.put("userId", member.getId());
                 memberOrder.put("nickname", member.getNickname());
                 // 处理头像URL
-                String avatar = member.getAvatar();
-                if (avatar != null && !avatar.startsWith("http://") && !avatar.startsWith("https://")) {
-                    String urlPrefix = localStorageProperties.getUrlPrefix();
-                    if (!urlPrefix.endsWith("/")) {
-                        urlPrefix += "/";
+                String urlPrefix = localStorageProperties.getUrlPrefix();
+                if (fileStorageProperties.isLocal()) {
+                    memberOrder.put("avatar", com.yao.food_menu.common.util.ImageUtils.processImageUrl(member.getLocalAvatar(), urlPrefix));
+                } else {
+                    String avatar = member.getAvatar();
+                    if (org.springframework.util.StringUtils.hasText(avatar) && !avatar.startsWith("http")) {
+                        try {
+                            avatar = ossService.generatePresignedUrl(avatar);
+                        } catch (Exception e) {}
                     }
-                    avatar = urlPrefix + avatar;
+                    memberOrder.put("avatar", avatar);
                 }
-                memberOrder.put("avatar", avatar);
             }
 
             // 根据订单状态决定查询来源
@@ -212,16 +221,8 @@ public class UniappDailyMealOrderController {
                     itemMap.put("subtotal", publishItem.getSubtotal());
 
                     // 处理菜品图片URL
-                    String dishImage = publishItem.getDishImage();
-                    if (dishImage != null && !dishImage.startsWith("http://")
-                            && !dishImage.startsWith("https://")) {
-                        String urlPrefix = localStorageProperties.getUrlPrefix();
-                        if (!urlPrefix.endsWith("/")) {
-                            urlPrefix += "/";
-                        }
-                        dishImage = urlPrefix + dishImage;
-                    }
-                    itemMap.put("dishImage", dishImage);
+                    String urlPrefix = localStorageProperties.getUrlPrefix();
+                    itemMap.put("dishImage", com.yao.food_menu.common.util.ImageUtils.processImageUrl(publishItem.getDishImage(), urlPrefix));
 
                     items.add(itemMap);
                 }
@@ -246,16 +247,8 @@ public class UniappDailyMealOrderController {
                     itemMap.put("subtotal", subtotal);
 
                     // 处理菜品图片URL
-                    String dishImage = item.getDishImage();
-                    if (dishImage != null && !dishImage.startsWith("http://")
-                            && !dishImage.startsWith("https://")) {
-                        String urlPrefix = localStorageProperties.getUrlPrefix();
-                        if (!urlPrefix.endsWith("/")) {
-                            urlPrefix += "/";
-                        }
-                        dishImage = urlPrefix + dishImage;
-                    }
-                    itemMap.put("dishImage", dishImage);
+                    String urlPrefix = localStorageProperties.getUrlPrefix();
+                    itemMap.put("dishImage", com.yao.food_menu.common.util.ImageUtils.processImageUrl(item.getDishImage(), urlPrefix));
 
                     items.add(itemMap);
                 }

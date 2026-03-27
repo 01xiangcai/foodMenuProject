@@ -87,7 +87,7 @@
               :key="item.id"
               @tap.stop="navigateToDishDetail(item.dishId, item.dishStatus)"
             >
-              <image v-if="item.image || item.localImage" class="item-image" :src="getDishImage(item)" mode="aspectFill" lazy-load @error="handleImageError" />
+              <image v-if="item.image || item.localImage" class="item-image" :src="getDishImage(item, true)" mode="aspectFill" lazy-load @error="handleImageError" />
               <view v-else class="item-placeholder">
                 <text class="placeholder-text">family dish</text>
               </view>

@@ -30,6 +30,15 @@ public class FavoriteController {
     @Autowired
     private JwtUtil jwtUtil;
 
+    @Autowired
+    private com.yao.food_menu.common.config.FileStorageProperties fileStorageProperties;
+
+    @Autowired
+    private com.yao.food_menu.common.config.LocalStorageProperties localStorageProperties;
+
+    @Autowired
+    private com.yao.food_menu.service.OssService ossService;
+
     /**
      * Add favorite
      */
@@ -156,6 +165,9 @@ public class FavoriteController {
             Long userId = jwtUtil.getUserId(token);
             
             List<DishDto> favorites = dishFavoriteService.getFavoriteDishes(userId);
+            if (favorites != null) {
+                favorites.forEach(this::processDishImage);
+            }
             return Result.success(favorites);
         } catch (Exception e) {
             log.error("Get favorite list failed", e);
@@ -182,10 +194,26 @@ public class FavoriteController {
             Long userId = jwtUtil.getUserId(token);
             
             Page<DishDto> favoritePage = dishFavoriteService.getFavoriteDishesPage(userId, page, pageSize);
+            if (favoritePage != null && favoritePage.getRecords() != null) {
+                favoritePage.getRecords().forEach(this::processDishImage);
+            }
             return Result.success(favoritePage);
         } catch (Exception e) {
             log.error("Get favorite page failed", e);
             return Result.error("获取收藏列表失败: " + e.getMessage());
+        }
+    }
+
+    private void processDishImage(DishDto dish) {
+        String urlPrefix = localStorageProperties.getUrlPrefix();
+        if (fileStorageProperties.isLocal()) {
+            dish.setImage(com.yao.food_menu.common.util.ImageUtils.processImageUrl(dish.getLocalImage(), urlPrefix));
+        } else if (org.springframework.util.StringUtils.hasText(dish.getImage()) && !dish.getImage().startsWith("http")) {
+            try {
+                dish.setImage(ossService.generatePresignedUrl(dish.getImage()));
+            } catch (Exception e) {
+                log.warn("转换收藏菜品图片URL失败: {}", dish.getImage());
+            }
         }
     }
 }

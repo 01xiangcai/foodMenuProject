@@ -24,6 +24,12 @@ import java.util.List;
 public class DishCommentController {
 
     @Autowired
+    private com.yao.food_menu.common.config.FileStorageProperties fileStorageProperties;
+
+    @Autowired
+    private com.yao.food_menu.common.config.LocalStorageProperties localStorageProperties;
+
+    @Autowired
     private DishCommentService dishCommentService;
 
     @Autowired
@@ -56,13 +62,16 @@ public class DishCommentController {
      * 将头像objectKey转换为预签名URL
      */
     private void convertAvatarUrl(DishCommentDto comment) {
-        if (StringUtils.hasText(comment.getAvatarUrl())) {
+        if (comment == null) return;
+        
+        String urlPrefix = localStorageProperties.getUrlPrefix();
+        if (fileStorageProperties.isLocal()) {
+            comment.setAvatarUrl(com.yao.food_menu.common.util.ImageUtils.processImageUrl(comment.getAvatarUrl(), urlPrefix));
+        } else if (StringUtils.hasText(comment.getAvatarUrl()) && !comment.getAvatarUrl().startsWith("http")) {
             try {
-                String presignedUrl = ossService.generatePresignedUrl(comment.getAvatarUrl());
-                comment.setAvatarUrl(presignedUrl);
+                comment.setAvatarUrl(ossService.generatePresignedUrl(comment.getAvatarUrl()));
             } catch (Exception e) {
                 log.warn("转换头像URL失败: {}, 错误: {}", comment.getAvatarUrl(), e.getMessage());
-                // 保留原始值或设置为null
             }
         }
     }

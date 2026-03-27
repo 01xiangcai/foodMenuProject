@@ -24,6 +24,33 @@ import java.util.Set;
 public class CommonController {
 
     private final OssService ossService;
+    private final com.yao.food_menu.service.ThumbnailService thumbnailService;
+    private final com.yao.food_menu.common.config.LocalStorageProperties localProperties;
+
+    @Operation(summary = "动态生成缩略图", description = "用于Nginx fallback。如果缩略图不存在则根据路径动态生成。")
+    @org.springframework.web.bind.annotation.GetMapping("/dynamic-thumb")
+    public void generateThumb(@org.springframework.web.bind.annotation.RequestParam String path, jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+        log.info("收到动态缩略图生成请求: {}", path);
+        
+        // 这里的 path 可能包含 /uploads/ 前缀，需要处理提取出相对路径
+        String relativePath = path;
+        String urlPrefix = "/uploads"; // 默认约定
+        if (relativePath.startsWith(urlPrefix)) {
+            relativePath = relativePath.substring(urlPrefix.length());
+        }
+        
+        String resultPath = thumbnailService.generateThumbnail(relativePath);
+        
+        if (resultPath != null) {
+            // 生成成功，返回图片流
+            java.nio.file.Path thumbPath = java.nio.file.Paths.get(localProperties.getBasePath(), resultPath);
+            response.setContentType("image/jpeg");
+            java.nio.file.Files.copy(thumbPath, response.getOutputStream());
+        } else {
+            response.sendError(jakarta.servlet.http.HttpServletResponse.SC_NOT_FOUND);
+        }
+    }
+
     
     // 允许的图片文件扩展名
     private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = new HashSet<>(Arrays.asList(

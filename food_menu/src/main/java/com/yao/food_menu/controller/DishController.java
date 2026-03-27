@@ -52,6 +52,9 @@ public class DishController {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private com.yao.food_menu.service.ThumbnailService thumbnailService;
+
     @Operation(summary = "添加菜品", description = "添加菜品及其口味信息")
     @com.yao.food_menu.common.annotation.OperationLog(operationType = com.yao.food_menu.common.annotation.OperationLog.OperationType.INSERT, operationModule = "菜品", operationDesc = "添加菜品")
     @PostMapping
@@ -223,8 +226,8 @@ public class DishController {
                 }
             }
 
-            // Convert OSS object key to presigned URL if needed
-            convertImageToPresignedUrl(dishDto);
+            // Convert image paths to URLs, use thumb for lists
+            convertImageToPresignedUrl(dishDto, true);
             // 将 localImages JSON 字符串转换为数组
             convertLocalImagesToArray(dishDto);
             return dishDto;
@@ -240,7 +243,7 @@ public class DishController {
     public Result<DishDto> get(@PathVariable Long id) {
         DishDto dishDto = dishService.getByIdWithFlavor(id);
         // 先转换主图 URL
-        convertImageToPresignedUrl(dishDto);
+        convertImageToPresignedUrl(dishDto, false); // 详情页使用原图
         // 然后将 localImages JSON 字符串转换为数组（此时主图 URL 已转换）
         convertLocalImagesToArray(dishDto);
         return Result.success(dishDto);
@@ -307,15 +310,15 @@ public class DishController {
             Page<Dish> pageInfo = new Page<>(page, pageSize);
             dishService.page(pageInfo, queryWrapper);
 
-            // Convert OSS object keys to presigned URLs for all dishes
-            pageInfo.getRecords().forEach(this::convertDishImageToPresignedUrl);
+            // Convert paths to URLs for all dishes, use thumb for lists
+            pageInfo.getRecords().forEach(dish -> convertDishImageToPresignedUrl(dish, true));
 
             return Result.success(pageInfo);
         } else {
             // 向后兼容:如果没有分页参数,返回所有记录
             List<Dish> list = dishService.list(queryWrapper);
-            // Convert OSS object keys to presigned URLs for all dishes
-            list.forEach(this::convertDishImageToPresignedUrl);
+            // Convert paths to URLs for all dishes, use thumb for lists
+            list.forEach(dish -> convertDishImageToPresignedUrl(dish, true));
             return Result.success(list);
         }
     }
@@ -340,8 +343,8 @@ public class DishController {
             } else {
                 dishDto.setOrderCount(0);
             }
-            // Convert OSS object keys to presigned URLs
-            convertImageToPresignedUrl(dishDto);
+            // Convert paths to URLs, use thumb for lists
+            convertImageToPresignedUrl(dishDto, true);
             // 将 localImages JSON 字符串转换为数组
             convertLocalImagesToArray(dishDto);
         });
@@ -416,112 +419,45 @@ public class DishController {
      * Convert OSS object key to presigned URL if the image is an OSS object key
      * (not a full URL starting with http:// or https://)
      */
-    private void convertImageToPresignedUrl(DishDto dishDto) {
+    private void convertImageToPresignedUrl(DishDto dishDto, boolean useThumb) {
         if (dishDto == null) {
             return;
         }
 
-        // 根据存储方式处理图片URL
+        String urlPrefix = localStorageProperties.getUrlPrefix();
+        // 如果是本地存储，使用 processImageUrl 处理
         if (fileStorageProperties.isLocal()) {
-            // 本地存储模式：将localImage拼接URL后设置到image字段（供前端使用）
-            // 同时将拼接好的URL也设置到localImage字段（覆盖相对路径）
-            if (StringUtils.hasText(dishDto.getLocalImage())) {
-                String localImage = dishDto.getLocalImage();
-                // 如果localImage已经是完整URL（以http://或https://开头），直接使用，不要拼接
-                if (localImage.startsWith("http://") || localImage.startsWith("https://")) {
-                    // 已经是完整URL，直接使用
-                    dishDto.setImage(localImage);
-                    // localImage字段保持原样（已经是完整URL）
-                } else {
-                    // 如果是相对路径，需要拼接URL前缀
-                    String urlPrefix = localStorageProperties.getUrlPrefix();
-                    if (!urlPrefix.endsWith("/")) {
-                        urlPrefix += "/";
-                    }
-                    // 移除localImage开头的斜杠
-                    String localPath = localImage.startsWith("/")
-                            ? localImage.substring(1)
-                            : localImage;
-                    String fullUrl = urlPrefix + localPath;
-                    // 将完整URL设置到image字段，供前端使用
-                    dishDto.setImage(fullUrl);
-                    // 同时将完整URL设置到localImage字段（前端优先使用localImage）
-                    dishDto.setLocalImage(fullUrl);
-                }
-            }
-            // 本地存储模式下，如果image字段存在但不是完整URL，忽略它（可能是旧数据）
+            dishDto.setImage(com.yao.food_menu.common.util.ImageUtils.processImageUrl(dishDto.getLocalImage(), urlPrefix, useThumb));
         } else {
-            // OSS存储模式：使用image字段（OSS object key），转换为预签名URL
-            if (!StringUtils.hasText(dishDto.getImage())) {
-                return;
-            }
-            String image = dishDto.getImage();
-            // If image is not a full URL (doesn't start with http:// or https://),
-            // treat it as OSS object key and convert to presigned URL
-            if (!image.startsWith("http://") && !image.startsWith("https://")) {
+            // OSS 逻辑
+            if (StringUtils.hasText(dishDto.getImage()) && !dishDto.getImage().startsWith("http")) {
                 try {
-                    String presignedUrl = ossService.generatePresignedUrl(image);
-                    dishDto.setImage(presignedUrl);
+                    dishDto.setImage(ossService.generatePresignedUrl(dishDto.getImage()));
                 } catch (Exception e) {
-                    log.warn("Failed to generate presigned URL for object key: {}, using default image", image, e);
                     dishDto.setImage(DEFAULT_IMAGE);
                 }
             }
         }
     }
 
-    /**
-     * Convert OSS object key to presigned URL for Dish entity
-     * 用于小程序端的 /dish/list 接口
-     */
-    private void convertDishImageToPresignedUrl(Dish dish) {
+    private void convertImageToPresignedUrl(DishDto dishDto) {
+        convertImageToPresignedUrl(dishDto, false);
+    }
+
+    private void convertDishImageToPresignedUrl(Dish dish, boolean useThumb) {
         if (dish == null) {
             return;
         }
 
-        // 根据存储方式处理图片URL
+        String urlPrefix = localStorageProperties.getUrlPrefix();
         if (fileStorageProperties.isLocal()) {
-            // 本地存储模式：将localImage拼接URL后设置到image字段（供前端使用）
-            // 同时将拼接好的URL也设置到localImage字段（覆盖相对路径）
-            if (StringUtils.hasText(dish.getLocalImage())) {
-                String localImage = dish.getLocalImage();
-                // 如果localImage已经是完整URL（以http://或https://开头），直接使用，不要拼接
-                if (localImage.startsWith("http://") || localImage.startsWith("https://")) {
-                    // 已经是完整URL，直接使用
-                    dish.setImage(localImage);
-                    // localImage字段保持原样（已经是完整URL）
-                } else {
-                    // 如果是相对路径，需要拼接URL前缀
-                    String urlPrefix = localStorageProperties.getUrlPrefix();
-                    if (!urlPrefix.endsWith("/")) {
-                        urlPrefix += "/";
-                    }
-                    // 移除localImage开头的斜杠
-                    String localPath = localImage.startsWith("/")
-                            ? localImage.substring(1)
-                            : localImage;
-                    String fullUrl = urlPrefix + localPath;
-                    // 将完整URL设置到image字段，供前端使用
-                    dish.setImage(fullUrl);
-                    // 同时将完整URL设置到localImage字段（前端优先使用localImage）
-                    dish.setLocalImage(fullUrl);
-                }
-            }
-            // 本地存储模式下，如果image字段存在但不是完整URL，忽略它（可能是旧数据）
+            dish.setImage(com.yao.food_menu.common.util.ImageUtils.processImageUrl(dish.getLocalImage(), urlPrefix, useThumb));
         } else {
-            // OSS存储模式：使用image字段（OSS object key），转换为预签名URL
-            if (!StringUtils.hasText(dish.getImage())) {
-                return;
-            }
-            String image = dish.getImage();
-            // If image is not a full URL (doesn't start with http:// or https://),
-            // treat it as OSS object key and convert to presigned URL
-            if (!image.startsWith("http://") && !image.startsWith("https://")) {
+            // OSS 逻辑
+            if (StringUtils.hasText(dish.getImage()) && !dish.getImage().startsWith("http")) {
                 try {
-                    String presignedUrl = ossService.generatePresignedUrl(image);
-                    dish.setImage(presignedUrl);
+                    dish.setImage(ossService.generatePresignedUrl(dish.getImage()));
                 } catch (Exception e) {
-                    log.warn("Failed to generate presigned URL for object key: {}, using default image", image, e);
                     dish.setImage(DEFAULT_IMAGE);
                 }
             }

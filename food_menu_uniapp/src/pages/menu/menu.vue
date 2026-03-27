@@ -73,7 +73,7 @@
         >
           <!-- 图片区域 -->
           <view class="dish-image-wrapper">
-            <image class="dish-image" :src="getDishImage(dish)" mode="aspectFill" />
+            <image class="dish-image" :src="getDishImage(dish, true)" mode="aspectFill" lazy-load />
             <view class="image-overlay"></view>
             <view 
               class="favorite-btn" 
