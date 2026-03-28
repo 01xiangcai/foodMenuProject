@@ -347,6 +347,34 @@ const timeState = ref({
 
 let timer = null
 
+// 登录状态
+const isLoggedIn = ref(false)
+const userInfo = ref({
+  nickname: '',
+  avatar: ''
+})
+
+const checkLoginStatus = () => {
+  const token = uni.getStorageSync('fm_token')
+  isLoggedIn.value = !!token
+  if (token) {
+    loadUserInfo()
+  } else {
+    userInfo.value = { nickname: '', avatar: '' }
+  }
+}
+
+const loadUserInfo = async () => {
+  try {
+    const res = await getWxUserInfo()
+    if (res.data) {
+      userInfo.value = res.data
+    }
+  } catch (error) {
+    console.error('加载用户信息失败:', error)
+  }
+}
+
 // 更新时钟
 const updateClock = () => {
   const now = new Date()
@@ -540,18 +568,25 @@ const navigateToDishDetail = (dishId) => {
 // 生命周期
 onMounted(() => {
   loadTheme()
-  loadTheme()
+  checkLoginStatus()
   updateClock()
   updateGreeting()
   timer = setInterval(() => {
     updateClock()
-    // 每分钟更新一次问候语，简单起见放在这里或者单独计时
+    // 每分钟更新一次问候语
     if (new Date().getSeconds() === 0) updateGreeting()
   }, 1000)
+  
+  // 初始加载一次全部数据
+  refreshAllData()
+})
+
+// 统一刷新所有数据
+const refreshAllData = () => {
   loadBanners()
   loadFeaturedDishes()
   loadTodayMeals()
-})
+}
 
 onUnmounted(() => {
   if (timer) {
@@ -574,8 +609,10 @@ onShow(() => {
   if (!timer) {
     timer = setInterval(updateClock, 1000)
   }
-  // 刷新今日菜单数据,确保下单后数据及时更新
-  loadTodayMeals()
+  
+  // 关键: 每次显示页面都检查登录态并刷新全量数据
+  checkLoginStatus()
+  refreshAllData()
 })
 // ====== AI 客服悬浮球（一行接入）======
 const {
