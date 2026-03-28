@@ -208,8 +208,20 @@
         <!-- 家庭备注 (富文本样式) -->
         <view class="rich-input-group">
           <view class="rich-header">
-            <text class="cell-icon">📝</text>
-            <text class="cell-label" :style="{ color: themeConfig.textPrimary }">家庭备注 (简介)</text>
+            <view class="header-left">
+              <text class="cell-icon">📝</text>
+              <text class="cell-label" :style="{ color: themeConfig.textPrimary }">家庭备注 (简介)</text>
+            </view>
+            <view class="header-right" v-if="formData.name">
+              <view 
+                class="ai-magic-btn" 
+                :class="{ 'is-loading': aiGenerating }"
+                @tap="handleAiGenerate"
+              >
+                <text class="magic-icon">{{ aiGenerating ? '⏳' : '✨' }}</text>
+                <text class="magic-text">{{ aiGenerating ? '构思中...' : 'AI 智编' }}</text>
+              </view>
+            </view>
           </view>
           <view class="rich-textarea-wrapper" :style="{ background: themeConfig.bgTertiary }">
             <textarea 
@@ -298,7 +310,14 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useTheme } from '@/stores/theme'
-import { getCategoryList, uploadDishImage, updateDishUniapp, getDishDetail, getDishTagList } from '@/api/index'
+import { 
+  getCategoryList, 
+  uploadDishImage, 
+  updateDishUniapp, 
+  getDishDetail, 
+  getDishTagList,
+  generateDishDescription
+} from '@/api/index'
 import PopupSelector from '@/components/common/popup-selector.vue'
 
 const { themeConfig, loadTheme } = useTheme()
@@ -343,6 +362,44 @@ const showTagPopup = ref(false)
 const flavorList = ref([])
 const isFlavorInputVisible = ref(false)
 const flavorInputValue = ref('')
+
+// AI 生成状态
+const aiGenerating = ref(false)
+
+// AI 生成逻辑
+const handleAiGenerate = async () => {
+  if (aiGenerating.value) return
+  
+  if (!formData.value.name.trim()) {
+    return uni.showToast({ title: '请先输入菜品名称', icon: 'none' })
+  }
+
+  // 增加二次确认
+  uni.showModal({
+    title: '温馨提示',
+    content: '确认要由 AI 重新生成简介吗？这将覆盖现有内容。',
+    confirmColor: '#FF7D58',
+    success: async (res) => {
+      if (res.confirm) {
+        try {
+          aiGenerating.value = true
+          const res = await generateDishDescription(formData.value.name)
+          if (res.code === 1 && res.data) {
+            formData.value.description = res.data
+            uni.showToast({ title: '生成成功', icon: 'success' })
+          } else {
+            uni.showToast({ title: res.msg || '生成失败', icon: 'none' })
+          }
+        } catch (e) {
+          console.error('AI 生成失败', e)
+          uni.showToast({ title: '系统忙，请稍后再试', icon: 'none' })
+        } finally {
+          aiGenerating.value = false
+        }
+      }
+    }
+  })
+}
 
 // 页面加载
 import { onLoad, onShow } from '@dcloudio/uni-app'
@@ -816,9 +873,83 @@ const goBack = () => {
 .rich-header {
   display: flex;
   align-items: center;
-  gap: 16rpx;
-  margin-bottom: 16rpx;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
 }
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+/* AI 魔法按钮 */
+.ai-magic-btn {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 8rpx 20rpx;
+  background: linear-gradient(135deg, #FF7D58, #FF4D4D);
+  border-radius: 30rpx;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4rpx 12rpx rgba(255, 125, 88, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  &:active {
+    transform: scale(0.95);
+    opacity: 0.9;
+  }
+  
+  &.is-loading {
+    opacity: 0.8;
+    background: #999;
+    box-shadow: none;
+    
+    .magic-icon {
+      animation: rotating 2s linear infinite;
+    }
+  }
+  
+  .magic-icon {
+    font-size: 26rpx;
+  }
+  
+  .magic-text {
+    font-size: 24rpx;
+    color: white;
+    font-weight: 600;
+  }
+  
+  /* 流光效果 */
+  &::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -100%;
+    width: 50%;
+    height: 200%;
+    background: linear-gradient(
+      to right,
+      transparent,
+      rgba(255, 255, 255, 0.3),
+      transparent
+    );
+    transform: rotate(30deg);
+    animation: magic-shimmer 3s infinite;
+  }
+}
+
+@keyframes magic-shimmer {
+  0% { left: -100%; }
+  50% { left: 150%; }
+  100% { left: 150%; }
+}
+
+@keyframes rotating {
+  from { transform: rotate(0); }
+  to { transform: rotate(360deg); }
+}
+
 .rich-textarea-wrapper {
   padding: 24rpx;
   border-radius: 20rpx;

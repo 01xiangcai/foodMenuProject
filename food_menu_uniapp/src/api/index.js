@@ -652,3 +652,14 @@ export const reviewLateOrder = (orderId, action, dishIds) => {
         data: dishIds || []
     })
 }
+/**
+ * AI自动生成菜品简介
+ * @param {String} dishName 菜品名称
+ */
+export const generateDishDescription = (dishName) => {
+    return request({
+        url: '/wx/ai/generate-dish-description',
+        method: 'POST',
+        data: { dishName }
+    })
+}

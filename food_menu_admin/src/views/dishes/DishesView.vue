@@ -207,17 +207,27 @@
             <div class="ai-content-column">
               <transition name="fade-slide">
                 <div v-if="dishModal.form.name" class="ai-magic-toolbar-aligned">
-                  <button 
+                  <n-popconfirm
                     v-if="!aiGenerating"
-                    class="btn-magic-ai" 
-                    @click="handleAiGenerateDescription"
-                    type="button"
-                    title="根据菜名 AI 自动生成简介"
+                    @positive-click="handleAiGenerateDescription"
+                    trigger="click"
+                    positive-text="确定"
+                    negative-text="取消"
+                    :positive-button-props="{ type: 'primary', color: '#FF7D58', textColor: '#333' }"
                   >
-                    <span class="magic-icon">✨</span>
-                    <span class="magic-text">AI 智编</span>
-                    <div class="magic-shimmer"></div>
-                  </button>
+                    <template #trigger>
+                      <button 
+                        class="btn-magic-ai" 
+                        type="button"
+                        title="根据菜名 AI 自动生成简介"
+                      >
+                        <span class="magic-icon">✨</span>
+                        <span class="magic-text">AI 智编</span>
+                        <div class="magic-shimmer"></div>
+                      </button>
+                    </template>
+                    确认要由 AI 重新生成简介吗？这将覆盖现有内容。
+                  </n-popconfirm>
                   <div v-else class="btn-magic-ai is-loading">
                     <span class="magic-icon loading-spin">✨</span>
                     <span class="magic-text">正在构思...</span>
@@ -334,6 +344,7 @@ import {
   NUpload,
   NUploadDragger,
   NCarousel,
+  NPopconfirm,
   useMessage,
   type DataTableColumns,
   type PaginationProps,

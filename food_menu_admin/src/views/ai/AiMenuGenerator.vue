@@ -23,9 +23,10 @@
 
         <div class="action-buttons">
           <NButton
-            class="primary-soft"
             type="primary"
             size="large"
+            color="#FF7D58"
+            text-color="#333"
             :loading="generating"
             @click="generateMenu"
           >
