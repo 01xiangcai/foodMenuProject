@@ -15,7 +15,7 @@ import java.util.List;
  * 当需要本地部署AI模型时,实现此类的具体逻辑
  */
 @Slf4j
-@Service
+// @Service
 public class OllamaAiServiceImpl implements AiService {
 
     @Override

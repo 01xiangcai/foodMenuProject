@@ -53,4 +53,11 @@ public interface AiService {
      * @return 一周菜单的JSON字符串
      */
     String generateWeeklyMenu(Long familyId, String preferences);
+    /**
+     * 生成菜品简介
+     * 
+     * @param dishName 菜品名称
+     * @return 菜品简介
+     */
+    String generateDishDescription(String dishName);
 }

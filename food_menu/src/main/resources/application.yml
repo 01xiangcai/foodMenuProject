@@ -134,9 +134,15 @@ logging:
 
 # AI服务配置
 ai:
-  # 当前使用的AI服务提供商: silicon_flow, qwen, ollama
-  provider: silicon_flow
+  # 当前使用的AI服务提供商: silicon_flow, qwen, ollama, external
+  provider: external
   
+  # 外部AI服务配置 (aiCustomerService)
+  external:
+    base-url: http://localhost:9900
+    app-key: ak_LDG0En1pIm8TLZQy1D3LRY5l
+    timeout: 30000
+
   # 硅基流动配置
   silicon-flow:
     api-key: ${AI_SILICON_FLOW_API_KEY:sk-cwdjbdkgrdmctlfbukcacxdgwyfcfoqitlwnfjhsdkcggpni}

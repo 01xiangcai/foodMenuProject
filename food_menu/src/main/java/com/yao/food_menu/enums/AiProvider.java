@@ -28,7 +28,12 @@ public enum AiProvider {
     /**
      * 本地Ollama部署
      */
-    OLLAMA("ollama", "本地Ollama");
+    OLLAMA("ollama", "本地Ollama"),
+
+    /**
+     * 外部AI服务 (aiCustomerService)
+     */
+    EXTERNAL("external", "外部AI服务");
 
     private final String code;
     private final String name;

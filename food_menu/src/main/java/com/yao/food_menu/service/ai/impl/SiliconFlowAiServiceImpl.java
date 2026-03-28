@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
  * 兼容OpenAI格式的API调用
  */
 @Slf4j
-@Service
+// @Service
 public class SiliconFlowAiServiceImpl implements AiService {
 
     @Autowired

@@ -15,7 +15,7 @@ import java.util.List;
  * 当需要切换到通义千问时,实现此类的具体逻辑
  */
 @Slf4j
-@Service
+// @Service
 public class QwenAiServiceImpl implements AiService {
 
     @Override

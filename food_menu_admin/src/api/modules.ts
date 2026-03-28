@@ -437,3 +437,7 @@ export type BroadcastPayload = {
 };
 
 export const sendBroadcast = (data: BroadcastPayload) => http.post('/admin/notification/broadcast', data);
+
+// AI 生成菜品简介
+export const generateDishDescription = (dishName: string) => 
+  http.post('/admin/ai/generate-dish-description', { dishName });

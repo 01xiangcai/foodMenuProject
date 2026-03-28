@@ -72,9 +72,6 @@ public class AdminAiMenuController {
         }
     }
 
-    /**
-     * 分析用户偏好
-     */
     @GetMapping("/analyze-preferences")
     @Operation(summary = "分析用户偏好", description = "分析家庭用户的饮食偏好")
     public Result<String> analyzePreferences(@RequestHeader("user-id") Long userId) {
@@ -87,6 +84,29 @@ public class AdminAiMenuController {
         } catch (Exception e) {
             log.error("分析用户偏好失败", e);
             return Result.error("分析用户偏好失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 生成菜品简介
+     */
+    @PostMapping("/generate-dish-description")
+    @Operation(summary = "生成菜品简介", description = "根据菜品名称AI自动生成简介")
+    public Result<String> generateDishDescription(@RequestBody java.util.Map<String, String> params) {
+        try {
+            String dishName = params.get("dishName");
+            if (dishName == null || dishName.trim().isEmpty()) {
+                return Result.error("菜品名称不能为空");
+            }
+
+            AiService aiService = aiServiceFactory.getAiService();
+            String description = aiService.generateDishDescription(dishName);
+
+            return Result.success(description);
+
+        } catch (Exception e) {
+            log.error("生成菜品简介失败", e);
+            return Result.error("生成菜品简介失败: " + e.getMessage());
         }
     }
 }

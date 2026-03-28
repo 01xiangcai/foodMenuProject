@@ -20,14 +20,14 @@ export function getDishImageUrl(dish: any): string {
     return DEFAULT_DISH_IMAGE;
   }
 
-  // 优先使用 localImage
-  if (dish.localImage && typeof dish.localImage === 'string' && dish.localImage.trim() !== '') {
-    return dish.localImage;
-  }
-  
-  // 其次使用 image
-  if (dish.image && typeof dish.image === 'string' && dish.image.trim() !== '') {
+  // 优先使用 image (后端已拼接完整URL)
+  if (dish.image && typeof dish.image === 'string' && dish.image.trim() !== '' && dish.image !== 'null') {
     return dish.image;
+  }
+
+  // 其次使用 localImage
+  if (dish.localImage && typeof dish.localImage === 'string' && dish.localImage.trim() !== '' && dish.localImage !== 'null') {
+    return dish.localImage;
   }
   
   // 都没有则返回默认图片

@@ -203,13 +203,35 @@
               :loading="tagsLoading"
             />
           </NFormItem>
-          <NFormItem label="家庭备注">
-            <NInput
-              v-model:value="dishModal.form.description"
-              placeholder="喜欢的配菜、特别提醒..."
-              type="textarea"
-              :rows="3"
-            />
+          <NFormItem label="家庭备注" class="ai-input-item">
+            <div class="ai-content-column">
+              <transition name="fade-slide">
+                <div v-if="dishModal.form.name" class="ai-magic-toolbar-aligned">
+                  <button 
+                    v-if="!aiGenerating"
+                    class="btn-magic-ai" 
+                    @click="handleAiGenerateDescription"
+                    type="button"
+                    title="根据菜名 AI 自动生成简介"
+                  >
+                    <span class="magic-icon">✨</span>
+                    <span class="magic-text">AI 智编</span>
+                    <div class="magic-shimmer"></div>
+                  </button>
+                  <div v-else class="btn-magic-ai is-loading">
+                    <span class="magic-icon loading-spin">✨</span>
+                    <span class="magic-text">正在构思...</span>
+                  </div>
+                </div>
+              </transition>
+              <NInput
+                v-model:value="dishModal.form.description"
+                placeholder="喜欢的配菜、特别提醒..."
+                type="textarea"
+                :rows="3"
+                class="ai-textarea"
+              />
+            </div>
           </NFormItem>
         </NForm>
       </NSpin>
@@ -331,7 +353,8 @@ import {
   fetchAllDishTags,
   fetchSystemConfig,
   fetchAllFamilies,
-  fetchProfile
+  fetchProfile,
+  generateDishDescription
 } from '@/api/modules';
 
 type Category = {
@@ -362,6 +385,7 @@ type DishRecord = {
   localImages?: string;
   localImagesArray?: string[];
   familyId?: number;
+  categoryNames?: string[];
 };
 
 type DishForm = {
@@ -391,21 +415,21 @@ const dishFormRules = computed(() => ({
   },
   categoryIds: {
     required: true,
-    type: 'array',
+    type: 'array' as const,
     message: '请至少选择一个分类',
     trigger: ['blur', 'change']
   },
   ...(isSuperAdmin.value ? {
     familyId: {
       required: true,
-      type: 'number',
+      type: 'number' as const,
       message: '请选择所属家庭',
       trigger: ['blur', 'change']
     }
   } : {}),
   price: {
     required: true,
-    type: 'number',
+    type: 'number' as const,
     message: '请输入价格',
     trigger: ['blur', 'input'],
     validator: (rule: any, value: number | null) => {
@@ -420,7 +444,7 @@ const dishFormRules = computed(() => ({
   },
   localImagesArray: {
     required: true,
-    type: 'array',
+    type: 'array' as const,
     message: '请至少上传一张图片',
     trigger: ['blur'],
     validator: (rule: any, value: string[]) => {
@@ -520,6 +544,31 @@ const dishModal = reactive({
   pendingFiles: [] as Array<{ file: File; previewUrl: string; index: number }> // 待上传的文件列表
 });
 
+const aiGenerating = ref(false);
+
+const handleAiGenerateDescription = async () => {
+  if (!dishModal.form.name) {
+    message.warning('请先输入菜品名称');
+    return;
+  }
+  
+  aiGenerating.value = true;
+  try {
+    const res: any = await generateDishDescription(dishModal.form.name);
+    if (res.code === 1 && res.data) {
+      dishModal.form.description = res.data;
+      message.success('已生成 AI 简介');
+    } else {
+      message.error(res.msg || '生成失败');
+    }
+  } catch (error) {
+    console.error('AI 生成失败:', error);
+    message.error('AI 服务暂时不可用');
+  } finally {
+    aiGenerating.value = false;
+  }
+};
+
 // 家庭选项（用于添加/编辑菜品）
 const familyOptions = computed(() => {
   return families.value.map(f => ({
@@ -550,9 +599,9 @@ const columns: DataTableColumns<DishRecord> = [
     key: 'image',
     width: 80,
     render: (row) => {
-      // 后端已经将完整URL设置到localImage和image字段中（本地存储模式下）
-      // 优先使用localImage字段（后端已拼接好URL），如果没有则使用image字段
-      const imageUrl = row.localImage || row.image || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YzZjRmNiIvPgogIDx0ZXh0IHg9IjUwJSIgeT0iNDUlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iODAiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPvCfjaU8L3RleHQ+CiAgPHRleHQgeD0iNTAlIiB5PSI2NSUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzljYTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5pqC5peg5Zu+54mHPC90ZXh0Pgo8L3N2Zz4=';
+      // 后端已经将完整URL设置到 image 和 localImage 字段中（本地存储模式下）
+      // 优先使用 image 字段（最稳定的完整 URL），如果没有则尝试 localImage
+      const imageUrl = row.image || row.localImage || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YzZjRmNiIvPgogIDx0ZXh0IHg9IjUwJSIgeT0iNDUlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iODAiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPvCfjaU8L3RleHQ+CiAgPHRleHQgeD0iNTAlIiB5PSI2NSUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzljYTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+5pqC5peg5Zu+54mHPC90ZXh0Pgo8L3N2Zz4=';
       return h(
         NImage,
         {
@@ -1735,6 +1784,117 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+/* AI Magic Button Styles */
+.ai-content-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.ai-magic-toolbar-aligned {
+  display: flex;
+  justify-content: flex-start;
+  height: 30px;
+  align-items: center;
+}
+
+.ai-textarea {
+  width: 100% !important;
+}
+
+.btn-magic-ai {
+  background: var(--gradient-primary);
+  border: none;
+  border-radius: 14px;
+  color: white;
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(var(--primary-h), var(--primary-s), var(--primary-l), 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  height: 24px;
+  line-height: 24px;
+}
+
+.btn-magic-ai:hover:not(.is-loading) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(var(--primary-h), var(--primary-s), var(--primary-l), 0.4);
+  filter: brightness(1.05);
+}
+
+.btn-magic-ai:active:not(.is-loading) {
+  transform: translateY(0);
+}
+
+.magic-icon {
+  font-size: 12px;
+}
+
+.magic-text {
+  letter-spacing: 0.3px;
+}
+
+/* Shimmer Effect */
+.magic-shimmer {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* Loading Animation */
+.loading-spin {
+  animation: loading-pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes loading-pulse {
+  0% { opacity: 1; transform: scale(1) rotate(0); }
+  50% { opacity: 0.5; transform: scale(1.2) rotate(180deg); }
+  100% { opacity: 1; transform: scale(1) rotate(360deg); }
+}
+
+.btn-magic-ai.is-loading {
+  cursor: wait;
+  background: var(--text-tertiary);
+  opacity: 0.8;
+}
+
+/* Transition Animations */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: all 0.4s ease;
+}
+
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateY(10px) scale(0.9);
+}
+
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.9);
 }
 
 .section-label {

@@ -90,7 +90,9 @@ public class RandomDishController {
     private void processDishImage(DishDto dish) {
         String urlPrefix = localStorageProperties.getUrlPrefix();
         if (fileStorageProperties.isLocal()) {
-            dish.setImage(com.yao.food_menu.common.util.ImageUtils.processImageUrl(dish.getLocalImage(), urlPrefix));
+            String processedUrl = com.yao.food_menu.common.util.ImageUtils.processImageUrl(dish.getLocalImage(), urlPrefix);
+            dish.setImage(processedUrl);
+            dish.setLocalImage(processedUrl);
         } else if (org.springframework.util.StringUtils.hasText(dish.getImage()) && !dish.getImage().startsWith("http")) {
             try {
                 dish.setImage(ossService.generatePresignedUrl(dish.getImage()));

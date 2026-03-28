@@ -427,7 +427,9 @@ public class DishController {
         String urlPrefix = localStorageProperties.getUrlPrefix();
         // 如果是本地存储，使用 processImageUrl 处理
         if (fileStorageProperties.isLocal()) {
-            dishDto.setImage(com.yao.food_menu.common.util.ImageUtils.processImageUrl(dishDto.getLocalImage(), urlPrefix, useThumb));
+            String processedUrl = com.yao.food_menu.common.util.ImageUtils.processImageUrl(dishDto.getLocalImage(), urlPrefix, useThumb);
+            dishDto.setImage(processedUrl);
+            dishDto.setLocalImage(processedUrl);
         } else {
             // OSS 逻辑
             if (StringUtils.hasText(dishDto.getImage()) && !dishDto.getImage().startsWith("http")) {
@@ -451,7 +453,9 @@ public class DishController {
 
         String urlPrefix = localStorageProperties.getUrlPrefix();
         if (fileStorageProperties.isLocal()) {
-            dish.setImage(com.yao.food_menu.common.util.ImageUtils.processImageUrl(dish.getLocalImage(), urlPrefix, useThumb));
+            String processedUrl = com.yao.food_menu.common.util.ImageUtils.processImageUrl(dish.getLocalImage(), urlPrefix, useThumb);
+            dish.setImage(processedUrl);
+            dish.setLocalImage(processedUrl);
         } else {
             // OSS 逻辑
             if (StringUtils.hasText(dish.getImage()) && !dish.getImage().startsWith("http")) {

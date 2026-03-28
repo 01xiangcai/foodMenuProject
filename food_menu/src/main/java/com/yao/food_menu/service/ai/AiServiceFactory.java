@@ -5,6 +5,7 @@ import com.yao.food_menu.enums.AiProvider;
 import com.yao.food_menu.service.ai.impl.OllamaAiServiceImpl;
 import com.yao.food_menu.service.ai.impl.QwenAiServiceImpl;
 import com.yao.food_menu.service.ai.impl.SiliconFlowAiServiceImpl;
+import com.yao.food_menu.service.ai.impl.ExternalAiServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -29,6 +30,9 @@ public class AiServiceFactory {
 
     @Autowired(required = false)
     private OllamaAiServiceImpl ollamaAiService;
+
+    @Autowired(required = false)
+    private ExternalAiServiceImpl externalAiService;
 
     /**
      * 获取当前配置的AI服务实例
@@ -56,6 +60,12 @@ public class AiServiceFactory {
                 }
                 return ollamaAiService;
 
+            case EXTERNAL:
+                if (externalAiService == null) {
+                    throw new IllegalStateException("外部AI服务未初始化");
+                }
+                return externalAiService;
+
             default:
                 throw new IllegalArgumentException("不支持的AI服务提供商: " + provider.getName());
         }
@@ -74,6 +84,8 @@ public class AiServiceFactory {
                 return qwenAiService;
             case OLLAMA:
                 return ollamaAiService;
+            case EXTERNAL:
+                return externalAiService;
             default:
                 throw new IllegalArgumentException("不支持的AI服务提供商: " + provider.getName());
         }

@@ -35,6 +35,11 @@ public class AiConfig {
     private OllamaConfig ollama;
 
     /**
+     * 外部AI服务配置
+     */
+    private ExternalConfig external;
+
+    /**
      * 获取当前AI服务提供商枚举
      */
     public AiProvider getProviderEnum() {
@@ -71,5 +76,15 @@ public class AiConfig {
     public static class OllamaConfig {
         private String baseUrl;
         private String model;
+    }
+
+    /**
+     * 外部AI服务配置
+     */
+    @Data
+    public static class ExternalConfig {
+        private String baseUrl;
+        private String appKey;
+        private Integer timeout;
     }
 }
