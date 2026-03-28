@@ -791,13 +791,6 @@ sudo tail -f /var/log/nginx/error.log
 
 ---
 
-## 📊 项目统计
-
-- **后端代码**：114+ Java 文件
-- **管理后台**：30+ Vue 组件
-- **小程序**：15+ 页面
-- **数据表**：14 张
-- **API接口**：80+ 个
 
 ---
 
@@ -813,27 +806,3 @@ sudo tail -f /var/log/nginx/error.log
 
 ---
 
-## 📞 技术支持
-
-如遇到问题，请提供以下信息：
-
-1. 操作系统版本：`lsb_release -a`（Linux）或 `systeminfo`（Windows）
-2. Java 版本：`java -version`
-3. 错误日志：`sudo journalctl -u food-menu -n 100`
-4. 浏览器控制台错误信息
-
----
-
-## 📄 许可证
-
-本项目仅供学习和研究使用。
-
----
-
-## 🙏 致谢
-
-感谢所有开源项目的贡献者！
-
----
-
-**最后更新时间**：2025-12-05
