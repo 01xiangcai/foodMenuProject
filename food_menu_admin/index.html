@@ -18,34 +18,70 @@
 
       // 增强型拖拽功能实现
       function initDraggable(container) {
+        if (container.dataset.draggableInit) return;
+        container.dataset.draggableInit = 'true';
+        
         var isDragging = false;
-        var startX, startY, initialLeft, initialTop;
+        var startX, startY;
 
         container.style.cursor = 'move';
-        container.style.zIndex = '99999';
+        container.style.zIndex = '2147483647';
+        container.style.userSelect = 'none';
         
+        // 检测全屏/放大状态
+        function isExpanded() {
+          if (container.id === 'aics-chat') {
+            return container.offsetWidth > window.innerWidth * 0.8 || container.offsetHeight > window.innerHeight * 0.8;
+          }
+          return false;
+        }
+
         container.addEventListener('mousedown', function (e) {
-          if (e.button !== 0) return;
-          isDragging = false;
+          if (e.button !== 0 || isExpanded()) return;
+          
           startX = e.clientX;
           startY = e.clientY;
-          initialLeft = container.offsetLeft;
-          initialTop = container.offsetTop;
-          container.style.transition = 'none';
+          
+          var linkedElements = document.querySelectorAll('#aics-bubble, #aics-chat');
+          var initials = [];
+          linkedElements.forEach(el => {
+            var r = el.getBoundingClientRect();
+            initials.push({ el: el, x: r.left, y: r.top });
+            el.style.transition = 'none';
+          });
+          
+          isDragging = false;
 
           function onMouseMove(e) {
             var dx = e.clientX - startX;
             var dy = e.clientY - startY;
-            if (!isDragging && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
-              isDragging = true;
-            }
+            if (!isDragging && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) isDragging = true;
+            
             if (isDragging) {
-              var nL = Math.max(0, Math.min(initialLeft + dx, window.innerWidth - container.offsetWidth));
-              var nT = Math.max(0, Math.min(initialTop + dy, window.innerHeight - container.offsetHeight));
-              container.style.left = nL + 'px';
-              container.style.top = nT + 'px';
-              container.style.right = 'auto';
-              container.style.bottom = 'auto';
+              e.preventDefault();
+              var finalDx = dx;
+              var finalDy = dy;
+              
+              initials.forEach(item => {
+                var el = item.el;
+                var targetL = item.x + finalDx;
+                var targetT = item.y + finalDy;
+                if (targetL < 10) finalDx = 10 - item.x;
+                var maxL = window.innerWidth - el.offsetWidth - 10;
+                if (targetL > maxL) finalDx = maxL - item.x;
+                if (targetT < 10) finalDy = 10 - item.y;
+                var maxT = window.innerHeight - el.offsetHeight - 10;
+                if (targetT > maxT) finalDy = maxT - item.y;
+              });
+
+              initials.forEach(item => {
+                var el = item.el;
+                el.style.left = (item.x + finalDx) + 'px';
+                el.style.top = (item.y + finalDy) + 'px';
+                el.style.bottom = 'auto';
+                el.style.right = 'auto';
+                el.style.position = 'fixed';
+              });
             }
           }
 
@@ -53,57 +89,92 @@
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
             if (isDragging) {
-              // 侧边吸附逻辑
-              container.style.transition = 'all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28)';
-              var cX = container.offsetLeft + container.offsetWidth / 2;
-              if (cX < window.innerWidth / 2) {
-                container.style.left = '20px';
-              } else {
-                container.style.left = (window.innerWidth - container.offsetWidth - 20) + 'px';
-              }
-              // 阻止点击
-              container.addEventListener('click', function stop(e) {
-                e.stopImmediatePropagation();
-                container.removeEventListener('click', stop, true);
-              }, true);
+              initials.forEach(item => {
+                var el = item.el;
+                el.style.transition = 'all 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28)';
+                var midX = el.offsetLeft + el.offsetWidth / 2;
+                if (midX < window.innerWidth / 2) {
+                  el.style.left = '20px';
+                } else {
+                  el.style.left = (window.innerWidth - el.offsetWidth - 20) + 'px';
+                }
+              });
+              setTimeout(() => { isDragging = false; }, 0);
             }
           }
           document.addEventListener('mousemove', onMouseMove);
           document.addEventListener('mouseup', onMouseUp);
         });
+
+        container.addEventListener('click', function(e) {
+          if (isDragging) { e.preventDefault(); e.stopPropagation(); }
+        }, true);
+
+        // 监听全屏切换，自动清理 inline 样式
+        var styleObserver = new MutationObserver(function() {
+          if (isExpanded()) {
+            container.style.left = '';
+            container.style.top = '';
+            container.style.right = '';
+            container.style.bottom = '';
+            container.style.transition = '';
+            // 全屏时确保 z-index 依然够高
+            container.style.zIndex = '2147483647';
+          }
+        });
+        styleObserver.observe(container, { attributes: true, attributeFilter: ['style', 'class'] });
       }
 
-      // 实时监听 DOM 注入
+      // 更鲁棒的 DOM 监听
       var observer = new MutationObserver(function (mutations) {
-        mutations.forEach(function (mutation) {
-          mutation.addedNodes.forEach(function (node) {
-            if (node.nodeType === 1 && (node.className.indexOf('ai-cs') > -1 || node.id.indexOf('ai-cs') > -1 || node.className.indexOf('widget') > -1)) {
-              initDraggable(node);
-            }
-          });
-        });
+        var nodes = document.querySelectorAll('#aics-bubble, #aics-chat');
+        for (var i = 0; i < nodes.length; i++) initDraggable(nodes[i]);
       });
-      observer.observe(document.body, { childList: true });
+      observer.observe(document.body, { childList: true, subtree: true });
+
+      setInterval(function() {
+        var nodes = document.querySelectorAll('#aics-bubble, #aics-chat');
+        for (var i = 0; i < nodes.length; i++) initDraggable(nodes[i]);
+      }, 2000);
 
       // 加载动态配置并初始化
+      console.log('[AI客服] 正在从后端拉取配置...');
       fetch('/api/public/ai/config')
-        .then(r => r.json())
+        .then(r => {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
         .then(res => {
+          console.log('[AI客服] 后端返回配置:', res);
           if (res.code === 1 && res.data && res.data.appKey) {
             var appKey = res.data.appKey;
-            var dynamicBaseUrl = res.data.baseUrl || serverUrl; // 优先使用后端返回的, 否则回退到默认
+            var dynamicBaseUrl = res.data.baseUrl || serverUrl;
+            console.log('[AI客服] 使用 BaseUrl:', dynamicBaseUrl, 'AppKey:', appKey);
             
             var script = document.createElement('script');
             script.src = dynamicBaseUrl + '/widget/ai-cs-widget.js';
+            script.onerror = function() {
+              console.error('[AI客服] 无法加载组件脚本:', script.src);
+            };
             script.onload = function () {
-              AiCS.init({ 
-                appKey: appKey, 
-                serverUrl: dynamicBaseUrl, 
-                title: '小一二' 
-              });
+              console.log('[AI客服] 组件脚本加载成功');
+              if (typeof AiCS !== 'undefined') {
+                AiCS.init({ 
+                  appKey: appKey, 
+                  serverUrl: dynamicBaseUrl, 
+                  title: '小一二' 
+                });
+              } else {
+                console.error('[AI客服] 组件初始化对象 AiCS 未找到');
+              }
             };
             document.body.appendChild(script);
+          } else {
+            console.warn('[AI客服] 配置校验未通过，不初始化组件', res);
           }
+        })
+        .catch(err => {
+          console.error('[AI客服] 获取配置失败:', err);
         });
     })();
   </script>
