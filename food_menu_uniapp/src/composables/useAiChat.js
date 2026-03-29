@@ -1,21 +1,13 @@
-/**
- * AI 客服悬浮球 Composable
- * 使用方法：
- *   1. 将此文件复制到项目 src/composables/ 目录
- *   2. 在页面 script 中：
- *        import { useAiChat } from '@/composables/useAiChat'
- *        const { csOpen, csAppName, csTheme, csMessages, csInput, csTyping, csScrollId,
- *                openCs, closeCs, resetCs, csSend } = useAiChat('后端地址', 'AppKey')
- *   3. 在页面 template 最末尾（.page view 内部）粘贴悬浮球模板片段
- *      （见管理后台→机器人管理→接入说明→小程序端）
- */
 import { ref, nextTick } from 'vue'
 
 /**
- * @param {string} serverUrl  后端地址，例如 'http://192.168.1.100:9900'
- * @param {string} appKey     机器人 AppKey（从管理后台复制）
+ * AI 客服悬浮球 Composable
+ * 支持动态从后端拉取配置
  */
-export function useAiChat(serverUrl = 'http://127.0.0.1:9900', appKey = '') {
+export function useAiChat() {
+  const serverUrl = ref('http://127.0.0.1:9900')
+  const appKey = ref('')
+  
   const csOpen = ref(false)
   const csAppName = ref('AI 客服')
   const csTheme = ref('#7C3AED')
@@ -25,21 +17,19 @@ export function useAiChat(serverUrl = 'http://127.0.0.1:9900', appKey = '') {
   const csTyping = ref(false)
   const csScrollId = ref('')
 
-  // 会话 ID（基于 AppKey 隔离，跨会话保持）
-  let sessionId = uni.getStorageSync('aics_sid_' + appKey) || ''
-  if (!sessionId) {
-    sessionId = 'wx_' + Math.random().toString(36).substring(2, 10)
-    uni.setStorageSync('aics_sid_' + appKey, sessionId)
-  }
-
+  let sessionId = ref('')
   let configLoaded = false
+  let backendLoading = false
 
   // ==================== 核心方法 ====================
 
-  const openCs = () => {
+  /**
+   * 初始化配置并开启
+   */
+  const openCs = async () => {
     csOpen.value = true
-    if (!configLoaded) {
-      _loadConfig()
+    if (!configLoaded && !backendLoading) {
+      await _fetchBackendConfig()
     }
   }
 
@@ -53,8 +43,8 @@ export function useAiChat(serverUrl = 'http://127.0.0.1:9900', appKey = '') {
       content: '将清空本次对话，是否继续？',
       success: (r) => {
         if (r.confirm) {
-          sessionId = 'wx_' + Math.random().toString(36).substring(2, 10)
-          uni.setStorageSync('aics_sid_' + appKey, sessionId)
+          sessionId.value = 'wx_' + Math.random().toString(36).substring(2, 10)
+          uni.setStorageSync('aics_sid_' + appKey.value, sessionId.value)
           csMessages.value = [{ role: 'assistant', content: csWelcome.value }]
         }
       }
@@ -62,7 +52,7 @@ export function useAiChat(serverUrl = 'http://127.0.0.1:9900', appKey = '') {
   }
 
   const csSend = () => {
-    if (!csInput.value.trim() || csTyping.value) return
+    if (!csInput.value.trim() || csTyping.value || !appKey.value) return
     const text = csInput.value
     csMessages.value.push({ role: 'user', content: text })
     csInput.value = ''
@@ -70,10 +60,10 @@ export function useAiChat(serverUrl = 'http://127.0.0.1:9900', appKey = '') {
     _scrollToBottom()
 
     uni.request({
-      url: `${serverUrl}/open/chat/${appKey}/message`,
+      url: `${serverUrl.value}/open/chat/${appKey.value}/message`,
       method: 'POST',
       header: { 'content-type': 'application/json' },
-      data: { message: text, sessionId, userId: sessionId },
+      data: { message: text, sessionId: sessionId.value, userId: sessionId.value },
       success: (res) => {
         csMessages.value.push({
           role: 'assistant',
@@ -95,9 +85,57 @@ export function useAiChat(serverUrl = 'http://127.0.0.1:9900', appKey = '') {
 
   // ==================== 私有方法 ====================
 
-  const _loadConfig = () => {
+  /**
+   * 从后端获取最新的 AI 配置
+   */
+  const _fetchBackendConfig = () => {
+    return new Promise((resolve) => {
+      backendLoading = true
+      // 获取环境变量中的 API 地址
+      const ENV_API_URL = JSON.parse(JSON.stringify(import.meta.env.VITE_API_URL || ''))
+      let baseUrl = ENV_API_URL
+      // #ifdef H5
+      if (!baseUrl) baseUrl = '/api'
+      // #endif
+
+      uni.request({
+        url: `${baseUrl}/public/ai/config`,
+        method: 'GET',
+        success: (res) => {
+          if (res.data && (res.data.code === 1 || res.data.code === 200) && res.data.data) {
+            appKey.value = res.data.data.appKey
+            serverUrl.value = res.data.data.baseUrl || serverUrl.value
+            console.log('[AI客服] 成功加载后端配置:', { appKey: appKey.value, serverUrl: serverUrl.value })
+            
+            // 初始化会话 ID
+            sessionId.value = uni.getStorageSync('aics_sid_' + appKey.value) || ''
+            if (!sessionId.value) {
+              sessionId.value = 'wx_' + Math.random().toString(36).substring(2, 10)
+              uni.setStorageSync('aics_sid_' + appKey.value, sessionId.value)
+            }
+            
+            // 继续加载配置
+            _loadAiServiceConfig()
+          }
+        },
+        fail: (err) => {
+          console.error('[AI客服] 拉取后端配置失败:', err)
+        },
+        complete: () => {
+          backendLoading = false
+          resolve()
+        }
+      })
+    })
+  }
+
+  /**
+   * 从 AI 服务加载 UI 配置
+   */
+  const _loadAiServiceConfig = () => {
+    if (!appKey.value) return
     uni.request({
-      url: `${serverUrl}/open/chat/${appKey}/info`,
+      url: `${serverUrl.value}/open/chat/${appKey.value}/info`,
       method: 'GET',
       success: (res) => {
         if (res.data?.code === 200 && res.data?.data) {
@@ -117,9 +155,10 @@ export function useAiChat(serverUrl = 'http://127.0.0.1:9900', appKey = '') {
   }
 
   const _loadHistory = () => {
+    if (!appKey.value) return
     uni.request({
-      url: `${serverUrl}/open/chat/${appKey}/history`,
-      data: { sessionId, limit: 30 },
+      url: `${serverUrl.value}/open/chat/${appKey.value}/history`,
+      data: { sessionId: sessionId.value, limit: 30 },
       method: 'GET',
       success: (res) => {
         if (res.data?.code === 200 && res.data?.data?.length > 0) {

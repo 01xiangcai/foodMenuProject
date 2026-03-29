@@ -74,8 +74,12 @@ public class ExternalAiServiceImpl implements AiService {
                 log.info("AI服务: 数据库未配置 AppKey, 使用配置文件默认值: {}", appKey);
             }
 
+            // 优先从数据库获取 BaseUrl
+            String baseUrlFromDb = systemConfigService.getConfigValue("ai_external_base_url");
+            String baseUrl = (baseUrlFromDb != null && !baseUrlFromDb.trim().isEmpty()) ? baseUrlFromDb : config.getBaseUrl();
+
             // 发送请求 (调用 aiCustomerService 的公开对话接口)
-            String url = config.getBaseUrl() + "/open/chat/" + appKey + "/message";
+            String url = baseUrl + "/open/chat/" + appKey + "/message";
             
             Request request = new Request.Builder()
                     .url(url)

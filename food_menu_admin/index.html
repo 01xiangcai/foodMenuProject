@@ -15,34 +15,95 @@
   <script>
     (function () {
       var serverUrl = 'http://localhost:9900';
-      // 先获取动态配置
+
+      // 增强型拖拽功能实现
+      function initDraggable(container) {
+        var isDragging = false;
+        var startX, startY, initialLeft, initialTop;
+
+        container.style.cursor = 'move';
+        container.style.zIndex = '99999';
+        
+        container.addEventListener('mousedown', function (e) {
+          if (e.button !== 0) return;
+          isDragging = false;
+          startX = e.clientX;
+          startY = e.clientY;
+          initialLeft = container.offsetLeft;
+          initialTop = container.offsetTop;
+          container.style.transition = 'none';
+
+          function onMouseMove(e) {
+            var dx = e.clientX - startX;
+            var dy = e.clientY - startY;
+            if (!isDragging && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+              isDragging = true;
+            }
+            if (isDragging) {
+              var nL = Math.max(0, Math.min(initialLeft + dx, window.innerWidth - container.offsetWidth));
+              var nT = Math.max(0, Math.min(initialTop + dy, window.innerHeight - container.offsetHeight));
+              container.style.left = nL + 'px';
+              container.style.top = nT + 'px';
+              container.style.right = 'auto';
+              container.style.bottom = 'auto';
+            }
+          }
+
+          function onMouseUp() {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            if (isDragging) {
+              // 侧边吸附逻辑
+              container.style.transition = 'all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28)';
+              var cX = container.offsetLeft + container.offsetWidth / 2;
+              if (cX < window.innerWidth / 2) {
+                container.style.left = '20px';
+              } else {
+                container.style.left = (window.innerWidth - container.offsetWidth - 20) + 'px';
+              }
+              // 阻止点击
+              container.addEventListener('click', function stop(e) {
+                e.stopImmediatePropagation();
+                container.removeEventListener('click', stop, true);
+              }, true);
+            }
+          }
+          document.addEventListener('mousemove', onMouseMove);
+          document.addEventListener('mouseup', onMouseUp);
+        });
+      }
+
+      // 实时监听 DOM 注入
+      var observer = new MutationObserver(function (mutations) {
+        mutations.forEach(function (mutation) {
+          mutation.addedNodes.forEach(function (node) {
+            if (node.nodeType === 1 && (node.className.indexOf('ai-cs') > -1 || node.id.indexOf('ai-cs') > -1 || node.className.indexOf('widget') > -1)) {
+              initDraggable(node);
+            }
+          });
+        });
+      });
+      observer.observe(document.body, { childList: true });
+
+      // 加载动态配置并初始化
       fetch('/api/public/ai/config')
-        .then(response => response.json())
+        .then(r => r.json())
         .then(res => {
           if (res.code === 1 && res.data && res.data.appKey) {
             var appKey = res.data.appKey;
-            console.log('[AI客服] 动态加载 AppKey 成功:', appKey);
+            var dynamicBaseUrl = res.data.baseUrl || serverUrl; // 优先使用后端返回的, 否则回退到默认
             
-            // 加载客服脚本
             var script = document.createElement('script');
-            script.src = serverUrl + '/widget/ai-cs-widget.js';
+            script.src = dynamicBaseUrl + '/widget/ai-cs-widget.js';
             script.onload = function () {
-              AiCS.init({
-                appKey: appKey,
-                serverUrl: serverUrl,
-                title: '小一二',
+              AiCS.init({ 
+                appKey: appKey, 
+                serverUrl: dynamicBaseUrl, 
+                title: '小一二' 
               });
             };
-            script.onerror = function () {
-              console.warn('[AI客服] 客服组件脚本加载失败');
-            };
             document.body.appendChild(script);
-          } else {
-            console.warn('[AI客服] 动态配置加载失败，请检查后端接口');
           }
-        })
-        .catch(err => {
-          console.error('[AI客服] 请求配置接口出错:', err);
         });
     })();
   </script>

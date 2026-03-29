@@ -619,7 +619,7 @@ const {
   csOpen, csAppName, csTheme,
   csMessages, csInput, csTyping, csScrollId,
   openCs, closeCs, resetCs, csSend
-} = useAiChat('http://127.0.0.1:9900', 'ak_LDG0En1pIm8TLZQy1D3LRY5l')
+} = useAiChat()
 // ==============================
 </script>
 

@@ -225,48 +225,74 @@
         </div>
       </div>
 
-      <!-- AI 外部服务 AppKey -->
+      <!-- AI 外部服务配置 -->
       <div class="setting-card">
         <div class="card-icon">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+            <path d="M21 3v5h-5" />
             <path d="M10 13a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
             <path d="M8 21v-1a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v1" />
-            <path d="M15 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
-            <path d="M17 10h2a2 2 0 0 1 2 2v1" />
-            <path d="M5 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
-            <path d="M3 13v-1a2 2 0 0 1 2 -2h2" />
           </svg>
         </div>
         <div class="card-content">
           <div class="card-header">
-            <h3>AI 外部服务 AppKey</h3>
-            <span class="status-badge" :class="{ 'saving': savingStates.aiExternalAppKey, 'changed': aiExternalAppKeyChanged }">
-              {{ savingStates.aiExternalAppKey ? '保存中...' : (aiExternalAppKeyChanged ? '未保存' : '已保存') }}
-            </span>
-          </div>
-          <p class="card-description">设置外部 AI 客服服务的 AppKey，变更后立即生效</p>
-          <div class="card-control">
-            <div class="control-group">
-              <NInput
-                v-model:value="settings.aiExternalAppKey"
-                type="password"
-                show-password-on="click"
-                placeholder="请输入 AppKey"
-                size="large"
-                @input="onAiExternalAppKeyChange"
-              />
-              <NButton
-                type="primary"
-                size="large"
-                :loading="savingStates.aiExternalAppKey"
-                :disabled="!aiExternalAppKeyChanged"
-                @click="saveAiExternalAppKey"
-                class="confirm-btn"
-              >
-                {{ savingStates.aiExternalAppKey ? '保存中' : '确认' }}
-              </NButton>
+            <h3>AI 外部服务配置</h3>
+            <div class="status-group">
+              <span class="status-badge" :class="{ 'saving': savingStates.aiExternalBaseUrl, 'changed': aiExternalBaseUrlChanged }">
+                Url: {{ savingStates.aiExternalBaseUrl ? '保存中...' : (aiExternalBaseUrlChanged ? '未保存' : '已保存') }}
+              </span>
+              <span class="status-badge" :class="{ 'saving': savingStates.aiExternalAppKey, 'changed': aiExternalAppKeyChanged }">
+                Key: {{ savingStates.aiExternalAppKey ? '保存中...' : (aiExternalAppKeyChanged ? '未保存' : '已保存') }}
+              </span>
             </div>
-            <span class="control-hint">用于接入外部 AI 智能服务</span>
+          </div>
+          <p class="card-description">设置外部 AI 客服的服务地址与密钥，建议使用公网/局域网 IP 以同步小程序端</p>
+          <div class="card-control ai-config-group">
+            <div class="control-item">
+              <label>服务地址 (BaseURL)</label>
+              <div class="control-group">
+                <NInput
+                  v-model:value="settings.aiExternalBaseUrl"
+                  placeholder="服务地址, 如 http://192.168.1.100:9900"
+                  size="large"
+                  @input="onAiExternalBaseUrlChange"
+                />
+                <NButton
+                  type="primary"
+                  size="large"
+                  :loading="savingStates.aiExternalBaseUrl"
+                  :disabled="!aiExternalBaseUrlChanged"
+                  @click="saveAiExternalBaseUrl"
+                  class="confirm-btn"
+                >
+                  确认
+                </NButton>
+              </div>
+            </div>
+            <div class="control-item">
+              <label>应用密钥 (AppKey)</label>
+              <div class="control-group">
+                <NInput
+                  v-model:value="settings.aiExternalAppKey"
+                  type="password"
+                  show-password-on="click"
+                  placeholder="应用密钥 AppKey"
+                  size="large"
+                  @input="onAiExternalAppKeyChange"
+                />
+                <NButton
+                  type="primary"
+                  size="large"
+                  :loading="savingStates.aiExternalAppKey"
+                  :disabled="!aiExternalAppKeyChanged"
+                  @click="saveAiExternalAppKey"
+                  class="confirm-btn"
+                >
+                  确认
+                </NButton>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -276,7 +302,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
-import { NInput, NInputNumber, NSwitch, NButton, NModal, useMessage, useDialog } from 'naive-ui';
+import { NInput, NInputNumber, NSwitch, NButton, useMessage, useDialog } from 'naive-ui';
 import { fetchSystemConfig, updateSystemConfig } from '@/api/modules';
 
 const message = useMessage();
@@ -289,7 +315,8 @@ const settings = reactive({
   chatRevokeTimeLimit: 2,
   chatMessageRetention: 30,
   mealHistoryRetention: 30,
-  aiExternalAppKey: ''
+  aiExternalAppKey: '',
+  aiExternalBaseUrl: ''
 });
 
 // 原始值(用于检测变更)
@@ -298,7 +325,8 @@ const originalValues = reactive({
   chatRevokeTimeLimit: 2,
   chatMessageRetention: 30,
   mealHistoryRetention: 30,
-  aiExternalAppKey: ''
+  aiExternalAppKey: '',
+  aiExternalBaseUrl: ''
 });
 
 // 变更状态
@@ -307,6 +335,7 @@ const chatRevokeTimeLimitChanged = ref(false);
 const chatMessageRetentionChanged = ref(false);
 const mealHistoryRetentionChanged = ref(false);
 const aiExternalAppKeyChanged = ref(false);
+const aiExternalBaseUrlChanged = ref(false);
 
 // 保存状态
 const savingStates = reactive({
@@ -315,55 +344,56 @@ const savingStates = reactive({
   chatRevokeTimeLimit: false,
   chatMessageRetention: false,
   mealHistoryRetention: false,
-  aiExternalAppKey: false
+  aiExternalAppKey: false,
+  aiExternalBaseUrl: false
 });
 
 // 加载设置
 const loadSettings = async () => {
   try {
-    // 加载菜品图片数量限制
     const dishImageRes = await fetchSystemConfig('dish_image_limit');
-    if (dishImageRes.data && dishImageRes.data.configValue) {
+    if (dishImageRes.data?.configValue) {
       const value = Number(dishImageRes.data.configValue) || 5;
       settings.dishImageLimit = value;
       originalValues.dishImageLimit = value;
     }
 
-    // 加载用户注册开关
     const registerRes = await fetchSystemConfig('user_register_enabled');
-    if (registerRes.data && registerRes.data.configValue) {
+    if (registerRes.data?.configValue) {
       settings.userRegisterEnabled = registerRes.data.configValue === 'true' || registerRes.data.configValue === '1';
     }
 
-    // 加载消息撤回时限
     const revokeRes = await fetchSystemConfig('chat_revoke_time_limit');
-    if (revokeRes.data && revokeRes.data.configValue) {
+    if (revokeRes.data?.configValue) {
       const value = Number(revokeRes.data.configValue) || 2;
       settings.chatRevokeTimeLimit = value;
       originalValues.chatRevokeTimeLimit = value;
     }
 
-    // 加载聊天消息保留天数
     const chatRetentionRes = await fetchSystemConfig('chat_message_retention_days');
-    if (chatRetentionRes.data && chatRetentionRes.data.configValue) {
+    if (chatRetentionRes.data?.configValue) {
       const value = Number(chatRetentionRes.data.configValue) || 30;
       settings.chatMessageRetention = value;
       originalValues.chatMessageRetention = value;
     }
 
-    // 加载历史数据保留天数
     const mealRetentionRes = await fetchSystemConfig('meal.history.retention.days');
-    if (mealRetentionRes.data && mealRetentionRes.data.configValue) {
+    if (mealRetentionRes.data?.configValue) {
       const value = Number(mealRetentionRes.data.configValue) || 30;
       settings.mealHistoryRetention = value;
       originalValues.mealHistoryRetention = value;
     }
     
-    // 加载 AI 外部服务 AppKey
     const aiKeyRes = await fetchSystemConfig('ai_external_app_key');
-    if (aiKeyRes.data && aiKeyRes.data.configValue) {
+    if (aiKeyRes.data?.configValue) {
       settings.aiExternalAppKey = aiKeyRes.data.configValue;
       originalValues.aiExternalAppKey = aiKeyRes.data.configValue;
+    }
+
+    const aiUrlRes = await fetchSystemConfig('ai_external_base_url');
+    if (aiUrlRes.data?.configValue) {
+      settings.aiExternalBaseUrl = aiUrlRes.data.configValue;
+      originalValues.aiExternalBaseUrl = aiUrlRes.data.configValue;
     }
   } catch (error) {
     console.error('加载设置失败:', error);
@@ -371,303 +401,279 @@ const loadSettings = async () => {
   }
 };
 
-// 检测菜品图片数量限制变更
 const onDishImageLimitChange = (value: number | null) => {
-  if (value !== null) {
-    dishImageLimitChanged.value = value !== originalValues.dishImageLimit;
-  }
+  if (value !== null) dishImageLimitChanged.value = value !== originalValues.dishImageLimit;
 };
 
-// 保存菜品图片数量限制
 const saveDishImageLimit = async () => {
   savingStates.dishImageLimit = true;
   try {
-    await updateSystemConfig({
-      configKey: 'dish_image_limit',
-      configValue: String(settings.dishImageLimit)
-    });
+    await updateSystemConfig({ configKey: 'dish_image_limit', configValue: String(settings.dishImageLimit) });
     originalValues.dishImageLimit = settings.dishImageLimit;
     dishImageLimitChanged.value = false;
     message.success('菜品图片数量限制已更新');
   } catch (error: any) {
-    console.error('保存失败:', error);
     message.error(error.message || '保存失败');
   } finally {
     savingStates.dishImageLimit = false;
   }
 };
 
-// 处理用户注册开关变更
 const handleUserRegisterChange = (newValue: boolean) => {
-  const action = newValue ? '开启' : '关闭';
-  const content = newValue 
-    ? '开启后,微信端用户可以自主注册账号。是否确认开启?'
-    : '关闭后,新用户将无法自主注册,只能由管理员创建账号。是否确认关闭?';
-
   dialog.warning({
-    title: `确认${action}用户注册功能`,
-    content: content,
+    title: `确认${newValue ? '开启' : '关闭'}用户注册功能`,
+    content: newValue ? '开启后,微信端用户可以自主注册账号。是否确认开启?' : '关闭后,新用户将无法自主注册,只能由管理员创建账号。是否确认关闭?',
     positiveText: '确认',
     negativeText: '取消',
     onPositiveClick: async () => {
       savingStates.userRegisterEnabled = true;
       try {
-        await updateSystemConfig({
-          configKey: 'user_register_enabled',
-          configValue: String(newValue)
-        });
-        // 保存成功后,手动更新本地状态
+        await updateSystemConfig({ configKey: 'user_register_enabled', configValue: String(newValue) });
         settings.userRegisterEnabled = newValue;
-        message.success(`用户注册功能已${action}`);
+        message.success(`用户注册功能已${newValue ? '开启' : '关闭'}`);
       } catch (error: any) {
-        console.error('保存失败:', error);
         message.error(error.message || '保存失败');
       } finally {
         savingStates.userRegisterEnabled = false;
       }
     }
-    // 取消时不需要做任何事,因为:value还没有变,UI会自动保持原样
   });
 };
 
-// 消息撤回时限变更检测
 const onChatRevokeTimeLimitChange = (value: number | null) => {
-  if (value !== null) {
-    chatRevokeTimeLimitChanged.value = value !== originalValues.chatRevokeTimeLimit;
-  }
+  if (value !== null) chatRevokeTimeLimitChanged.value = value !== originalValues.chatRevokeTimeLimit;
 };
 
-// 保存消息撤回时限
 const saveChatRevokeTimeLimit = async () => {
   savingStates.chatRevokeTimeLimit = true;
   try {
-    await updateSystemConfig({
-      configKey: 'chat_revoke_time_limit',
-      configValue: String(settings.chatRevokeTimeLimit)
-    });
+    await updateSystemConfig({ configKey: 'chat_revoke_time_limit', configValue: String(settings.chatRevokeTimeLimit) });
     originalValues.chatRevokeTimeLimit = settings.chatRevokeTimeLimit;
     chatRevokeTimeLimitChanged.value = false;
     message.success('消息撤回时限已更新');
   } catch (error: any) {
-    console.error('保存失败:', error);
     message.error(error.message || '保存失败');
   } finally {
     savingStates.chatRevokeTimeLimit = false;
   }
 };
 
-// 聊天消息保留天数变更检测
 const onChatMessageRetentionChange = (value: number | null) => {
-  if (value !== null) {
-    chatMessageRetentionChanged.value = value !== originalValues.chatMessageRetention;
-  }
+  if (value !== null) chatMessageRetentionChanged.value = value !== originalValues.chatMessageRetention;
 };
 
-// 保存聊天消息保留天数
 const saveChatMessageRetention = async () => {
   savingStates.chatMessageRetention = true;
   try {
-    await updateSystemConfig({
-      configKey: 'chat_message_retention_days',
-      configValue: String(settings.chatMessageRetention)
-    });
+    await updateSystemConfig({ configKey: 'chat_message_retention_days', configValue: String(settings.chatMessageRetention) });
     originalValues.chatMessageRetention = settings.chatMessageRetention;
     chatMessageRetentionChanged.value = false;
     message.success('聊天消息保留天数已更新');
   } catch (error: any) {
-    console.error('保存失败:', error);
     message.error(error.message || '保存失败');
   } finally {
     savingStates.chatMessageRetention = false;
   }
 };
 
-// 历史数据保留天数变更检测
 const onMealHistoryRetentionChange = (value: number | null) => {
-  if (value !== null) {
-    mealHistoryRetentionChanged.value = value !== originalValues.mealHistoryRetention;
-  }
+  if (value !== null) mealHistoryRetentionChanged.value = value !== originalValues.mealHistoryRetention;
 };
 
-// 保存历史数据保留天数
 const saveMealHistoryRetention = async () => {
   savingStates.mealHistoryRetention = true;
   try {
-    await updateSystemConfig({
-      configKey: 'meal.history.retention.days',
-      configValue: String(settings.mealHistoryRetention)
-    });
+    await updateSystemConfig({ configKey: 'meal.history.retention.days', configValue: String(settings.mealHistoryRetention) });
     originalValues.mealHistoryRetention = settings.mealHistoryRetention;
     mealHistoryRetentionChanged.value = false;
     message.success('历史数据保留天数已更新');
   } catch (error: any) {
-    console.error('保存失败:', error);
     message.error(error.message || '保存失败');
   } finally {
     savingStates.mealHistoryRetention = false;
   }
 };
 
-// AI AppKey 变更检测
+const onAiExternalBaseUrlChange = (value: string) => {
+  aiExternalBaseUrlChanged.value = value !== originalValues.aiExternalBaseUrl;
+};
+
+const saveAiExternalBaseUrl = async () => {
+  savingStates.aiExternalBaseUrl = true;
+  try {
+    await updateSystemConfig({ configKey: 'ai_external_base_url', configValue: settings.aiExternalBaseUrl });
+    originalValues.aiExternalBaseUrl = settings.aiExternalBaseUrl;
+    aiExternalBaseUrlChanged.value = false;
+    message.success('AI 服务地址已更新');
+  } catch (error: any) {
+    message.error(error.message || '保存失败');
+  } finally {
+    savingStates.aiExternalBaseUrl = false;
+  }
+};
+
 const onAiExternalAppKeyChange = (value: string) => {
   aiExternalAppKeyChanged.value = value !== originalValues.aiExternalAppKey;
 };
 
-// 保存 AI AppKey
 const saveAiExternalAppKey = async () => {
   savingStates.aiExternalAppKey = true;
   try {
-    await updateSystemConfig({
-      configKey: 'ai_external_app_key',
-      configValue: settings.aiExternalAppKey
-    });
+    await updateSystemConfig({ configKey: 'ai_external_app_key', configValue: settings.aiExternalAppKey });
     originalValues.aiExternalAppKey = settings.aiExternalAppKey;
     aiExternalAppKeyChanged.value = false;
     message.success('AI AppKey 已更新');
   } catch (error: any) {
-    console.error('保存失败:', error);
     message.error(error.message || '保存失败');
   } finally {
     savingStates.aiExternalAppKey = false;
   }
 };
 
-onMounted(() => {
-  loadSettings();
-});
 </script>
 
 <style scoped lang="scss">
 .settings-view {
-  padding: 32px;
   min-height: 100vh;
+  padding: 40px;
   background: var(--bg-secondary, #f5f7fa);
-}
 
-.page-header {
-  margin-bottom: 32px;
+  .page-header {
+    margin-bottom: 32px;
 
-  h1 {
-    font-size: 32px;
-    font-weight: 700;
-    margin: 0 0 8px 0;
-    color: var(--text-primary, #1a1a1a);
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      margin: 0 0 8px 0;
+      color: var(--text-primary, #1a1a1a);
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    p {
+      margin: 0;
+      font-size: 16px;
+      color: var(--text-secondary, #666);
+    }
+  }
+
+  .settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 24px;
+  }
+
+  .setting-card {
+    background: white;
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    display: flex;
+    gap: 20px;
+
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+      border-color: rgba(102, 126, 234, 0.3);
+    }
+  }
+
+  .card-icon {
+    flex-shrink: 0;
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+
+    svg {
+      width: 28px;
+      height: 28px;
+    }
   }
 
-  p {
+  .card-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    h3 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary, #1a1a1a);
+    }
+  }
+
+  .status-badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    background: #e8f5e9;
+    color: #2e7d32;
+    transition: all 0.3s ease;
+
+    &.saving {
+      background: #fff3e0;
+      color: #f57c00;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    &.changed {
+      background: #fff3e0;
+      color: #f57c00;
+    }
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.6;
+    }
+  }
+
+  .card-description {
     margin: 0;
-    font-size: 16px;
+    font-size: 14px;
     color: var(--text-secondary, #666);
-  }
-}
-
-.settings-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 24px;
-}
-
-.setting-card {
-  background: white;
-  border-radius: 16px;
-  padding: 28px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  display: flex;
-  gap: 20px;
-
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
-    border-color: rgba(102, 126, 234, 0.3);
-  }
-}
-
-.card-icon {
-  flex-shrink: 0;
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-
-  svg {
-    width: 28px;
-    height: 28px;
-  }
-}
-
-.card-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-
-  h3 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--text-primary, #1a1a1a);
-  }
-}
-
-.status-badge {
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
-  background: #e8f5e9;
-  color: #2e7d32;
-  transition: all 0.3s ease;
-
-  &.saving {
-    background: #fff3e0;
-    color: #f57c00;
-    animation: pulse 1.5s ease-in-out infinite;
+    line-height: 1.6;
   }
 
-  &.changed {
-    background: #fff3e0;
-    color: #f57c00;
-  }
-}
+  .ai-config-group {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.6;
-  }
-}
+    .control-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
 
-.card-description {
-  margin: 0;
-  font-size: 14px;
-  color: var(--text-secondary, #666);
-  line-height: 1.6;
-}
-
-.card-control {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding-top: 8px;
+      label {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-tertiary, #888);
+      }
+    }
+  }
 
   .control-group {
     display: flex;
@@ -683,57 +689,58 @@ onMounted(() => {
     --n-rail-height: 28px;
     --n-rail-width: 56px;
   }
-}
 
-.confirm-btn {
-  min-width: 80px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  transition: all 0.3s ease;
-
-  &:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  .status-group {
+    display: flex;
+    gap: 8px;
   }
 
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  .confirm-btn {
+    min-width: 80px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    transition: all 0.3s ease;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
   }
-}
 
-.control-hint {
-  font-size: 13px;
-  color: var(--text-tertiary, #999);
-  font-style: italic;
-}
+  .control-hint {
+    font-size: 13px;
+    color: var(--text-tertiary, #999);
+    font-style: italic;
+  }
 
-.switch-label {
-  font-size: 12px;
-  font-weight: 500;
+  .switch-label {
+    font-size: 12px;
+    font-weight: 500;
+  }
 }
 
 // 深色模式适配
 @media (prefers-color-scheme: dark) {
   .settings-view {
     background: var(--bg-secondary, #1a1a1a);
-  }
 
-  .page-header h1 {
-    color: var(--text-primary, #fff);
-  }
+    .setting-card {
+      background: var(--card-bg, #2a2a2a);
+      border-color: rgba(255, 255, 255, 0.1);
 
-  .setting-card {
-    background: var(--card-bg, #2a2a2a);
-    border-color: rgba(255, 255, 255, 0.1);
-
-    &:hover {
-      border-color: rgba(102, 126, 234, 0.5);
+      &:hover {
+        border-color: rgba(102, 126, 234, 0.5);
+      }
     }
-  }
 
-  .card-header h3 {
-    color: var(--text-primary, #fff);
+    .card-header h3 {
+      color: var(--text-primary, #fff);
+    }
   }
 }
 
@@ -741,23 +748,23 @@ onMounted(() => {
 @media (max-width: 768px) {
   .settings-view {
     padding: 20px;
-  }
 
-  .settings-grid {
-    grid-template-columns: 1fr;
-  }
+    .settings-grid {
+      grid-template-columns: 1fr;
+    }
 
-  .setting-card {
-    padding: 20px;
-  }
+    .setting-card {
+      padding: 20px;
+    }
 
-  .card-icon {
-    width: 48px;
-    height: 48px;
+    .card-icon {
+      width: 48px;
+      height: 48px;
 
-    svg {
-      width: 24px;
-      height: 24px;
+      svg {
+        width: 24px;
+        height: 24px;
+      }
     }
   }
 }

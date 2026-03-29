@@ -32,9 +32,11 @@ public class PublicAiConfigController {
     @GetMapping("/config")
     public Result<Map<String, String>> getPublicConfig() {
         String appKey = systemConfigService.getConfigValue("ai_external_app_key");
+        String baseUrl = systemConfigService.getConfigValue("ai_external_base_url");
+        
         Map<String, String> result = new HashMap<>();
         result.put("appKey", appKey);
-        // 这里可以根据需要返回其他公开配置
+        result.put("baseUrl", baseUrl);
         return Result.success(result);
     }
 }

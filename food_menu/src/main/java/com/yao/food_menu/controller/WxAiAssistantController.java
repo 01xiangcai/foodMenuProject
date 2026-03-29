@@ -218,28 +218,32 @@ public class WxAiAssistantController {
     public Result<String> getCustomerServiceUrl() {
         try {
             AiConfig.ExternalConfig config = aiConfig.getExternal();
-            if (config == null) {
-                return Result.error("未配置外部AI服务信息");
-            }
 
             // 获取 AppKey (优先从数据库获取, 回退到 application.yml)
             String appKeyFromDb = systemConfigService.getConfigValue("ai_external_app_key");
             String appKey;
             if (appKeyFromDb != null && !appKeyFromDb.trim().isEmpty()) {
                 appKey = appKeyFromDb;
-                log.info("小程序AI客服: 使用数据库配置的 AppKey: {}", appKey);
             } else {
-                appKey = config.getAppKey();
-                log.info("小程序AI客服: 数据库未配置 AppKey, 使用配置文件默认值: {}", appKey);
+                appKey = config != null ? config.getAppKey() : null;
+            }
+
+            // 获取 BaseUrl (优先从数据库获取, 回退到 application.yml, 方便随时改为内网穿透地址)
+            String baseUrlFromDb = systemConfigService.getConfigValue("ai_external_base_url");
+            String baseUrl;
+            if (baseUrlFromDb != null && !baseUrlFromDb.trim().isEmpty()) {
+                baseUrl = baseUrlFromDb;
+            } else {
+                baseUrl = config != null ? config.getBaseUrl() : "http://localhost:9900";
             }
 
             if (appKey == null || appKey.trim().isEmpty()) {
                 return Result.error("AI 外部服务 AppKey 未配置");
             }
 
-            // 拼接动态 URL (格式与原硬编码一致)
-            String dynamicUrl = config.getBaseUrl() + "/widget/h5-mobile.html?appKey=" + appKey;
-            log.info("生成动态AI客服URL: {}", dynamicUrl);
+            // 拼接动态 URL (增加时间戳参数解决 web-view 缓存问题)
+            String dynamicUrl = baseUrl + "/widget/h5-mobile.html?appKey=" + appKey + "&t=" + System.currentTimeMillis();
+            log.info("小程序AI客服: 动态生成URL: {}", dynamicUrl);
 
             return Result.success(dynamicUrl);
         } catch (Exception e) {
