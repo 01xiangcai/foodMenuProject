@@ -101,7 +101,7 @@ aliyun:
     endpoint: https://food-menu-yao.oss-cn-shenzhen.aliyuncs.com
     # 开发环境可以使用明文，生产环境建议加密: ENC(加密后的key)
     access-key-id: LTAI5tMRyKmbt7EZRgXjJRTk
-    access-key-secret: ueDZl8rmIIl4aVWzC7vM751eCZv0nf
+    access-key-secret: ENC(ueDZl8rmIIl4aVWzC7vM751eCZv0nf)
     bucket-name: food-menu-yao
     folder: food-menu/
     avatar-folder: avatars/
