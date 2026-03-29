@@ -45,4 +45,10 @@ public class QwenAiServiceImpl implements AiService {
         log.warn("通义千问AI服务尚未实现");
         return "{\"error\": \"通义千问AI服务尚未配置\"}";
     }
+
+    @Override
+    public String generateDishDescription(String dishName) {
+        log.warn("通义千问AI服务尚未实现");
+        return "通义千问AI服务尚未配置,请联系管理员";
+    }
 }

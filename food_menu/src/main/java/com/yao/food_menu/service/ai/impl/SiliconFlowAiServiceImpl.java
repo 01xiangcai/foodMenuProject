@@ -308,4 +308,17 @@ public class SiliconFlowAiServiceImpl implements AiService {
             return "{\"error\": \"生成失败\"}";
         }
     }
+
+    @Override
+    public String generateDishDescription(String dishName) {
+        String prompt = String.format(
+                "你是一个专业的厨师和美食博主。请为菜品“%s”写一段诱人的简介。\n" +
+                        "要求：\n" +
+                        "1. 字数在 50-80 字左右。\n" +
+                        "2. 描述口感、香气和特色。\n" +
+                        "3. 语气生动，吸引食客。\n" +
+                        "只返回简介内容，不要其他说明文字。", dishName);
+
+        return chat(prompt, null);
+    }
 }

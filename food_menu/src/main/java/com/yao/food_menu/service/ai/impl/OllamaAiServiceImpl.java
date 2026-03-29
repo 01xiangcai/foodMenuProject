@@ -45,4 +45,10 @@ public class OllamaAiServiceImpl implements AiService {
         log.warn("Ollama AI服务尚未实现");
         return "{\"error\": \"Ollama AI服务尚未配置\"}";
     }
+
+    @Override
+    public String generateDishDescription(String dishName) {
+        log.warn("Ollama AI服务尚未实现");
+        return "Ollama AI服务尚未配置,请联系管理员";
+    }
 }
