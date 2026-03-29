@@ -663,3 +663,12 @@ export const generateDishDescription = (dishName) => {
         data: { dishName }
     })
 }
+/**
+ * 获取 AI 客服动态 URL
+ */
+export const getAiCustomerServiceUrl = () => {
+    return request({
+        url: '/wx/ai/customer-service-url',
+        method: 'GET'
+    })
+}

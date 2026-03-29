@@ -29,6 +29,9 @@ public class ExternalAiServiceImpl implements AiService {
     @Autowired
     private AiConfig aiConfig;
 
+    @Autowired
+    private com.yao.food_menu.service.SystemConfigService systemConfigService;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
     private OkHttpClient httpClient;
 
@@ -60,8 +63,19 @@ public class ExternalAiServiceImpl implements AiService {
 
             String jsonBody = objectMapper.writeValueAsString(requestBody);
 
+            // 获取 AppKey (优先从数据库配置获取, 回退到 application.yml)
+            String appKeyFromDb = systemConfigService.getConfigValue("ai_external_app_key");
+            String appKey;
+            if (appKeyFromDb != null && !appKeyFromDb.trim().isEmpty()) {
+                appKey = appKeyFromDb;
+                log.info("AI服务: 使用数据库配置的 AppKey: {}", appKey);
+            } else {
+                appKey = config.getAppKey();
+                log.info("AI服务: 数据库未配置 AppKey, 使用配置文件默认值: {}", appKey);
+            }
+
             // 发送请求 (调用 aiCustomerService 的公开对话接口)
-            String url = config.getBaseUrl() + "/open/chat/" + config.getAppKey() + "/message";
+            String url = config.getBaseUrl() + "/open/chat/" + appKey + "/message";
             
             Request request = new Request.Builder()
                     .url(url)

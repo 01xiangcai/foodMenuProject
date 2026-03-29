@@ -48,7 +48,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         // 小程序端登录、注册和验证码接口
                         "/wx/user/login",
                         "/wx/user/register",
-                        "/wx/user/sendcode");
+                        "/wx/user/sendcode",
+                        "/public/**");
 
         // 注册后台管理端JWT拦截器
         registry.addInterceptor(jwtTokenInterceptor)
@@ -69,6 +70,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/webjars/**",
                         "/swagger-resources/**",
                         "/v3/api-docs/**",
-                        "/swagger-ui/**");
+                        "/swagger-ui/**",
+                        "/public/**");
     }
 }

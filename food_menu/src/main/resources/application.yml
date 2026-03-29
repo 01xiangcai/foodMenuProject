@@ -140,7 +140,7 @@ ai:
   # 外部AI服务配置 (aiCustomerService)
   external:
     base-url: http://localhost:9900
-    app-key: ak_LDG0En1pIm8TLZQy1D3LRY5l
+    # app-key: ak_LDG0En1pIm8TLZQy1D3LRY5l
     timeout: 30000
 
   # 硅基流动配置

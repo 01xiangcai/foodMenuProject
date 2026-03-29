@@ -14,19 +14,36 @@
   <!-- AI 客服组件 -->
   <script>
     (function () {
-      var script = document.createElement('script');
-      script.src = 'http://localhost:9900/widget/ai-cs-widget.js';
-      script.onload = function () {
-        AiCS.init({
-          appKey: 'ak_LDG0En1pIm8TLZQy1D3LRY5l',
-          serverUrl: 'http://localhost:9900',
-          title: '小一二',
+      var serverUrl = 'http://localhost:9900';
+      // 先获取动态配置
+      fetch('/api/public/ai/config')
+        .then(response => response.json())
+        .then(res => {
+          if (res.code === 1 && res.data && res.data.appKey) {
+            var appKey = res.data.appKey;
+            console.log('[AI客服] 动态加载 AppKey 成功:', appKey);
+            
+            // 加载客服脚本
+            var script = document.createElement('script');
+            script.src = serverUrl + '/widget/ai-cs-widget.js';
+            script.onload = function () {
+              AiCS.init({
+                appKey: appKey,
+                serverUrl: serverUrl,
+                title: '小一二',
+              });
+            };
+            script.onerror = function () {
+              console.warn('[AI客服] 客服组件脚本加载失败');
+            };
+            document.body.appendChild(script);
+          } else {
+            console.warn('[AI客服] 动态配置加载失败，请检查后端接口');
+          }
+        })
+        .catch(err => {
+          console.error('[AI客服] 请求配置接口出错:', err);
         });
-      };
-      script.onerror = function () {
-        console.warn('[AI客服] 客服组件脚本加载失败，请检查服务是否启动');
-      };
-      document.body.appendChild(script);
     })();
   </script>
 </body>

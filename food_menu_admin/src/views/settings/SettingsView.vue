@@ -224,13 +224,59 @@
           </div>
         </div>
       </div>
+
+      <!-- AI 外部服务 AppKey -->
+      <div class="setting-card">
+        <div class="card-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10 13a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+            <path d="M8 21v-1a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v1" />
+            <path d="M15 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+            <path d="M17 10h2a2 2 0 0 1 2 2v1" />
+            <path d="M5 5a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+            <path d="M3 13v-1a2 2 0 0 1 2 -2h2" />
+          </svg>
+        </div>
+        <div class="card-content">
+          <div class="card-header">
+            <h3>AI 外部服务 AppKey</h3>
+            <span class="status-badge" :class="{ 'saving': savingStates.aiExternalAppKey, 'changed': aiExternalAppKeyChanged }">
+              {{ savingStates.aiExternalAppKey ? '保存中...' : (aiExternalAppKeyChanged ? '未保存' : '已保存') }}
+            </span>
+          </div>
+          <p class="card-description">设置外部 AI 客服服务的 AppKey，变更后立即生效</p>
+          <div class="card-control">
+            <div class="control-group">
+              <NInput
+                v-model:value="settings.aiExternalAppKey"
+                type="password"
+                show-password-on="click"
+                placeholder="请输入 AppKey"
+                size="large"
+                @input="onAiExternalAppKeyChange"
+              />
+              <NButton
+                type="primary"
+                size="large"
+                :loading="savingStates.aiExternalAppKey"
+                :disabled="!aiExternalAppKeyChanged"
+                @click="saveAiExternalAppKey"
+                class="confirm-btn"
+              >
+                {{ savingStates.aiExternalAppKey ? '保存中' : '确认' }}
+              </NButton>
+            </div>
+            <span class="control-hint">用于接入外部 AI 智能服务</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
-import { NInputNumber, NSwitch, NButton, NModal, useMessage, useDialog } from 'naive-ui';
+import { NInput, NInputNumber, NSwitch, NButton, NModal, useMessage, useDialog } from 'naive-ui';
 import { fetchSystemConfig, updateSystemConfig } from '@/api/modules';
 
 const message = useMessage();
@@ -242,7 +288,8 @@ const settings = reactive({
   userRegisterEnabled: true,
   chatRevokeTimeLimit: 2,
   chatMessageRetention: 30,
-  mealHistoryRetention: 30
+  mealHistoryRetention: 30,
+  aiExternalAppKey: ''
 });
 
 // 原始值(用于检测变更)
@@ -250,7 +297,8 @@ const originalValues = reactive({
   dishImageLimit: 5,
   chatRevokeTimeLimit: 2,
   chatMessageRetention: 30,
-  mealHistoryRetention: 30
+  mealHistoryRetention: 30,
+  aiExternalAppKey: ''
 });
 
 // 变更状态
@@ -258,6 +306,7 @@ const dishImageLimitChanged = ref(false);
 const chatRevokeTimeLimitChanged = ref(false);
 const chatMessageRetentionChanged = ref(false);
 const mealHistoryRetentionChanged = ref(false);
+const aiExternalAppKeyChanged = ref(false);
 
 // 保存状态
 const savingStates = reactive({
@@ -265,7 +314,8 @@ const savingStates = reactive({
   userRegisterEnabled: false,
   chatRevokeTimeLimit: false,
   chatMessageRetention: false,
-  mealHistoryRetention: false
+  mealHistoryRetention: false,
+  aiExternalAppKey: false
 });
 
 // 加载设置
@@ -307,6 +357,13 @@ const loadSettings = async () => {
       const value = Number(mealRetentionRes.data.configValue) || 30;
       settings.mealHistoryRetention = value;
       originalValues.mealHistoryRetention = value;
+    }
+    
+    // 加载 AI 外部服务 AppKey
+    const aiKeyRes = await fetchSystemConfig('ai_external_app_key');
+    if (aiKeyRes.data && aiKeyRes.data.configValue) {
+      settings.aiExternalAppKey = aiKeyRes.data.configValue;
+      originalValues.aiExternalAppKey = aiKeyRes.data.configValue;
     }
   } catch (error) {
     console.error('加载设置失败:', error);
@@ -448,6 +505,30 @@ const saveMealHistoryRetention = async () => {
     message.error(error.message || '保存失败');
   } finally {
     savingStates.mealHistoryRetention = false;
+  }
+};
+
+// AI AppKey 变更检测
+const onAiExternalAppKeyChange = (value: string) => {
+  aiExternalAppKeyChanged.value = value !== originalValues.aiExternalAppKey;
+};
+
+// 保存 AI AppKey
+const saveAiExternalAppKey = async () => {
+  savingStates.aiExternalAppKey = true;
+  try {
+    await updateSystemConfig({
+      configKey: 'ai_external_app_key',
+      configValue: settings.aiExternalAppKey
+    });
+    originalValues.aiExternalAppKey = settings.aiExternalAppKey;
+    aiExternalAppKeyChanged.value = false;
+    message.success('AI AppKey 已更新');
+  } catch (error: any) {
+    console.error('保存失败:', error);
+    message.error(error.message || '保存失败');
+  } finally {
+    savingStates.aiExternalAppKey = false;
   }
 };
 

@@ -12,6 +12,8 @@ import com.yao.food_menu.service.AiChatService;
 import com.yao.food_menu.service.MenuRecommendService;
 import com.yao.food_menu.service.SmartOrderService;
 import com.yao.food_menu.service.WxUserService;
+import com.yao.food_menu.service.SystemConfigService;
+import com.yao.food_menu.config.AiConfig;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +45,12 @@ public class WxAiAssistantController {
 
     @Autowired
     private com.yao.food_menu.service.ai.AiServiceFactory aiServiceFactory;
+
+    @Autowired
+    private SystemConfigService systemConfigService;
+
+    @Autowired
+    private AiConfig aiConfig;
 
     /**
      * AI对话
@@ -199,6 +207,44 @@ public class WxAiAssistantController {
         } catch (Exception e) {
             log.error("生成菜品简介失败", e);
             return Result.error("生成菜品简介失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取 AI 客服动态 URL
+     */
+    @GetMapping("/customer-service-url")
+    @Operation(summary = "获取AI客服URL", description = "获取包含动态AppKey的AI客服H5页面地址")
+    public Result<String> getCustomerServiceUrl() {
+        try {
+            AiConfig.ExternalConfig config = aiConfig.getExternal();
+            if (config == null) {
+                return Result.error("未配置外部AI服务信息");
+            }
+
+            // 获取 AppKey (优先从数据库获取, 回退到 application.yml)
+            String appKeyFromDb = systemConfigService.getConfigValue("ai_external_app_key");
+            String appKey;
+            if (appKeyFromDb != null && !appKeyFromDb.trim().isEmpty()) {
+                appKey = appKeyFromDb;
+                log.info("小程序AI客服: 使用数据库配置的 AppKey: {}", appKey);
+            } else {
+                appKey = config.getAppKey();
+                log.info("小程序AI客服: 数据库未配置 AppKey, 使用配置文件默认值: {}", appKey);
+            }
+
+            if (appKey == null || appKey.trim().isEmpty()) {
+                return Result.error("AI 外部服务 AppKey 未配置");
+            }
+
+            // 拼接动态 URL (格式与原硬编码一致)
+            String dynamicUrl = config.getBaseUrl() + "/widget/h5-mobile.html?appKey=" + appKey;
+            log.info("生成动态AI客服URL: {}", dynamicUrl);
+
+            return Result.success(dynamicUrl);
+        } catch (Exception e) {
+            log.error("获取AI客服URL失败", e);
+            return Result.error("获取AI客服URL失败: " + e.getMessage());
         }
     }
 }
