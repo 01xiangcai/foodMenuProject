@@ -6,8 +6,8 @@
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>onetwo后台</title>
-  <script type="module" crossorigin src="/assets/index-BLoee0jw.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-DDe4m1_p.css">
+  <script type="module" crossorigin src="/assets/index--D6JKNdh.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-DQV-4KHv.css">
 </head>
 
 <body>
@@ -15,7 +15,11 @@
   <!-- AI 客服组件 -->
   <script>
     (function () {
-      var serverUrl = 'http://localhost:9900';
+      // 优化：不再硬编码 localhost，而是基于当前访问地址猜测一个合理的备选。
+      // 在生产环境，localhost 会指向用户自己的机器而非服务器。
+      var currentHost = window.location.hostname;
+      var currentProtocol = window.location.protocol;
+      var serverUrl = currentProtocol + '//' + currentHost + ':9900';
 
       // 增强型拖拽功能实现
       function initDraggable(container) {
@@ -150,12 +154,23 @@
           if (res.code === 1 && res.data && res.data.appKey) {
             var appKey = res.data.appKey;
             var dynamicBaseUrl = res.data.baseUrl || serverUrl;
+            
+            if (!appKey) {
+              console.warn('[AI客服] 配置中 AppKey 为空，组件将不会初始化。请前往 [系统设置] 配置应用密钥。');
+              return;
+            }
+
+            // 安全性检查：如果当前不是 localhost，但地址指向了 localhost，发出警告
+            if (window.location.hostname !== 'localhost' && dynamicBaseUrl.indexOf('localhost') !== -1) {
+              console.warn('[AI客服] 当前环境为生产域名，但 AI 基准地址指向 localhost，可能会由于客户端无法连接服务器导致组件加载失败。');
+            }
+
             console.log('[AI客服] 使用 BaseUrl:', dynamicBaseUrl, 'AppKey:', appKey);
             
             var script = document.createElement('script');
             script.src = dynamicBaseUrl + '/widget/ai-cs-widget.js';
             script.onerror = function() {
-              console.error('[AI客服] 无法加载组件脚本:', script.src);
+              console.error('[AI客服] 无法加载组件脚本: ' + script.src + '\n可能原因：1.数据库未配置 ai_external_base_url; 2.AI客服后端未启动; 3.地址跨域(CORS)限制');
             };
             script.onload = function () {
               console.log('[AI客服] 组件脚本加载成功');
@@ -171,7 +186,7 @@
             };
             document.body.appendChild(script);
           } else {
-            console.warn('[AI客服] 配置校验未通过，不初始化组件', res);
+            console.warn('[AI客服] 配置校验未通过（可能 code 不为 1 或缺少数据），不初始化组件', res);
           }
         })
         .catch(err => {

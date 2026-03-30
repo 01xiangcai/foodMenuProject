@@ -303,7 +303,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
 import { NInput, NInputNumber, NSwitch, NButton, useMessage, useDialog } from 'naive-ui';
-import { fetchSystemConfig, updateSystemConfig } from '@/api/modules';
+import { fetchSystemConfigs, updateSystemConfig } from '@/api/modules';
 
 const message = useMessage();
 const dialog = useDialog();
@@ -351,55 +351,72 @@ const savingStates = reactive({
 // 加载设置
 const loadSettings = async () => {
   try {
-    const dishImageRes = await fetchSystemConfig('dish_image_limit');
-    if (dishImageRes.data?.configValue) {
-      const value = Number(dishImageRes.data.configValue) || 5;
-      settings.dishImageLimit = value;
-      originalValues.dishImageLimit = value;
-    }
+    const res = await fetchSystemConfigs();
+    if (res.code === 1 && Array.isArray(res.data)) {
+      const configMap: Record<string, string> = {};
+      res.data.forEach((item: any) => {
+        configMap[item.configKey] = item.configValue;
+      });
 
-    const registerRes = await fetchSystemConfig('user_register_enabled');
-    if (registerRes.data?.configValue) {
-      settings.userRegisterEnabled = registerRes.data.configValue === 'true' || registerRes.data.configValue === '1';
-    }
+      // 1. 菜品图片数量限制
+      if (configMap['dish_image_limit']) {
+        const val = Number(configMap['dish_image_limit']) || 5;
+        settings.dishImageLimit = val;
+        originalValues.dishImageLimit = val;
+      }
 
-    const revokeRes = await fetchSystemConfig('chat_revoke_time_limit');
-    if (revokeRes.data?.configValue) {
-      const value = Number(revokeRes.data.configValue) || 2;
-      settings.chatRevokeTimeLimit = value;
-      originalValues.chatRevokeTimeLimit = value;
-    }
+      // 2. 用户自主注册
+      if (configMap['user_register_enabled']) {
+        const val = configMap['user_register_enabled'];
+        settings.userRegisterEnabled = val === 'true' || val === '1';
+      }
 
-    const chatRetentionRes = await fetchSystemConfig('chat_message_retention_days');
-    if (chatRetentionRes.data?.configValue) {
-      const value = Number(chatRetentionRes.data.configValue) || 30;
-      settings.chatMessageRetention = value;
-      originalValues.chatMessageRetention = value;
-    }
+      // 3. 消息撤回时限
+      if (configMap['chat_revoke_time_limit']) {
+        const val = Number(configMap['chat_revoke_time_limit']) || 2;
+        settings.chatRevokeTimeLimit = val;
+        originalValues.chatRevokeTimeLimit = val;
+      }
 
-    const mealRetentionRes = await fetchSystemConfig('meal.history.retention.days');
-    if (mealRetentionRes.data?.configValue) {
-      const value = Number(mealRetentionRes.data.configValue) || 30;
-      settings.mealHistoryRetention = value;
-      originalValues.mealHistoryRetention = value;
-    }
-    
-    const aiKeyRes = await fetchSystemConfig('ai_external_app_key');
-    if (aiKeyRes.data?.configValue) {
-      settings.aiExternalAppKey = aiKeyRes.data.configValue;
-      originalValues.aiExternalAppKey = aiKeyRes.data.configValue;
-    }
+      // 4. 聊天消息保留天数
+      if (configMap['chat_message_retention_days']) {
+        const val = Number(configMap['chat_message_retention_days']) || 30;
+        settings.chatMessageRetention = val;
+        originalValues.chatMessageRetention = val;
+      }
 
-    const aiUrlRes = await fetchSystemConfig('ai_external_base_url');
-    if (aiUrlRes.data?.configValue) {
-      settings.aiExternalBaseUrl = aiUrlRes.data.configValue;
-      originalValues.aiExternalBaseUrl = aiUrlRes.data.configValue;
+      // 5. 历史数据保留天数
+      if (configMap['meal.history.retention.days']) {
+        const val = Number(configMap['meal.history.retention.days']) || 30;
+        settings.mealHistoryRetention = val;
+        originalValues.mealHistoryRetention = val;
+      }
+
+      // 6. AI 外部服务 - AppKey
+      if (configMap['ai_external_app_key'] !== undefined) {
+        const val = configMap['ai_external_app_key'] || '';
+        settings.aiExternalAppKey = val;
+        originalValues.aiExternalAppKey = val;
+        console.log('[AI配置] 加载 AppKey 成功:', val ? '********' : '未设置');
+      }
+
+      // 7. AI 外部服务 - BaseUrl
+      if (configMap['ai_external_base_url'] !== undefined) {
+        const val = configMap['ai_external_base_url'] || '';
+        settings.aiExternalBaseUrl = val;
+        originalValues.aiExternalBaseUrl = val;
+        console.log('[AI配置] 加载 BaseUrl 成功:', val);
+      }
     }
   } catch (error) {
     console.error('加载设置失败:', error);
     message.error('加载设置失败');
   }
 };
+
+onMounted(() => {
+  loadSettings();
+});
 
 const onDishImageLimitChange = (value: number | null) => {
   if (value !== null) dishImageLimitChanged.value = value !== originalValues.dishImageLimit;

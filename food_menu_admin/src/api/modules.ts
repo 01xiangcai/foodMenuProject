@@ -113,6 +113,12 @@ export type WxUserPayload = {
   familyId?: number; // 家庭ID（超级管理员可以设置）
 };
 
+export interface Result<T = any> {
+  code: number;
+  msg: string;
+  data: T;
+}
+
 export const login = (data: LoginPayload) => http.post('/user/login', data);
 
 export const fetchProfile = () => http.get('/user/info');
@@ -222,9 +228,9 @@ export const updateDishTag = (data: DishTagPayload) => http.put('/dish-tag', dat
 export const removeDishTag = (id: number) => http.delete(`/dish-tag/${id}`);
 
 // 系统配置
-export const fetchSystemConfig = (key: string) => http.get(`/systemConfig/${key}`);
-export const updateSystemConfig = (data: { configKey: string; configValue: string }) => http.put('/systemConfig', data);
-export const fetchSystemConfigs = () => http.get('/systemConfig/list');
+export const fetchSystemConfig = (key: string): Promise<Result> => http.get(`/systemConfig/${key}`);
+export const updateSystemConfig = (data: { configKey: string; configValue: string }): Promise<Result> => http.put('/systemConfig', data);
+export const fetchSystemConfigs = (): Promise<Result<any[]>> => http.get('/systemConfig/list');
 
 // 家庭管理
 export type FamilyQuery = {
